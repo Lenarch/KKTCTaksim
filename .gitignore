@@ -1,0 +1,46 @@
+# Flutter-related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbol lookup and code analysis
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.metadata
+
+# Android related
+**/doc/api/
+**/android/local.properties
+**/android/key.properties
+**/android/app/src/main/res/raw/google_services.json
+**/android/app/src/main/assets/google-services.json
+**/android/app/google-services.json
+**/android/app/src/debug/res/values/google_maps_api_key.xml
+**/android/app/src/release/res/values/google_maps_api_key.xml
+**/android/app/src/main/res/values/google_maps_api_key.xml
+
+# iOS related
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/App.framework
+**/ios/Flutter/App.podspec
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.framework
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/flutter_messenger_proxy
+
+# Log files
+*.log
+*.sqlitedb
+
+# Custom ignores
+"Yeni klasör"/
+Yeni\ klasör/
+**/Yeni klasör/**
