@@ -4,6 +4,10 @@ import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/screens/home_screen.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/screens/login_screen.dart';
+import 'package:kktc_taksim/screens/my_trips_screen.dart';
+import 'package:kktc_taksim/screens/explore_screen.dart';
+import 'package:kktc_taksim/screens/profile_screen.dart';
+import 'package:kktc_taksim/screens/splash_screen.dart';
 import 'package:kktc_taksim/widgets/nav_bar.dart';
 
 import 'package:kktc_taksim/screens/role_selection_screen.dart';
@@ -23,7 +27,15 @@ class TaxiApp extends StatelessWidget {
       title: 'KKTC Taksim',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const RoleSelectionScreen(),
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.light,
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => const SplashScreen(),
+        '/main': (context) => const MainNavigationHolder(),
+        '/role_selection': (context) => const RoleSelectionScreen(),
+        '/login': (context) => const LoginScreen(),
+      },
     );
   }
 }
@@ -72,9 +84,10 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const Center(child: Text('Kayıtlılar')), // Placeholder
+    const MyTripsScreen(),
     const SharedRideScreen(),
-    const Center(child: Text('Tarihi Yerler')), // Placeholder
+    const ExploreScreen(),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
