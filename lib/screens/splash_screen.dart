@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,16 +11,16 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  late final AnimationController _controller;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: AppDurations.splashAnimation,
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -31,13 +33,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    _navigateToHome();
+    _navigateNext();
   }
 
-  _navigateToHome() async {
-    await Future.delayed(const Duration(seconds: 3));
+  Future<void> _navigateNext() async {
+    await Future.delayed(AppDurations.splashHold);
     if (mounted) {
-      Navigator.pushReplacementNamed(context, '/main');
+      Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
     }
   }
 
@@ -49,6 +51,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       backgroundColor: AppTheme.primaryBlack,
       body: Center(
@@ -60,10 +64,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(AppSpacing.xl),
                   decoration: BoxDecoration(
                     color: AppTheme.primaryYellow,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(AppRadius.xxl),
                   ),
                   child: const Icon(
                     Icons.local_taxi,
@@ -71,22 +75,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     color: AppTheme.primaryBlack,
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Text(
+                const SizedBox(height: AppSpacing.xxl),
+                Text(
                   'KKTC TAKSİM',
-                  style: TextStyle(
+                  style: textTheme.headlineMedium?.copyWith(
                     color: AppTheme.primaryYellow,
-                    fontSize: 32,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 2,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
-                  'KKTC\'nin Akıllı Taksi Uygulaması',
-                  style: TextStyle(
-                    color: AppTheme.white.withOpacity(0.7),
-                    fontSize: 16,
+                  "KKTC'nin Akıllı Taksi Uygulaması",
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: AppTheme.white.withValues(alpha: 0.7),
                   ),
                 ),
               ],

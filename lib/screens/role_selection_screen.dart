@@ -1,131 +1,152 @@
 import 'package:flutter/material.dart';
+import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:kktc_taksim/screens/login_screen.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/ui_helpers.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            children: [
-              const SizedBox(height: 60),
-              // Logo ve Başlık
-              const Icon(
-                Icons.local_taxi_rounded,
-                size: 100,
-                color: AppTheme.primaryGreen,
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'KKTC TAKSİM',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    const SizedBox(height: AppSpacing.huge),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryYellow,
+                        borderRadius: BorderRadius.circular(AppRadius.xxl),
+                      ),
+                      child: const Icon(Icons.local_taxi_rounded, size: 72, color: AppTheme.primaryBlack),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'KKTC TAKSİM',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Lütfen devam etmek için rolünüzü seçin',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const Spacer(),
+                    const SizedBox(height: AppSpacing.xxxl),
+                    _RoleButton(
+                      title: 'Ben Yolcuyum',
+                      subtitle: 'Taksi çağırın, yolculuk paylaşın',
+                      icon: Icons.person_outline_rounded,
+                      highlighted: true,
+                      onTap: () => Navigator.pushNamed(context, AppRoutes.login),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _RoleButton(
+                      title: 'Ben Şoförüm',
+                      subtitle: 'Çağrıları yönetin, kazanç sağlayın',
+                      icon: Icons.drive_eta_rounded,
+                      onTap: () => showComingSoon(context, 'Şoför girişi'),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _RoleButton(
+                      title: 'Taksi Durağı',
+                      subtitle: 'Durağınızı ve filonuzu yönetin',
+                      icon: Icons.business_rounded,
+                      onTap: () => showComingSoon(context, 'Durak girişi'),
+                    ),
+                    const SizedBox(height: AppSpacing.huge),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Lütfen devam etmek için rolünüzü seçin',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const Spacer(),
-              // Rol Butonları
-              _buildRoleButton(
-                context,
-                title: 'Ben Yolcuyum',
-                subtitle: 'Taksi çağırın, yolculuk paylaşın',
-                icon: Icons.person_outline_rounded,
-                color: AppTheme.primaryGreen,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-              ),
-              const SizedBox(height: 20),
-              _buildRoleButton(
-                context,
-                title: 'Ben Şoförüm',
-                subtitle: 'Çağrıları yönetin, kazanç sağlayın',
-                icon: Icons.drive_eta_rounded,
-                color: AppTheme.secondaryBlack,
-                onTap: () {
-                  // İleride Şoför Giriş Ekranına gidecek
-                },
-              ),
-              const SizedBox(height: 20),
-              _buildRoleButton(
-                context,
-                title: 'Taksi Durağı',
-                subtitle: 'Durağınızı ve filonuzu yönetin',
-                icon: Icons.business_rounded,
-                color: AppTheme.accentBlue,
-                onTap: () {
-                  // İleride Durak Giriş Ekranına gidecek
-                },
-              ),
-              const SizedBox(height: 60),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildRoleButton(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withOpacity(0.3), width: 2),
-          borderRadius: BorderRadius.circular(20),
-          color: color.withOpacity(0.02),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 32),
+class _RoleButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  const _RoleButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final borderRadius = BorderRadius.circular(AppRadius.xl);
+
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: borderRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            border: Border.all(
+              color: highlighted ? AppTheme.primaryYellow : theme.colorScheme.outlineVariant,
+              width: 2,
             ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: color,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: highlighted ? AppTheme.primaryYellow : theme.colorScheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 32,
+                  color: highlighted ? AppTheme.primaryBlack : theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xl),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                ],
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded, color: color.withOpacity(0.5), size: 18),
-          ],
+              Icon(Icons.arrow_forward_ios_rounded, size: 18, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
         ),
       ),
     );

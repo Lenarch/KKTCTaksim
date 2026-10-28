@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/models/place.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -10,185 +12,161 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  String _selectedCategory = 'Hepsi';
+  String _selectedCategory = MockData.allCategories;
+  String _query = '';
 
-  final List<String> _categories = [
-    'Hepsi',
-    'Restoran',
-    'Kafe',
-    'Otel',
-    'Eğlence',
-    'Alışveriş',
-    'Tarihi Yerler',
-  ];
+  List<Place> get _visiblePlaces {
+    final query = _query.trim().toLowerCase();
+    return MockData.places.where((place) {
+      final matchesCategory =
+          _selectedCategory == MockData.allCategories || place.category == _selectedCategory;
+      final matchesQuery = query.isEmpty || place.name.toLowerCase().contains(query);
+      return matchesCategory && matchesQuery;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final places = _visiblePlaces;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Keşfet'),
-      ),
+      appBar: AppBar(title: const Text('Keşfet')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search Field
           Padding(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5)),
-                ],
-              ),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Yakınında ne arıyorsun?',
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: AppTheme.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: TextField(
+              onChanged: (value) => setState(() => _query = value),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Yakınında ne arıyorsun?',
+                prefixIcon: const Icon(Icons.search),
+                fillColor: theme.colorScheme.surface,
               ),
             ),
           ),
-
-          // Categories
           SizedBox(
             height: 50,
-            child: ListView.builder(
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              itemCount: _categories.length,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              itemCount: MockData.placeCategories.length,
+              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
               itemBuilder: (context, index) {
-                final category = _categories[index];
+                final category = MockData.placeCategories[index];
                 final isSelected = _selectedCategory == category;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: ChoiceChip(
-                    label: Text(category),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() => _selectedCategory = category);
-                    },
-                    selectedColor: AppTheme.primaryYellow,
-                    backgroundColor: AppTheme.white,
-                    labelStyle: TextStyle(
-                      color: isSelected ? AppTheme.primaryBlack : AppTheme.grayText,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide.none,
-                    ),
-                    showCheckmark: false,
+                return ChoiceChip(
+                  label: Text(category),
+                  selected: isSelected,
+                  onSelected: (_) => setState(() => _selectedCategory = category),
+                  labelStyle: TextStyle(
+                    color: isSelected ? AppTheme.primaryBlack : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 );
               },
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // Popular Places
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.md),
             child: Text(
               'Popüler Yerler',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
-
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
-                _buildPlaceCard(
-                  'Girne Yat Limanı',
-                  'Tarihi Yerler',
-                  '4.8',
-                  '2.3 km',
-                  '%10 İndirim',
-                  Colors.blue[100]!,
-                ),
-                _buildPlaceCard(
-                  'Bellapais Manastırı',
-                  'Tarihi Yerler',
-                  '4.9',
-                  '5.1 km',
-                  'Ücretsiz Giriş',
-                  Colors.orange[100]!,
-                ),
-                _buildPlaceCard(
-                  'Nezih Restoran',
-                  'Restoran',
-                  '4.5',
-                  '0.8 km',
-                  '%15 İndirim',
-                  Colors.green[100]!,
-                ),
-                _buildPlaceCard(
-                  'Elexus Resort',
-                  'Otel',
-                  '4.7',
-                  '12.0 km',
-                  'Özel Kampanya',
-                  Colors.purple[100]!,
-                ),
-              ],
-            ),
+            child: places.isEmpty
+                ? Center(
+                    child: Text(
+                      'Aramana uygun yer bulunamadı',
+                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    itemCount: places.length,
+                    itemBuilder: (context, index) => _PlaceCard(place: places[index]),
+                  ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildPlaceCard(String name, String category, String rating, String distance, String badge, Color color) {
+class _PlaceCard extends StatelessWidget {
+  final Place place;
+
+  const _PlaceCard({required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mutedColor = theme.colorScheme.onSurfaceVariant;
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             height: 150,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Center(
-              child: Icon(Icons.image, size: 50, color: Colors.black.withOpacity(0.1)),
-            ),
+            color: place.imageColor,
+            alignment: Alignment.center,
+            child: Icon(Icons.image, size: 50, color: Colors.black.withValues(alpha: 0.1)),
           ),
           Padding(
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Expanded(
+                      child: Text(
+                        place.name,
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: AppTheme.primaryYellow, borderRadius: BorderRadius.circular(8)),
-                      child: Text(badge, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryYellow,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        place.badge,
+                        style: const TextStyle(
+                          color: AppTheme.primaryBlack,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 5),
-                Text(category, style: const TextStyle(color: AppTheme.grayText, fontSize: 12)),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.xs),
+                Text(place.category, style: TextStyle(color: mutedColor, fontSize: 12)),
+                const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 16),
-                    const SizedBox(width: 4),
-                    Text(rating, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(width: 15),
-                    const Icon(Icons.location_on, color: AppTheme.grayText, size: 16),
-                    const SizedBox(width: 4),
-                    Text(distance, style: const TextStyle(color: AppTheme.grayText, fontSize: 13)),
+                    const Icon(Icons.star, color: AppTheme.ratingAmber, size: 16),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      place.rating.toStringAsFixed(1),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(width: AppSpacing.lg),
+                    Icon(Icons.location_on, color: mutedColor, size: 16),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      '${place.distanceKm.toStringAsFixed(1)} km',
+                      style: TextStyle(color: mutedColor, fontSize: 13),
+                    ),
                   ],
                 ),
               ],

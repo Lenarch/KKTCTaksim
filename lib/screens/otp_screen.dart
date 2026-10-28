@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:kktc_taksim/main.dart';
+import 'package:flutter/services.dart';
+import 'package:kktc_taksim/core/app_routes.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/widgets/auth_header.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -11,142 +13,116 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final List<TextEditingController> _controllers = List.generate(4, (index) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
+  static const int _codeLength = 4;
+
+  final List<TextEditingController> _controllers =
+      List.generate(_codeLength, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(_codeLength, (_) => FocusNode());
+
+  bool get _isCodeComplete => _controllers.every((c) => c.text.isNotEmpty);
 
   @override
   void dispose() {
-    for (var controller in _controllers) {
+    for (final controller in _controllers) {
       controller.dispose();
     }
-    for (var node in _focusNodes) {
+    for (final node in _focusNodes) {
       node.dispose();
     }
     super.dispose();
   }
 
+  void _onDigitChanged(int index, String value) {
+    if (value.isNotEmpty && index < _codeLength - 1) {
+      _focusNodes[index + 1].requestFocus();
+    } else if (value.isEmpty && index > 0) {
+      _focusNodes[index - 1].requestFocus();
+    }
+    setState(() {});
+  }
+
+  void _verify() {
+    // TODO: Kod sunucuda doğrulanacak; şimdilik her 4 haneli kod kabul ediliyor.
+    // Messenger, eski ekran kapanmadan önce alınır; uygulama genelindeki messenger
+    // olduğu için SnackBar yeni ekranda da görünür.
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Doğrulama başarılı! Hoş geldiniz.')),
+    );
+  }
+
+  void _resend() {
+    for (final controller in _controllers) {
+      controller.clear();
+    }
+    _focusNodes.first.requestFocus();
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Kod ${widget.phoneNumber} numarasına tekrar gönderildi.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.secondaryBlack),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            const Text(
-              'Doğrulama Kodu',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.secondaryBlack,
+      appBar: AppBar(backgroundColor: Colors.transparent),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: AppSpacing.lg),
+              AuthHeader(
+                title: 'Doğrulama Kodu',
+                subtitle: '${widget.phoneNumber} numarasına gönderilen $_codeLength haneli kodu giriniz.',
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '${widget.phoneNumber} numarasına gönderilen 4 haneli kodu giriniz.',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 50),
-            // OTP Giriş Kutuları
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(4, (index) {
-                return SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    maxLength: 1,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      counterText: "",
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: const BorderSide(color: Colors.grey),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2),
-                      ),
+              const SizedBox(height: AppSpacing.huge),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(_codeLength, (index) {
+                  return SizedBox(
+                    width: 64,
+                    child: TextField(
+                      controller: _controllers[index],
+                      focusNode: _focusNodes[index],
+                      autofocus: index == 0,
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      maxLength: 1,
+                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                      decoration: const InputDecoration(counterText: ''),
+                      onChanged: (value) => _onDigitChanged(index, value),
                     ),
-                    onChanged: (value) {
-                      if (value.isNotEmpty && index < 3) {
-                        _focusNodes[index + 1].requestFocus();
-                      } else if (value.isEmpty && index > 0) {
-                        _focusNodes[index - 1].requestFocus();
-                      }
-                    },
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 40),
-            // Doğrula Butonu
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 5,
-                  shadowColor: AppTheme.primaryGreen.withOpacity(0.4),
-                ),
-                onPressed: () {
-                  // Doğrulama başarılı simülasyonu
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MainNavigationHolder()),
-                    (route) => false,
                   );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Doğrulama başarılı! Hoş geldiniz.')),
-                  );
-                },
-                child: const Text(
-                  'Doğrula',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                }),
+              ),
+              const SizedBox(height: AppSpacing.xxxl),
+              ElevatedButton(
+                onPressed: _isCodeComplete ? _verify : null,
+                child: const Text('Doğrula'),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      'Kod gelmedi mi?',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    TextButton(
+                      onPressed: _resend,
+                      child: const Text('Tekrar Gönder'),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 30),
-            Center(
-              child: Column(
-                children: [
-                  const Text(
-                    'Kod gelmedi mi?',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      'Tekrar Gönder',
-                      style: TextStyle(
-                        color: AppTheme.primaryGreen,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

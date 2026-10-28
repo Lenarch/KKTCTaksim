@@ -1,10 +1,21 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 
-enum AppState { idle, selectingTaxi, searching, driverFound, activeTrip, tripCompleted }
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:kktc_taksim/core/app_theme.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/models/taxi_option.dart';
+import 'package:kktc_taksim/services/location_service.dart';
+import 'package:kktc_taksim/widgets/home/active_trip_sheet.dart';
+import 'package:kktc_taksim/widgets/home/destination_sheet.dart';
+import 'package:kktc_taksim/widgets/home/driver_found_sheet.dart';
+import 'package:kktc_taksim/widgets/home/ride_map.dart';
+import 'package:kktc_taksim/widgets/home/taxi_selection_sheet.dart';
+import 'package:kktc_taksim/widgets/home/trip_completed_dialog.dart';
+
+enum RideState { idle, selectingTaxi, searching, driverFound, activeTrip, tripCompleted }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,420 +25,336 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final MapController _mapController = MapController();
-  AppState _currentState = AppState.idle;
+  final GlobalKey<RideMapState> _mapKey = GlobalKey();
+  final LocationService _locationService = LocationService();
+  StreamSubscription<LatLng>? _positionSubscription;
+  LatLng? _userLocation;
+  LocationStatus? _locationStatus;
 
-  void _onDestinationSelected() {
-    Navigator.pop(context); // Close destination bottom sheet
-    setState(() {
-      _currentState = AppState.selectingTaxi;
-    });
-    _showTaxiSelectionBottomSheet();
+  RideState _state = RideState.idle;
+  Timer? _searchTimer;
+  String? _destination;
+  TaxiOption? _taxiOption;
+
+  @override
+  void initState() {
+    super.initState();
+    _locate();
   }
 
-  void _showDestinationBottomSheet() {
-    showModalBottomSheet(
+  @override
+  void dispose() {
+    _searchTimer?.cancel();
+    _positionSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// Taksilerin ve haritanın merkezi: gerçek konum, yoksa Lefkoşa merkez.
+  LatLng get _origin => _userLocation ?? MockData.fallbackLocation;
+
+  Future<void> _locate({bool userInitiated = false}) async {
+    final result = await _locationService.current();
+    if (!mounted) return;
+    setState(() {
+      _locationStatus = result.status;
+      if (result.isGranted) _userLocation = result.position;
+    });
+
+    if (result.isGranted) {
+      _mapKey.currentState?.moveTo(result.position!);
+      _positionSubscription ??= _locationService.watch().listen((position) {
+        if (mounted) setState(() => _userLocation = position);
+      });
+    } else if (userInitiated || result.status != LocationStatus.denied) {
+      _showLocationProblem(result.status);
+    }
+  }
+
+  void _showLocationProblem(LocationStatus status) {
+    final canOpenSettings = !kIsWeb &&
+        (status == LocationStatus.deniedForever || status == LocationStatus.serviceDisabled);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text('${LocationService.describe(status)} Harita Lefkoşa merkezde gösteriliyor.'),
+        action: canOpenSettings
+            ? SnackBarAction(label: 'Ayarlar', onPressed: () => _locationService.openSettings(status))
+            : null,
+      ));
+  }
+
+  void _reset() {
+    _searchTimer?.cancel();
+    setState(() {
+      _state = RideState.idle;
+      _destination = null;
+      _taxiOption = null;
+    });
+  }
+
+  Future<void> _chooseDestination() async {
+    final destination = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DestinationBottomSheet(onSelected: _onDestinationSelected),
+      builder: (_) => const DestinationSheet(),
     );
+    if (!mounted || destination == null) return;
+    _destination = destination;
+    await _chooseTaxi(destination);
   }
 
-  void _showTaxiSelectionBottomSheet() {
-    showModalBottomSheet(
+  Future<void> _chooseTaxi(String destination) async {
+    setState(() => _state = RideState.selectingTaxi);
+    final option = await showModalBottomSheet<TaxiOption>(
       context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (context) => TaxiSelectionBottomSheet(
-        onConfirm: () {
-          Navigator.pop(context);
-          _startSearching();
-        },
-      ),
+      isScrollControlled: true,
+      builder: (_) => TaxiSelectionSheet(destination: destination),
     );
+    if (!mounted) return;
+    if (option == null) {
+      _reset();
+      return;
+    }
+    _taxiOption = option;
+    _startSearching();
   }
 
   void _startSearching() {
-    setState(() => _currentState = AppState.searching);
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        setState(() => _currentState = AppState.driverFound);
-        _showDriverFoundBottomSheet();
-      }
-    });
+    setState(() => _state = RideState.searching);
+    _searchTimer?.cancel();
+    _searchTimer = Timer(AppDurations.driverSearch, _onDriverFound);
   }
 
-  void _showDriverFoundBottomSheet() {
-    showModalBottomSheet(
+  Future<void> _onDriverFound() async {
+    if (!mounted) return;
+    setState(() => _state = RideState.driverFound);
+    final started = await showModalBottomSheet<bool>(
       context: context,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DriverFoundBottomSheet(
-        onStart: () {
-          Navigator.pop(context);
-          setState(() => _currentState = AppState.activeTrip);
-          _showActiveTripBottomSheet();
-        },
-      ),
+      builder: (_) => const DriverFoundSheet(driver: MockData.driver),
     );
+    if (!mounted) return;
+    if (started != true) {
+      _reset();
+      return;
+    }
+    await _startTrip();
   }
 
-  void _showActiveTripBottomSheet() {
-    showModalBottomSheet(
+  Future<void> _startTrip() async {
+    setState(() => _state = RideState.activeTrip);
+    final completed = await showModalBottomSheet<bool>(
       context: context,
       isDismissible: false,
-      enableDrag: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ActiveTripBottomSheet(
-        onComplete: () {
-          Navigator.pop(context);
-          setState(() => _currentState = AppState.tripCompleted);
-          _showTripCompletedDialog();
-        },
-      ),
+      enableDrag: false,
+      builder: (_) => ActiveTripSheet(destination: _destination!, option: _taxiOption!),
     );
+    if (!mounted) return;
+    if (completed == true) {
+      setState(() => _state = RideState.tripCompleted);
+      await showDialog<int>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => TripCompletedDialog(price: _taxiOption!.price),
+      );
+      if (!mounted) return;
+    }
+    _reset();
   }
 
-  void _showTripCompletedDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const TripCompletedDialog(),
-    ).then((_) {
-      setState(() => _currentState = AppState.idle);
-    });
+  void _recenter() {
+    final user = _userLocation;
+    if (_locationStatus == LocationStatus.granted && user != null) {
+      _mapKey.currentState?.moveTo(user);
+    } else {
+      _locate(userInitiated: true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final showAssignedTaxi = _state == RideState.driverFound || _state == RideState.activeTrip;
+
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Map Layer
-          FlutterMap(
-            mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: LatLng(35.1856, 33.3823),
-              initialZoom: 14.0,
-              interactionOptions: InteractionOptions(
-                flags: InteractiveFlag.all \u0026 ~InteractiveFlag.rotate,
-              ),
+          RideMap(
+            key: _mapKey,
+            initialCenter: _origin,
+            userLocation: _userLocation,
+            taxis: _state == RideState.idle
+                ? [for (final offset in MockData.nearbyTaxiOffsets) MockData.offsetFrom(_origin, offset)]
+                : const [],
+            assignedTaxi: showAssignedTaxi ? MockData.offsetFrom(_origin, MockData.assignedTaxiOffset) : null,
+          ),
+          if (_state == RideState.idle) const _IdleHeader(),
+          Positioned(
+            left: AppSpacing.xl,
+            right: AppSpacing.xl,
+            bottom: AppSpacing.xxxl,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton(
+                  mini: true,
+                  heroTag: null,
+                  tooltip: 'Konumuma git',
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                  onPressed: _recenter,
+                  child: const Icon(Icons.gps_fixed),
+                ),
+                if (_state == RideState.idle) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _SearchCard(onTap: _chooseDestination),
+                ],
+              ],
             ),
+          ),
+          if (_state == RideState.searching)
+            Positioned.fill(child: _SearchingOverlay(onCancel: _reset)),
+        ],
+      ),
+    );
+  }
+}
+
+class _IdleHeader extends StatelessWidget {
+  const _IdleHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)],
+          ),
+          child: Row(
             children: [
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-              ),
-              MarkerLayer(
-                markers: [
-                  const Marker(
-                    point: LatLng(35.1856, 33.3823),
-                    width: 60,
-                    height: 60,
-                    child: Icon(Icons.my_location, color: Colors.blue, size: 30),
-                  ),
-                  if (_currentState == AppState.idle) ...[
-                    _buildTaxiMarker(const LatLng(35.1900, 33.3850)),
-                    _buildTaxiMarker(const LatLng(35.1800, 33.3750)),
-                  ],
-                  if (_currentState == AppState.driverFound || _currentState == AppState.activeTrip)
-                    Marker(
-                      point: const LatLng(35.1880, 33.3860),
-                      width: 50,
-                      height: 50,
-                      child: Container(
-                        decoration: BoxDecoration(color: AppTheme.primaryYellow, shape: BoxShape.circle, border: Border.all(width: 2)),
-                        child: const Icon(Icons.local_taxi, color: Colors.black),
-                      ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Merhaba ${MockData.userName} 👋',
+                      style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
                     ),
+                    Text(
+                      'Nereye gitmek istersin?',
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const CircleAvatar(
+                radius: 25,
+                backgroundColor: AppTheme.primaryYellow,
+                child: Icon(Icons.person, color: AppTheme.primaryBlack),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SearchCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final borderRadius = BorderRadius.circular(AppRadius.xxl);
+
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: borderRadius,
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.3),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.location_on, color: AppTheme.locationBlue),
+                  const SizedBox(width: AppSpacing.lg),
+                  Text('Mevcut konumun', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                child: Divider(indent: 40),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.circle, color: AppTheme.errorRed, size: 20),
+                  const SizedBox(width: AppSpacing.lg),
+                  Text(
+                    'Nereye gitmek istiyorsun?',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
             ],
           ),
-
-          if (_currentState == AppState.idle) _buildIdleHeader(),
-          if (_currentState == AppState.idle) _buildSearchCard(),
-          if (_currentState == AppState.searching) _buildSearchingOverlay(),
-
-          // Map Controls
-          Positioned(
-            right: 20,
-            bottom: _currentState == AppState.idle ? 180 : 100,
-            child: FloatingActionButton(
-              mini: true,
-              backgroundColor: AppTheme.white,
-              onPressed: () => _mapController.move(const LatLng(35.1856, 33.3823), 14),
-              child: const Icon(Icons.gps_fixed, color: AppTheme.primaryBlack),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIdleHeader() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Merhaba 👋', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500)),
-                Text('Nereye gitmek istersin?', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const CircleAvatar(radius: 25, backgroundColor: AppTheme.primaryYellow, child: Icon(Icons.person, color: Colors.black)),
-          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildSearchCard() {
-    return Positioned(
-      bottom: 30,
-      left: 20,
-      right: 20,
-      child: GestureDetector(
-        onTap: _showDestinationBottomSheet,
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: AppTheme.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)]),
-          child: Column(
-            children: [
-              const Row(children: [Icon(Icons.location_on, color: Colors.blue), SizedBox(width: 15), Text('Mevcut konumun', style: TextStyle(color: AppTheme.grayText))]),
-              const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(indent: 40)),
-              Row(children: [const Icon(Icons.circle, color: AppTheme.errorRed, size: 20), const SizedBox(width: 15), Text('Nereye gitmek istiyorsun?', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16))]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+class _SearchingOverlay extends StatelessWidget {
+  final VoidCallback onCancel;
 
-  Widget _buildSearchingOverlay() {
-    return Container(
-      color: Colors.black.withOpacity(0.5),
+  const _SearchingOverlay({required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.6),
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(color: AppTheme.primaryYellow),
-            const SizedBox(height: 30),
-            Text('Taksi aranıyor...', style: GoogleFonts.poppins(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Text('Yakındaki sürücülerle eşleştiriliyorsun', style: TextStyle(color: Colors.white.withOpacity(0.7))),
-            const SizedBox(height: 50),
-            ElevatedButton(
-              onPressed: () => setState(() => _currentState = AppState.idle),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black, minimumSize: const Size(200, 50)),
-              child: const Text('İptal Et'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Marker _buildTaxiMarker(LatLng point) {
-    return Marker(
-      point: point,
-      width: 40,
-      height: 40,
-      child: Container(
-        decoration: BoxDecoration(color: AppTheme.primaryYellow, shape: BoxShape.circle, border: Border.all(width: 2)),
-        child: const Icon(Icons.local_taxi, size: 20, color: Colors.black),
-      ),
-    );
-  }
-}
-
-// --- Helper Bottom Sheets ---
-
-class DestinationBottomSheet extends StatelessWidget {
-  final VoidCallback onSelected;
-  const DestinationBottomSheet({super.key, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          TextField(decoration: InputDecoration(hintText: 'Nereye gitmek istersin?', prefixIcon: const Icon(Icons.search), filled: true, fillColor: AppTheme.lightBackground, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none))),
-          const SizedBox(height: 20),
-          Expanded(
-            child: ListView(
-              children: [
-                ListTile(leading: const Icon(Icons.history), title: const Text('Ercan Havalimanı'), onTap: onSelected),
-                ListTile(leading: const Icon(Icons.history), title: const Text('Girne Yat Limanı'), onTap: onSelected),
-                ListTile(leading: const Icon(Icons.history), title: const Text('Gazimağusa Surlariçi'), onTap: onSelected),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class TaxiSelectionBottomSheet extends StatefulWidget {
-  final VoidCallback onConfirm;
-  const TaxiSelectionBottomSheet({super.key, required this.onConfirm});
-
-  @override
-  State<TaxiSelectionBottomSheet> createState() => _TaxiSelectionBottomSheetState();
-}
-
-class _TaxiSelectionBottomSheetState extends State<TaxiSelectionBottomSheet> {
-  int _selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Senin için taksiler', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          _buildTaxiOption(0, 'Ekonomik', '3 dk', '₺120', Icons.directions_car),
-          _buildTaxiOption(1, 'Konfor', '5 dk', '₺160', Icons.king_bed),
-          _buildTaxiOption(2, 'XL', '8 dk', '₺220', Icons.airport_shuttle),
-          const SizedBox(height: 20),
-          ElevatedButton(onPressed: widget.onConfirm, child: const Text('TAKSİ ÇAĞIR')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTaxiOption(int index, String name, String time, String price, IconData icon) {
-    bool isSelected = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          border: Border.all(color: isSelected ? AppTheme.primaryYellow : Colors.grey[200]!, width: 2),
-          borderRadius: BorderRadius.circular(16),
-          color: isSelected ? AppTheme.primaryYellow.withOpacity(0.05) : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 40, color: isSelected ? AppTheme.primaryYellow : AppTheme.grayText),
-            const SizedBox(width: 15),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: const TextStyle(fontWeight: FontWeight.bold)), Text(time, style: const TextStyle(color: AppTheme.grayText))])),
-            Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class DriverFoundBottomSheet extends StatelessWidget {
-  final VoidCallback onStart;
-  const DriverFoundBottomSheet({super.key, required this.onStart});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const CircleAvatar(radius: 30, backgroundColor: Colors.grey, child: Icon(Icons.person, color: Colors.white)),
-              const SizedBox(width: 15),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Ahmet Yılmaz', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Row(children: [const Icon(Icons.star, color: Colors.amber, size: 16), const Text(' 4.9')]), const Text('Toyota Corolla • 34 ABC 123')])),
-              Column(children: [const Text('Varış', style: TextStyle(color: AppTheme.grayText)), const Text('3 dk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))]),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(child: OutlinedButton(onPressed: () {}, child: const Text('Mesaj'))),
-              const SizedBox(width: 10),
-              Expanded(child: OutlinedButton(onPressed: () {}, child: const Text('Ara'))),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(onPressed: onStart, child: const Text('YOLCULUĞU BAŞLAT (DEMO)')),
-        ],
-      ),
-    );
-  }
-}
-
-class ActiveTripBottomSheet extends StatelessWidget {
-  final VoidCallback onComplete;
-  const ActiveTripBottomSheet({super.key, required this.onComplete});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Yolculuğun devam ediyor', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.access_time, size: 16, color: AppTheme.grayText), const SizedBox(width: 5), const Text('12 dk kaldı', style: TextStyle(color: AppTheme.grayText))]),
-          const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const CircleAvatar(backgroundColor: AppTheme.primaryYellow, child: Icon(Icons.security, color: Colors.black)),
-              const SizedBox(width: 15),
-              const Text('Güvenlik Araçları', style: TextStyle(fontWeight: FontWeight.bold)),
-              const Spacer(),
-              ElevatedButton(onPressed: onComplete, style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorRed, foregroundColor: Colors.white, minimumSize: const Size(100, 40)), child: const Text('BİTİR (DEMO)')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class TripCompletedDialog extends StatelessWidget {
-  const TripCompletedDialog({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(30),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, color: AppTheme.successGreen, size: 80),
-            const SizedBox(height: 20),
-            Text('Yolculuk Tamamlandı', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            const Text('Toplam Tutar: ₺185,00', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 30),
-            Text('Yolculuğun nasıl geçti?', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-            const SizedBox(height: 10),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (index) => const Icon(Icons.star, color: Colors.amber, size: 30))),
-            const SizedBox(height: 30),
-            ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Değerlendirmeyi Gönder')),
+            const CircularProgressIndicator(),
+            const SizedBox(height: AppSpacing.xxxl),
+            Text(
+              'Taksi aranıyor...',
+              style: textTheme.headlineSmall?.copyWith(color: AppTheme.white, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Yakındaki sürücülerle eşleştiriliyorsun',
+              style: textTheme.bodyMedium?.copyWith(color: AppTheme.white.withValues(alpha: 0.7)),
+            ),
+            const SizedBox(height: AppSpacing.huge),
+            ElevatedButton(
+              onPressed: onCancel,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.white,
+                foregroundColor: AppTheme.primaryBlack,
+                minimumSize: const Size(200, 50),
+              ),
+              child: const Text('İptal Et'),
+            ),
           ],
         ),
       ),

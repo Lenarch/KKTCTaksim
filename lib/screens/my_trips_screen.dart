@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/formatters.dart';
+import 'package:kktc_taksim/core/ui_helpers.dart';
+import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/models/trip.dart';
 
 class MyTripsScreen extends StatelessWidget {
-  const MyTripsScreen({super.key});
+  /// "Taksi Çağır" butonuna basılınca ana sayfa sekmesine geçmek için.
+  final VoidCallback onCallTaxi;
+
+  const MyTripsScreen({super.key, required this.onCallTaxi});
+
+  List<Trip> _tripsWith(TripStatus status) =>
+      MockData.trips.where((trip) => trip.status == status).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -12,12 +22,8 @@ class MyTripsScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Yolculuklarım'),
-          bottom: TabBar(
-            indicatorColor: AppTheme.primaryYellow,
-            labelColor: AppTheme.primaryBlack,
-            unselectedLabelColor: AppTheme.grayText,
-            indicatorSize: TabBarIndicatorSize.label,
-            tabs: const [
+          bottom: const TabBar(
+            tabs: [
               Tab(text: 'Yaklaşan'),
               Tab(text: 'Geçmiş'),
               Tab(text: 'İptal Edilen'),
@@ -26,86 +32,102 @@ class MyTripsScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildUpcomingTrips(),
-            _buildPastTrips(),
-            _buildCancelledTrips(),
+            _TripList(
+              trips: _tripsWith(TripStatus.upcoming),
+              empty: _EmptyTrips(onCallTaxi: onCallTaxi),
+            ),
+            _TripList(
+              trips: _tripsWith(TripStatus.completed),
+              empty: const Center(child: Text('Henüz tamamlanmış yolculuğun yok')),
+            ),
+            _TripList(
+              trips: _tripsWith(TripStatus.cancelled),
+              empty: const Center(child: Text('İptal edilmiş yolculuğun yok')),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildUpcomingTrips() {
+class _TripList extends StatelessWidget {
+  final List<Trip> trips;
+  final Widget empty;
+
+  const _TripList({required this.trips, required this.empty});
+
+  @override
+  Widget build(BuildContext context) {
+    if (trips.isEmpty) return empty;
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      itemCount: trips.length,
+      itemBuilder: (context, index) => _TripCard(trip: trips[index]),
+    );
+  }
+}
+
+class _EmptyTrips extends StatelessWidget {
+  final VoidCallback onCallTaxi;
+
+  const _EmptyTrips({required this.onCallTaxi});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.calendar_today_outlined, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 20),
-          Text(
-            'Yaklaşan yolculuğun yok',
-            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          const Text('Yeni bir yolculuk planlamak ister misin?'),
-          const SizedBox(height: 30),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 50),
-            child: ElevatedButton(
-              onPressed: () {},
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.huge),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.calendar_today_outlined, size: 80, color: theme.colorScheme.outline),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Yaklaşan yolculuğun yok',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Yeni bir yolculuk planlamak ister misin?',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: AppSpacing.xxxl),
+            ElevatedButton(
+              onPressed: onCallTaxi,
               child: const Text('Taksi Çağır'),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildPastTrips() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _buildTripCard(
-          'Lefkoşa Merkez',
-          'Ercan Havalimanı',
-          '24 Ağustos 2026',
-          '₺420,00',
-          'Tamamlandı',
-          AppTheme.successGreen,
-        ),
-        _buildTripCard(
-          'Girne Yat Limanı',
-          'Lefkoşa Surlariçi',
-          '20 Ağustos 2026',
-          '₺350,00',
-          'Tamamlandı',
-          AppTheme.successGreen,
-        ),
-      ],
-    );
-  }
+class _TripCard extends StatelessWidget {
+  final Trip trip;
 
-  Widget _buildCancelledTrips() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _buildTripCard(
-          'Gönyeli',
-          'Gazimağusa',
-          '15 Ağustos 2026',
-          '₺0,00',
-          'İptal Edildi',
-          AppTheme.errorRed,
-        ),
-      ],
-    );
-  }
+  const _TripCard({required this.trip});
 
-  Widget _buildTripCard(String from, String to, String date, String price, String status, Color statusColor) {
+  (String, Color) get _statusLabel => switch (trip.status) {
+        TripStatus.upcoming => ('Planlandı', AppTheme.locationBlue),
+        TripStatus.completed => ('Tamamlandı', AppTheme.successGreen),
+        TripStatus.cancelled => ('İptal Edildi', AppTheme.errorRed),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (status, statusColor) = _statusLabel;
+    const boldStyle = TextStyle(fontWeight: FontWeight.bold);
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xl),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           children: [
             Row(
@@ -113,48 +135,54 @@ class MyTripsScreen extends StatelessWidget {
                 Column(
                   children: [
                     const Icon(Icons.circle, size: 12, color: AppTheme.primaryYellow),
-                    Container(width: 2, height: 20, color: Colors.grey[300]),
+                    Container(width: 2, height: 20, color: theme.colorScheme.outlineVariant),
                     const Icon(Icons.location_on, size: 16, color: AppTheme.errorRed),
                   ],
                 ),
-                const SizedBox(width: 15),
+                const SizedBox(width: AppSpacing.lg),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(from, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 15),
-                      Text(to, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(trip.from, style: boldStyle),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(trip.to, style: boldStyle),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 5),
+                    Text(
+                      formatLira(trip.price),
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Text(
                         status,
-                        style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-            const Divider(height: 30),
+            const Divider(height: AppSpacing.xxxl),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(date, style: const TextStyle(color: AppTheme.grayText, fontSize: 12)),
+                Text(
+                  trip.date,
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () => showComingSoon(context, 'Yolculuk detayı'),
                   child: const Text('Detayları Gör'),
                 ),
               ],

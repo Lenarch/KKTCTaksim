@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/models/shared_ride.dart';
+import 'package:kktc_taksim/widgets/home/sheet_container.dart';
 
 class SharedRideScreen extends StatefulWidget {
   const SharedRideScreen({super.key});
@@ -10,120 +13,73 @@ class SharedRideScreen extends StatefulWidget {
 }
 
 class _SharedRideScreenState extends State<SharedRideScreen> {
-  final List<Map<String, dynamic>> _rides = [
-    {
-      'from': 'Lefkoşa',
-      'to': 'Ercan Havalimanı',
-      'date': '24.08.2026',
-      'time': '14:30',
-      'capacity': 8,
-      'current': 3,
-      'price': 90,
-    },
-    {
-      'from': 'Girne',
-      'to': 'Lefkoşa',
-      'date': '25.08.2026',
-      'time': '10:00',
-      'capacity': 8,
-      'current': 5,
-      'price': 75,
-    },
-  ];
+  final List<SharedRide> _rides = List.of(MockData.sharedRides);
 
-  void _showCreateRideBottomSheet() {
-    showModalBottomSheet(
+  Future<void> _showCreateRideSheet() async {
+    final ride = await showModalBottomSheet<SharedRide>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const CreateSharedRideBottomSheet(),
-    ).then((value) {
-      if (value != null && value is Map<String, dynamic>) {
-        setState(() {
-          _rides.add(value);
-        });
-      }
-    });
+      builder: (_) => const CreateSharedRideSheet(),
+    );
+    if (!mounted || ride == null) return;
+    setState(() => _rides.add(ride));
+  }
+
+  void _join(int index) {
+    final ride = _rides[index];
+    if (ride.isFull || ride.joined) return;
+    setState(() => _rides[index] = ride.copyWith(current: ride.current + 1, joined: true));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${ride.from} → ${ride.to} grubuna katıldın.')),
+    );
+  }
+
+  void _showInfo() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Paylaşımlı Yolculuk'),
+        content: const Text(
+          'Aynı yöne giden yolcularla bir araç paylaşırsın. '
+          'Grup dolduğunda veya kalkış saati geldiğinde yolculuk başlar, '
+          'ücret kişi başı ödenir.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam')),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppTheme.lightBackground,
       appBar: AppBar(
         title: const Text('Paylaşımlı Yolculuk'),
         actions: [
           IconButton(
+            tooltip: 'Nasıl çalışır?',
             icon: const Icon(Icons.info_outline),
-            onPressed: () {},
+            onPressed: _showInfo,
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, 96),
         children: [
-          // Info Card
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlack,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Birlikte yolculuk et,\ndaha avantajlı öde.',
-                          style: GoogleFonts.poppins(
-                            color: AppTheme.primaryYellow,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Aynı yöne giden kişilerle maliyeti paylaş.',
-                          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.group_add, color: AppTheme.primaryYellow, size: 50),
-                ],
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Aktif Gruplar',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _rides.length,
-              itemBuilder: (context, index) {
-                final ride = _rides[index];
-                return _buildRideCard(ride);
-              },
-            ),
-          ),
+          const _PromoCard(),
+          const SizedBox(height: AppSpacing.xxl),
+          Text('Aktif Gruplar', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: AppSpacing.lg),
+          for (var i = 0; i < _rides.length; i++)
+            _RideCard(ride: _rides[i], onJoin: () => _join(i)),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateRideBottomSheet,
+        heroTag: null,
+        onPressed: _showCreateRideSheet,
         backgroundColor: AppTheme.primaryYellow,
         foregroundColor: AppTheme.primaryBlack,
         icon: const Icon(Icons.add),
@@ -131,66 +87,123 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
       ),
     );
   }
+}
 
-  Widget _buildRideCard(Map<String, dynamic> ride) {
-    double progress = ride['current'] / ride['capacity'];
-    bool isFull = ride['current'] >= ride['capacity'];
+class _PromoCard extends StatelessWidget {
+  const _PromoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryBlack,
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Birlikte yolculuk et,\ndaha avantajlı öde.',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: AppTheme.primaryYellow,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Aynı yöne giden kişilerle maliyeti paylaş.',
+                  style: textTheme.bodySmall?.copyWith(color: AppTheme.white.withValues(alpha: 0.7)),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.group_add, color: AppTheme.primaryYellow, size: 50),
+        ],
+      ),
+    );
+  }
+}
+
+class _RideCard extends StatelessWidget {
+  final SharedRide ride;
+  final VoidCallback onJoin;
+
+  const _RideCard({required this.ride, required this.onJoin});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mutedColor = theme.colorScheme.onSurfaceVariant;
+    final mutedStyle = TextStyle(color: mutedColor, fontSize: 13);
+    const placeStyle = TextStyle(fontWeight: FontWeight.w600);
+
+    final String buttonLabel;
+    if (ride.joined) {
+      buttonLabel = 'Katıldın';
+    } else if (ride.isFull) {
+      buttonLabel = 'Dolu';
+    } else {
+      buttonLabel = 'Katıl';
+    }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xl),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.circle, color: AppTheme.primaryYellow, size: 12),
-                        const SizedBox(width: 10),
-                        Text(ride['from'], style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: AppTheme.errorRed, size: 12),
-                        const SizedBox(width: 10),
-                        Text(ride['to'], style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.circle, color: AppTheme.primaryYellow, size: 12),
+                          const SizedBox(width: AppSpacing.sm),
+                          Flexible(child: Text(ride.from, style: placeStyle, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, color: AppTheme.errorRed, size: 12),
+                          const SizedBox(width: AppSpacing.sm),
+                          Flexible(child: Text(ride.to, style: placeStyle, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 Text(
-                  '₺${ride['price']}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlack,
-                  ),
+                  '₺${ride.price}',
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 15),
-              child: Divider(),
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              child: Divider(height: 1),
             ),
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 16, color: AppTheme.grayText),
-                const SizedBox(width: 8),
-                Text(ride['date'], style: const TextStyle(color: AppTheme.grayText, fontSize: 13)),
-                const SizedBox(width: 20),
-                const Icon(Icons.access_time, size: 16, color: AppTheme.grayText),
-                const SizedBox(width: 8),
-                Text(ride['time'], style: const TextStyle(color: AppTheme.grayText, fontSize: 13)),
+                Icon(Icons.calendar_today, size: 16, color: mutedColor),
+                const SizedBox(width: AppSpacing.sm),
+                Text(ride.date, style: mutedStyle),
+                const SizedBox(width: AppSpacing.xl),
+                Icon(Icons.access_time, size: 16, color: mutedColor),
+                const SizedBox(width: AppSpacing.sm),
+                Text(ride.time, style: mutedStyle),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.xl),
             Row(
               children: [
                 Expanded(
@@ -201,40 +214,38 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${ride['current']} / ${ride['capacity']} kişi',
+                            '${ride.current} / ${ride.capacity} kişi',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           Text(
-                            isFull ? 'Dolu' : '${ride['capacity'] - ride['current']} koltuk kaldı',
+                            ride.isFull ? 'Dolu' : '${ride.seatsLeft} koltuk kaldı',
                             style: TextStyle(
-                              color: isFull ? AppTheme.errorRed : AppTheme.successGreen,
+                              color: ride.isFull ? AppTheme.errorRed : AppTheme.successGreen,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       LinearProgressIndicator(
-                        value: progress,
-                        backgroundColor: Colors.grey[200],
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isFull ? AppTheme.errorRed : AppTheme.primaryYellow,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
+                        value: ride.fillRatio,
+                        backgroundColor: theme.colorScheme.outlineVariant,
+                        color: ride.isFull ? AppTheme.errorRed : AppTheme.primaryYellow,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                         minHeight: 8,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: AppSpacing.xl),
                 ElevatedButton(
-                  onPressed: isFull ? null : () {},
+                  onPressed: ride.isFull || ride.joined ? null : onJoin,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(100, 45),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
-                  child: const Text('Katıl'),
+                  child: Text(buttonLabel),
                 ),
               ],
             ),
@@ -245,119 +256,141 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   }
 }
 
-class CreateSharedRideBottomSheet extends StatefulWidget {
-  const CreateSharedRideBottomSheet({super.key});
+/// Üç adımlı grup oluşturma formu. Oluşturulan [SharedRide] ile kapanır.
+class CreateSharedRideSheet extends StatefulWidget {
+  const CreateSharedRideSheet({super.key});
 
   @override
-  State<CreateSharedRideBottomSheet> createState() => _CreateSharedRideBottomSheetState();
+  State<CreateSharedRideSheet> createState() => _CreateSharedRideSheetState();
 }
 
-class _CreateSharedRideBottomSheetState extends State<CreateSharedRideBottomSheet> {
+class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
+  static const int _lastStep = 2;
+  static const int _defaultPrice = 100;
+
   int _currentStep = 0;
-  String from = '';
-  String to = '';
-  double capacity = 4;
-  TimeOfDay time = TimeOfDay.now();
+  String _from = '';
+  String _to = '';
+  double _capacity = 4;
+  TimeOfDay _time = TimeOfDay.now();
+
+  bool get _canContinue => switch (_currentStep) {
+        0 => _from.trim().isNotEmpty,
+        1 => _to.trim().isNotEmpty,
+        _ => true,
+      };
+
+  void _next() {
+    if (_currentStep < _lastStep) {
+      setState(() => _currentStep++);
+      return;
+    }
+    Navigator.pop(
+      context,
+      SharedRide(
+        from: _from.trim(),
+        to: _to.trim(),
+        date: 'Bugün',
+        time: _time.format(context),
+        capacity: _capacity.toInt(),
+        current: 1,
+        price: _defaultPrice,
+        joined: true,
+      ),
+    );
+  }
+
+  Future<void> _pickTime() async {
+    final selected = await showTimePicker(context: context, initialTime: _time);
+    if (selected != null && mounted) setState(() => _time = selected);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      padding: const EdgeInsets.all(24),
+    final theme = Theme.of(context);
+
+    return SheetContainer(
+      heightFactor: 0.7,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
-          ),
-          const SizedBox(height: 24),
+          Text('Yolculuk Oluştur', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'Yolculuk Oluştur',
-            style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold),
+            'Adım ${_currentStep + 1} / ${_lastStep + 1}',
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: AppSpacing.xxl),
           Expanded(
-            child: IndexedStack(
-              index: _currentStep,
-              children: [
-                _buildStep(
-                  'Nereden?',
-                  TextField(
-                    onChanged: (v) => from = v,
-                    decoration: InputDecoration(hintText: 'Başlangıç noktası', filled: true, fillColor: AppTheme.lightBackground, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
+            child: SingleChildScrollView(
+              child: switch (_currentStep) {
+                0 => _Step(
+                    title: 'Nereden?',
+                    child: TextFormField(
+                      // Adımlar ağaçta aynı yerde durduğu için ayrı key verilmezse
+                      // Flutter önceki adımın alanını (ve yazısını) yeniden kullanır.
+                      key: const ValueKey('from'),
+                      initialValue: _from,
+                      autofocus: true,
+                      onChanged: (v) => setState(() => _from = v),
+                      decoration: const InputDecoration(hintText: 'Başlangıç noktası'),
+                    ),
                   ),
-                ),
-                _buildStep(
-                  'Nereye?',
-                  TextField(
-                    onChanged: (v) => to = v,
-                    decoration: InputDecoration(hintText: 'Varış noktası', filled: true, fillColor: AppTheme.lightBackground, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
+                1 => _Step(
+                    title: 'Nereye?',
+                    child: TextFormField(
+                      key: const ValueKey('to'),
+                      initialValue: _to,
+                      autofocus: true,
+                      onChanged: (v) => setState(() => _to = v),
+                      decoration: const InputDecoration(hintText: 'Varış noktası'),
+                    ),
                   ),
-                ),
-                _buildStep(
-                  'Saat ve Kapasite',
-                  Column(
-                    children: [
-                      ListTile(
-                        title: const Text('Yolculuk Saati'),
-                        trailing: Text(time.format(context), style: const TextStyle(fontWeight: FontWeight.bold)),
-                        onTap: () async {
-                          final selected = await showTimePicker(context: context, initialTime: time);
-                          if (selected != null) setState(() => time = selected);
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      Text('Vito Kapasitesi: ${capacity.toInt()}'),
-                      Slider(
-                        value: capacity,
-                        min: 1,
-                        max: 8,
-                        divisions: 7,
-                        activeColor: AppTheme.primaryYellow,
-                        onChanged: (v) => setState(() => capacity = v),
-                      ),
-                    ],
+                _ => _Step(
+                    title: 'Saat ve Kapasite',
+                    child: Column(
+                      children: [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Yolculuk Saati'),
+                          trailing: Text(
+                            _time.format(context),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onTap: _pickTime,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text('Vito Kapasitesi: ${_capacity.toInt()}'),
+                        Slider(
+                          value: _capacity,
+                          min: 1,
+                          max: 8,
+                          divisions: 7,
+                          label: '${_capacity.toInt()}',
+                          onChanged: (v) => setState(() => _capacity = v),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+              },
             ),
           ),
           Row(
             children: [
-              if (_currentStep > 0)
+              if (_currentStep > 0) ...[
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => setState(() => _currentStep--),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 56),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 56)),
                     child: const Text('Geri'),
                   ),
                 ),
-              if (_currentStep > 0) const SizedBox(width: 15),
+                const SizedBox(width: AppSpacing.lg),
+              ],
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_currentStep < 2) {
-                      setState(() => _currentStep++);
-                    } else {
-                      Navigator.pop(context, {
-                        'from': from,
-                        'to': to,
-                        'date': 'Bugün',
-                        'time': time.format(context),
-                        'capacity': capacity.toInt(),
-                        'current': 1,
-                        'price': 100,
-                      });
-                    }
-                  },
-                  child: Text(_currentStep < 2 ? 'Devam Et' : 'Yolculuğu Oluştur'),
+                  onPressed: _canContinue ? _next : null,
+                  child: Text(_currentStep < _lastStep ? 'Devam Et' : 'Yolculuğu Oluştur'),
                 ),
               ),
             ],
@@ -366,14 +399,22 @@ class _CreateSharedRideBottomSheetState extends State<CreateSharedRideBottomShee
       ),
     );
   }
+}
 
-  Widget _buildStep(String title, Widget content) {
+class _Step extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _Step({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 20),
-        content,
+        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: AppSpacing.xl),
+        child,
       ],
     );
   }

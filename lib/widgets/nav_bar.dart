@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int selectedIndex;
-  final Function(int) onTap;
+  final ValueChanged<int> onTap;
 
   const CustomBottomNavBar({
     super.key,
@@ -18,7 +19,7 @@ class CustomBottomNavBar extends StatelessWidget {
         color: AppTheme.primaryBlack,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -26,7 +27,7 @@ class CustomBottomNavBar extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
           child: BottomNavigationBar(
             elevation: 0,
             backgroundColor: Colors.transparent,
@@ -34,7 +35,7 @@ class CustomBottomNavBar extends StatelessWidget {
             currentIndex: selectedIndex,
             onTap: onTap,
             selectedItemColor: AppTheme.primaryYellow,
-            unselectedItemColor: AppTheme.grayText,
+            unselectedItemColor: AppTheme.grayTextDark,
             showUnselectedLabels: true,
             selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             unselectedLabelStyle: const TextStyle(fontSize: 12),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:kktc_taksim/core/app_theme.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/ui_helpers.dart';
+import 'package:kktc_taksim/core/validators.dart';
 import 'package:kktc_taksim/screens/otp_screen.dart';
+import 'package:kktc_taksim/widgets/auth_header.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -10,8 +13,9 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  bool _isPasswordVisible = false;
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _phoneController = TextEditingController();
+  bool _isPasswordVisible = false;
 
   @override
   void dispose() {
@@ -19,148 +23,122 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OtpScreen(phoneNumber: _phoneController.text.trim()),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.secondaryBlack),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'Yeni Hesap Oluştur',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.secondaryBlack,
+      appBar: AppBar(backgroundColor: Colors.transparent),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppSpacing.lg),
+                const AuthHeader(
+                  title: 'Yeni Hesap Oluştur',
+                  subtitle: 'Aramıza katılmak için formu doldurun',
                 ),
-              ),
-              const Text(
-                'Aramıza katılmak için formu doldurun',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 40),
-              // Ad Soyad
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Ad Soyad',
-                  prefixIcon: const Icon(Icons.person_outline),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
+                const SizedBox(height: AppSpacing.xxxl),
+                TextFormField(
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const [AutofillHints.name],
+                  validator: (value) => Validators.required(value, 'Ad soyad'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ad Soyad',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // E-posta
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'E-posta',
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
+                const SizedBox(height: AppSpacing.lg),
+                TextFormField(
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  validator: Validators.email,
+                  decoration: const InputDecoration(
+                    labelText: 'E-posta',
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Telefon
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  labelText: 'Telefon Numarası',
-                  hintText: '+90 5xx xxx xx xx',
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
+                const SizedBox(height: AppSpacing.lg),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.telephoneNumber],
+                  validator: Validators.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Telefon Numarası',
+                    hintText: '+90 5xx xxx xx xx',
+                    prefixIcon: Icon(Icons.phone_outlined),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Şifre
-              TextField(
-                obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  labelText: 'Şifre',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                const SizedBox(height: AppSpacing.lg),
+                TextFormField(
+                  obscureText: !_isPasswordVisible,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.newPassword],
+                  validator: Validators.password,
+                  onFieldSubmitted: (_) => _submit(),
+                  decoration: InputDecoration(
+                    labelText: 'Şifre',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      tooltip: _isPasswordVisible ? 'Şifreyi gizle' : 'Şifreyi göster',
+                      icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
+                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-              ),
-              const SizedBox(height: 40),
-              // Kayıt Butonu
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    elevation: 5,
-                    shadowColor: AppTheme.primaryGreen.withOpacity(0.4),
-                  ),
-                  onPressed: () {
-                    // OTP Ekranına yönlendirme
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OtpScreen(
-                          phoneNumber: _phoneController.text.isEmpty 
-                              ? "Belirtilmedi" 
-                              : _phoneController.text,
+                const SizedBox(height: AppSpacing.xxxl),
+                ElevatedButton(
+                  onPressed: _submit,
+                  child: const Text('Kayıt Ol'),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Kayıt olarak ',
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                      GestureDetector(
+                        onTap: () => showComingSoon(context, 'Kullanım koşulları sayfası'),
+                        child: Text(
+                          'Kullanım Koşullarını',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                       ),
-                    );
-                  },
-                  child: const Text(
-                    'Kayıt Ol',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-              Center(
-                child: RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    children: [
-                      const TextSpan(text: 'Kayıt olarak '),
-                      TextSpan(
-                        text: 'Kullanım Koşullarını',
-                        style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold),
+                      Text(
+                        ' kabul etmiş sayılırsınız.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                       ),
-                      const TextSpan(text: ' kabul etmiş sayılırsınız.'),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: AppSpacing.xl),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,17 +1,41 @@
-# kktc_taksim
+# KKTC Taksim
 
-A new Flutter project.
+KKTC için taksi çağırma ve paylaşımlı yolculuk uygulaması (Flutter).
 
-## Getting Started
+## Özellikler (demo)
+- Rol seçimi (yolcu / şoför / durak), e-posta ile giriş, kayıt ve SMS kodu doğrulama ekranları
+- Harita üzerinde taksi çağırma akışı: varış noktası → taksi tipi → sürücü arama → yolculuk → puanlama
+- Paylaşımlı yolculuk grupları: listeleme, katılma, yeni grup oluşturma
+- Keşfet: kategori ve isimle filtrelenen popüler yerler
+- Açık ve koyu tema (telefonun ayarını izler)
 
-This project is a starting point for a Flutter application.
+Şu an backend yok; tüm veriler `lib/data/mock_data.dart` içindeki örnek verilerdir.
 
-A few resources to get you started if this is your first Flutter project:
+## Proje yapısı
+```
+lib/
+  core/      tema, tasarım token'ları (boşluk/köşe/süre), rotalar, doğrulayıcılar
+  data/      örnek (mock) veriler
+  models/    Trip, Place, SharedRide, Driver, TaxiOption
+  services/  konum (geolocator) ve harita stili (MapLibre + OpenFreeMap, cihaz dilinde etiketler)
+  screens/   tam sayfa ekranlar
+  widgets/   ortak bileşenler; home/ altında ana sayfanın bottom sheet'leri
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Çalıştırma
+```
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+> Windows notu: Proje yolunda Türkçe karakter varsa (örn. `Masaüstü`) `flutter analyze` çökebilir.
+> Projeyi ASCII bir yola taşıyın ya da bir junction üzerinden çalıştırın.
+
+iPhone'da yerel ağ üzerinden test için `tool/README.md`, geliştirme durumu için `docs/ILERLEME.md`.
+
+## Yayından önce yapılacaklar
+- `android/app/build.gradle.kts` içindeki `com.example.kktc_taksim` paket adı değiştirilmeli
+- AdMob test kimlikleri (AndroidManifest, Info.plist, `main_navigation_screen.dart`) gerçek kimliklerle değiştirilmeli
+- Gerçek kimlik doğrulama ve yolculuk servisleri bağlanmalı

@@ -44,3 +44,6 @@
 "Yeni klasör"/
 Yeni\ klasör/
 **/Yeni klasör/**
+
+# Yerel https test sertifikaları
+/tool/certs/

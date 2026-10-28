@@ -1,25 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:kktc_taksim/screens/home_screen.dart';
-import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/screens/login_screen.dart';
-import 'package:kktc_taksim/screens/my_trips_screen.dart';
-import 'package:kktc_taksim/screens/explore_screen.dart';
-import 'package:kktc_taksim/screens/profile_screen.dart';
-import 'package:kktc_taksim/screens/splash_screen.dart';
-import 'package:kktc_taksim/widgets/nav_bar.dart';
-
+import 'package:kktc_taksim/screens/main_navigation_screen.dart';
 import 'package:kktc_taksim/screens/role_selection_screen.dart';
+import 'package:kktc_taksim/screens/signup_screen.dart';
+import 'package:kktc_taksim/screens/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MobileAds.instance.initialize();
-  runApp(const TaxiApp());
+  // google_mobile_ads yalnızca Android ve iOS'ta çalışır; web'de reklamlar kapalı.
+  if (!kIsWeb) MobileAds.instance.initialize();
+  runApp(const TaxiApp(showAds: !kIsWeb));
 }
 
 class TaxiApp extends StatelessWidget {
-  const TaxiApp({super.key});
+  /// Banner reklamları kapatmak için (örneğin testlerde) false verilir.
+  final bool showAds;
+
+  const TaxiApp({super.key, this.showAds = true});
 
   @override
   Widget build(BuildContext context) {
@@ -28,97 +30,20 @@ class TaxiApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
-      initialRoute: '/splash',
+      themeMode: ThemeMode.system,
+      // Uygulama metinleri şimdilik yalnızca Türkçe; saat/tarih seçici gibi
+      // hazır bileşenler de Türkçe görünsün.
+      locale: const Locale('tr', 'TR'),
+      supportedLocales: const [Locale('tr', 'TR')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      initialRoute: AppRoutes.splash,
       routes: {
-        '/splash': (context) => const SplashScreen(),
-        '/main': (context) => const MainNavigationHolder(),
-        '/role_selection': (context) => const RoleSelectionScreen(),
-        '/login': (context) => const LoginScreen(),
+        AppRoutes.splash: (context) => const SplashScreen(),
+        AppRoutes.roleSelection: (context) => const RoleSelectionScreen(),
+        AppRoutes.login: (context) => const LoginScreen(),
+        AppRoutes.signup: (context) => const SignupScreen(),
+        AppRoutes.main: (context) => MainNavigationScreen(showAds: showAds),
       },
-    );
-  }
-}
-
-class MainNavigationHolder extends StatefulWidget {
-  const MainNavigationHolder({super.key});
-
-  @override
-  State<MainNavigationHolder> createState() => _MainNavigationHolderState();
-}
-
-class _MainNavigationHolderState extends State<MainNavigationHolder> {
-  int _selectedIndex = 0;
-  BannerAd? _bannerAd;
-  bool _isLoaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAd();
-  }
-
-  void _loadAd() {
-    _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test Ad Unit ID
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          setState(() {
-            _isLoaded = true;
-          });
-        },
-        onAdFailedToLoad: (ad, err) {
-          ad.dispose();
-        },
-      ),
-    )..load();
-  }
-
-  @override
-  void dispose() {
-    _bannerAd?.dispose();
-    super.dispose();
-  }
-
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const MyTripsScreen(),
-    const SharedRideScreen(),
-    const ExploreScreen(),
-    const ProfileScreen(),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: _screens,
-            ),
-          ),
-          if (_isLoaded && _bannerAd != null)
-            SizedBox(
-              width: _bannerAd!.size.width.toDouble(),
-              height: _bannerAd!.size.height.toDouble(),
-              child: AdWidget(ad: _bannerAd!),
-            ),
-        ],
-      ),
-      bottomNavigationBar: CustomBottomNavBar(
-        selectedIndex: _selectedIndex,
-        onTap: _onItemTapped,
-      ),
     );
   }
 }

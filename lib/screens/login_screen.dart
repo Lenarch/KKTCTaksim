@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
-import 'package:kktc_taksim/screens/signup_screen.dart';
-import 'package:kktc_taksim/main.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/ui_helpers.dart';
+import 'package:kktc_taksim/core/validators.dart';
+import 'package:kktc_taksim/widgets/auth_header.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,141 +14,99 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   bool _isPasswordVisible = false;
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    // TODO: Gerçek kimlik doğrulama servisi bağlanınca burada çağrılacak.
+    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 100),
-              // Logo veya Başlık Alanı
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.local_taxi_rounded,
-                    size: 80,
-                    color: AppTheme.primaryGreen,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
-              const Text(
-                'Hoş Geldiniz',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.secondaryBlack,
-                ),
-              ),
-              const Text(
-                'Devam etmek için giriş yapın',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 40),
-              // E-posta Alanı
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'E-posta',
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Şifre Alanı
-              TextField(
-                obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  labelText: 'Şifre',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+      appBar: AppBar(backgroundColor: Colors.transparent),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.page),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppSpacing.xxl),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    decoration: const BoxDecoration(
+                      color: AppTheme.primaryYellow,
+                      shape: BoxShape.circle,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    child: const Icon(Icons.local_taxi_rounded, size: 72, color: AppTheme.primaryBlack),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text('Şifremi Unuttum'),
-                ),
-              ),
-              const SizedBox(height: 30),
-              // Giriş Butonu
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    elevation: 5,
-                    shadowColor: AppTheme.primaryGreen.withOpacity(0.4),
-                  ),
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MainNavigationHolder()),
-                    );
-                  },
-                  child: const Text(
-                    'Giriş Yap',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const SizedBox(height: AppSpacing.xxxl),
+                const AuthHeader(title: 'Hoş Geldiniz', subtitle: 'Devam etmek için giriş yapın'),
+                const SizedBox(height: AppSpacing.xxxl),
+                TextFormField(
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  validator: Validators.email,
+                  decoration: const InputDecoration(
+                    labelText: 'E-posta',
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Kayıt Ol Yönlendirme
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Hesabınız yok mu?'),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SignupScreen()),
-                      );
-                    },
-                    child: const Text(
-                      'Kayıt Ol',
-                      style: TextStyle(
-                        color: AppTheme.primaryGreen,
-                        fontWeight: FontWeight.bold,
-                      ),
+                const SizedBox(height: AppSpacing.lg),
+                TextFormField(
+                  obscureText: !_isPasswordVisible,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  validator: Validators.password,
+                  onFieldSubmitted: (_) => _submit(),
+                  decoration: InputDecoration(
+                    labelText: 'Şifre',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      tooltip: _isPasswordVisible ? 'Şifreyi gizle' : 'Şifreyi göster',
+                      icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
+                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                     ),
                   ),
-                ],
-              ),
-            ],
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => showComingSoon(context, 'Şifre sıfırlama'),
+                    child: const Text('Şifremi Unuttum'),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                ElevatedButton(
+                  onPressed: _submit,
+                  child: const Text('Giriş Yap'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Hesabınız yok mu?',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pushNamed(context, AppRoutes.signup),
+                      child: const Text('Kayıt Ol'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
+              ],
+            ),
           ),
         ),
       ),
