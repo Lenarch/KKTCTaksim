@@ -9,8 +9,9 @@ gerekenler ve yayından önce yapılacaklar).
 - **Backend Aşama 0, 1 ve 2 bitti.** Giriş (telefon + SMS) ve yolculuk geçmişi gerçek Firebase'de.
   Paylaşımlı gruplar ve taksi çağırma hâlâ örnek veri.
 - **Sıradaki iş: Backend Aşama 3** (paylaşımlı gruplar Firestore'a). Ayrıntılar en altta.
-- ⚠️ **Bugünkü değişikliklerin hiçbiri git'e commit edilmedi.** Depo GitHub'a bağlı
-  (`origin/main`). Yeni oturumda ilk iş kullanıcıya commit atılıp atılmayacağını sor.
+- Bugünkü işin tamamı commit edilip GitHub'a gönderildi (`c8e4074`, gizli depo
+  `Lenarch/KKTCTaksim`). `CLAUDE.md` artık **yalnızca yerelde**: kullanıcı GitHub'dan sildi,
+  `.gitignore`'da. Git kimliği bu depoda `Berkay <43513762+Lenarch@users.noreply.github.com>`.
 - Durum: `flutter analyze` temiz, `flutter test` 34/34, Firestore kural testleri 13/13.
 
 ## Uygulamanın amacı
@@ -120,11 +121,10 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
    Firestore yedekleme, gizlilik metni, hesap silme (`docs/UYARILAR.md`).
 
 ## Sıradaki adım
-1. Kullanıcıya **bugünkü değişiklikleri commit etmeyi** öner (henüz commit yok).
-2. **Backend Aşama 3: paylaşımlı gruplar**
+1. **Backend Aşama 3: paylaşımlı gruplar**
    - `FirebaseSharedRideRepository`: `sharedRides/{id}`; katılma/ayrılma **transaction** ile
      (iki kişi aynı anda son koltuğa katılamasın); son üye ayrılınca grup silinir.
    - Kurallar: giriş yapan herkes okur; oluşturan ilk üye olur; `memberIds`'e yalnızca kendini
      ekleyip çıkarabilir; kapasite aşılamaz. Önce `firestore-tests/rules.test.js`'e testler, sonra yükleme.
    - `test/backend_test.dart`'taki SharedRide sözleşme testleri yol gösterir.
-3. İsteğe bağlı: iPhone testi için IP'yi yetkili alan adlarına eklemek (kullanıcı onayıyla).
+2. İsteğe bağlı: iPhone testi için IP'yi yetkili alan adlarına eklemek (kullanıcı onayıyla).
