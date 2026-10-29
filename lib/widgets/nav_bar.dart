@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/l10n.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -14,6 +15,8 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.primaryBlack,
@@ -39,31 +42,31 @@ class CustomBottomNavBar extends StatelessWidget {
             showUnselectedLabels: true,
             selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             unselectedLabelStyle: const TextStyle(fontSize: 12),
-            items: const [
+            items: [
               BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Ana Sayfa',
+                icon: const Icon(Icons.home_outlined),
+                activeIcon: const Icon(Icons.home),
+                label: l10n.navHome,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.receipt_long_outlined),
-                activeIcon: Icon(Icons.receipt_long),
-                label: 'Yolculuklarım',
+                icon: const Icon(Icons.receipt_long_outlined),
+                activeIcon: const Icon(Icons.receipt_long),
+                label: l10n.myTrips,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.group_outlined),
-                activeIcon: Icon(Icons.group),
-                label: 'Paylaşımlı',
+                icon: const Icon(Icons.group_outlined),
+                activeIcon: const Icon(Icons.group),
+                label: l10n.navShared,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.explore_outlined),
-                activeIcon: Icon(Icons.explore),
-                label: 'Keşfet',
+                icon: const Icon(Icons.explore_outlined),
+                activeIcon: const Icon(Icons.explore),
+                label: l10n.explore,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline),
-                activeIcon: Icon(Icons.person),
-                label: 'Profil',
+                icon: const Icon(Icons.person_outline),
+                activeIcon: const Icon(Icons.person),
+                label: l10n.profile,
               ),
             ],
           ),

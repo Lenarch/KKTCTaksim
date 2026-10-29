@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
-import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/core/formatters.dart';
+import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/ui_helpers.dart';
+import 'package:kktc_taksim/data/backend.dart';
+import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
+import 'package:kktc_taksim/widgets/async_view.dart';
 import 'package:kktc_taksim/widgets/home/sheet_container.dart';
 
 class SharedRideScreen extends StatefulWidget {
@@ -13,7 +19,22 @@ class SharedRideScreen extends StatefulWidget {
 }
 
 class _SharedRideScreenState extends State<SharedRideScreen> {
-  final List<SharedRide> _rides = List.of(MockData.sharedRides);
+  SharedRideRepository get _repository => Backend.instance.sharedRides;
+  late Stream<List<SharedRide>> _rides = _repository.watchActive();
+
+  /// Repository çağrısını yapar; hata olursa kullanıcıya anlaşılır bir mesaj gösterir.
+  Future<bool> _run(Future<void> Function() action) async {
+    final l10n = context.l10n;
+    try {
+      await action();
+      return true;
+    } on SharedRideException catch (e) {
+      if (mounted) showMessage(context, e.error == SharedRideError.full ? l10n.groupFull : l10n.actionFailed);
+    } catch (_) {
+      if (mounted) showMessage(context, l10n.actionFailed);
+    }
+    return false;
+  }
 
   Future<void> _showCreateRideSheet() async {
     final ride = await showModalBottomSheet<SharedRide>(
@@ -22,30 +43,36 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
       builder: (_) => const CreateSharedRideSheet(),
     );
     if (!mounted || ride == null) return;
-    setState(() => _rides.add(ride));
+    await _run(() => _repository.create(ride));
   }
 
-  void _join(int index) {
-    final ride = _rides[index];
-    if (ride.isFull || ride.joined) return;
-    setState(() => _rides[index] = ride.copyWith(current: ride.current + 1, joined: true));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${ride.from} → ${ride.to} grubuna katıldın.')),
+  Future<void> _join(SharedRide ride) async {
+    final message = context.l10n.joinedGroup(ride.from, ride.to);
+    if (await _run(() => _repository.join(ride.id)) && mounted) showMessage(context, message);
+  }
+
+  Future<void> _leave(SharedRide ride) async {
+    final l10n = context.l10n;
+    final confirmed = await confirm(
+      context,
+      title: l10n.leaveGroupTitle,
+      message: l10n.leaveGroupMessage(ride.from, ride.to),
+      confirmLabel: l10n.leaveGroup,
+      destructive: true,
     );
+    if (!confirmed || !mounted) return;
+    if (await _run(() => _repository.leave(ride.id)) && mounted) showMessage(context, l10n.leftGroup);
   }
 
   void _showInfo() {
+    final l10n = context.l10n;
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Paylaşımlı Yolculuk'),
-        content: const Text(
-          'Aynı yöne giden yolcularla bir araç paylaşırsın. '
-          'Grup dolduğunda veya kalkış saati geldiğinde yolculuk başlar, '
-          'ücret kişi başı ödenir.',
-        ),
+        title: Text(l10n.sharedRides),
+        content: Text(l10n.sharedRidesInfo),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.ok)),
         ],
       ),
     );
@@ -53,29 +80,51 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Paylaşımlı Yolculuk'),
+        title: Text(l10n.sharedRides),
         actions: [
           IconButton(
-            tooltip: 'Nasıl çalışır?',
+            tooltip: l10n.howItWorks,
             icon: const Icon(Icons.info_outline),
             onPressed: _showInfo,
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, 96),
-        children: [
-          const _PromoCard(),
-          const SizedBox(height: AppSpacing.xxl),
-          Text('Aktif Gruplar', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: AppSpacing.lg),
-          for (var i = 0; i < _rides.length; i++)
-            _RideCard(ride: _rides[i], onJoin: () => _join(i)),
-        ],
+      body: AsyncView<List<SharedRide>>(
+        stream: _rides,
+        onRetry: () => setState(() => _rides = _repository.watchActive()),
+        builder: (context, rides) {
+          final userId = Backend.instance.auth.currentUser?.id;
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, 96),
+            children: [
+              const _PromoCard(),
+              const SizedBox(height: AppSpacing.xxl),
+              Text(l10n.activeGroups, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: AppSpacing.lg),
+              if (rides.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                  child: Text(
+                    l10n.noActiveGroups,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              for (final ride in rides)
+                _RideCard(
+                  ride: ride,
+                  joined: ride.hasMember(userId),
+                  onJoin: () => _join(ride),
+                  onLeave: () => _leave(ride),
+                ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
@@ -83,7 +132,7 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
         backgroundColor: AppTheme.primaryYellow,
         foregroundColor: AppTheme.primaryBlack,
         icon: const Icon(Icons.add),
-        label: const Text('Grup Oluştur'),
+        label: Text(l10n.createGroup),
       ),
     );
   }
@@ -94,6 +143,7 @@ class _PromoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
@@ -109,7 +159,7 @@ class _PromoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Birlikte yolculuk et,\ndaha avantajlı öde.',
+                  l10n.sharedPromoTitle,
                   style: textTheme.titleMedium?.copyWith(
                     color: AppTheme.primaryYellow,
                     fontWeight: FontWeight.bold,
@@ -117,7 +167,7 @@ class _PromoCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Aynı yöne giden kişilerle maliyeti paylaş.',
+                  l10n.sharedPromoSubtitle,
                   style: textTheme.bodySmall?.copyWith(color: AppTheme.white.withValues(alpha: 0.7)),
                 ),
               ],
@@ -132,25 +182,22 @@ class _PromoCard extends StatelessWidget {
 
 class _RideCard extends StatelessWidget {
   final SharedRide ride;
-  final VoidCallback onJoin;
 
-  const _RideCard({required this.ride, required this.onJoin});
+  /// Giriş yapmış kullanıcı bu grubun üyesi mi.
+  final bool joined;
+  final VoidCallback onJoin;
+  final VoidCallback onLeave;
+
+  const _RideCard({required this.ride, required this.joined, required this.onJoin, required this.onLeave});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
     final mutedColor = theme.colorScheme.onSurfaceVariant;
     final mutedStyle = TextStyle(color: mutedColor, fontSize: 13);
     const placeStyle = TextStyle(fontWeight: FontWeight.w600);
-
-    final String buttonLabel;
-    if (ride.joined) {
-      buttonLabel = 'Katıldın';
-    } else if (ride.isFull) {
-      buttonLabel = 'Dolu';
-    } else {
-      buttonLabel = 'Katıl';
-    }
+    const buttonSize = Size(100, 45);
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.xl),
@@ -182,9 +229,15 @@ class _RideCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Text(
-                  '₺${ride.price}',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      context.lira(ride.pricePerPerson),
+                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(l10n.perPerson, style: mutedStyle),
+                  ],
                 ),
               ],
             ),
@@ -196,11 +249,11 @@ class _RideCard extends StatelessWidget {
               children: [
                 Icon(Icons.calendar_today, size: 16, color: mutedColor),
                 const SizedBox(width: AppSpacing.sm),
-                Text(ride.date, style: mutedStyle),
+                Text(context.weekdayDate(ride.departure), style: mutedStyle),
                 const SizedBox(width: AppSpacing.xl),
                 Icon(Icons.access_time, size: 16, color: mutedColor),
                 const SizedBox(width: AppSpacing.sm),
-                Text(ride.time, style: mutedStyle),
+                Text(context.time(ride.departure), style: mutedStyle),
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -214,11 +267,11 @@ class _RideCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${ride.current} / ${ride.capacity} kişi',
+                            l10n.peopleCount(ride.current, ride.capacity),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           Text(
-                            ride.isFull ? 'Dolu' : '${ride.seatsLeft} koltuk kaldı',
+                            ride.isFull ? l10n.full : l10n.seatsLeft(ride.seatsLeft),
                             style: TextStyle(
                               color: ride.isFull ? AppTheme.errorRed : AppTheme.successGreen,
                               fontWeight: FontWeight.w600,
@@ -239,14 +292,25 @@ class _RideCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xl),
-                ElevatedButton(
-                  onPressed: ride.isFull || ride.joined ? null : onJoin,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(100, 45),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                if (joined)
+                  OutlinedButton(
+                    onPressed: onLeave,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: buttonSize,
+                      foregroundColor: theme.colorScheme.error,
+                      side: BorderSide(color: theme.colorScheme.error),
+                    ),
+                    child: Text(l10n.leaveGroup),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: ride.isFull ? null : onJoin,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: buttonSize,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    ),
+                    child: Text(ride.isFull ? l10n.full : l10n.join),
                   ),
-                  child: Text(buttonLabel),
-                ),
               ],
             ),
           ],
@@ -266,18 +330,31 @@ class CreateSharedRideSheet extends StatefulWidget {
 
 class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
   static const int _lastStep = 2;
-  static const int _defaultPrice = 100;
+  static const int _defaultPrice = 200;
+  static const Duration _maximumLeadTime = Duration(days: 30);
 
   int _currentStep = 0;
   String _from = '';
   String _to = '';
   double _capacity = 4;
-  TimeOfDay _time = TimeOfDay.now();
+  late DateTime _departure = _defaultDeparture();
+  String _price = '$_defaultPrice';
+
+  /// Bir sonraki tam saat.
+  static DateTime _defaultDeparture() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, now.hour + 1);
+  }
+
+  int? get _pricePerPerson {
+    final value = int.tryParse(_price);
+    return value != null && value > 0 ? value : null;
+  }
 
   bool get _canContinue => switch (_currentStep) {
         0 => _from.trim().isNotEmpty,
         1 => _to.trim().isNotEmpty,
-        _ => true,
+        _ => _pricePerPerson != null && _departure.isAfter(DateTime.now()),
       };
 
   void _next() {
@@ -287,37 +364,57 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
     }
     Navigator.pop(
       context,
+      // Kimliği ve ilk üyeyi (oluşturan kişi) repository verir.
       SharedRide(
+        id: '',
         from: _from.trim(),
         to: _to.trim(),
-        date: 'Bugün',
-        time: _time.format(context),
+        departure: _departure,
         capacity: _capacity.toInt(),
-        current: 1,
-        price: _defaultPrice,
-        joined: true,
+        memberIds: const [],
+        pricePerPerson: _pricePerPerson!,
       ),
     );
   }
 
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _departure.isBefore(now) ? now : _departure,
+      firstDate: DateUtils.dateOnly(now),
+      lastDate: now.add(_maximumLeadTime),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _departure = DateTime(selected.year, selected.month, selected.day, _departure.hour, _departure.minute);
+    });
+  }
+
   Future<void> _pickTime() async {
-    final selected = await showTimePicker(context: context, initialTime: _time);
-    if (selected != null && mounted) setState(() => _time = selected);
+    final selected = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_departure));
+    if (selected == null || !mounted) return;
+    setState(() {
+      _departure = DateTime(_departure.year, _departure.month, _departure.day, selected.hour, selected.minute);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
+    const valueStyle = TextStyle(fontWeight: FontWeight.bold);
+    final departureInPast = !_departure.isAfter(DateTime.now());
 
     return SheetContainer(
-      heightFactor: 0.7,
+      heightFactor: 0.8,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Yolculuk Oluştur', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+          Text(l10n.createRide, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Adım ${_currentStep + 1} / ${_lastStep + 1}',
+            l10n.stepOf(_currentStep + 1, _lastStep + 1),
             style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.xxl),
@@ -325,7 +422,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
             child: SingleChildScrollView(
               child: switch (_currentStep) {
                 0 => _Step(
-                    title: 'Nereden?',
+                    title: l10n.fromQuestion,
                     child: TextFormField(
                       // Adımlar ağaçta aynı yerde durduğu için ayrı key verilmezse
                       // Flutter önceki adımın alanını (ve yazısını) yeniden kullanır.
@@ -333,34 +430,42 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                       initialValue: _from,
                       autofocus: true,
                       onChanged: (v) => setState(() => _from = v),
-                      decoration: const InputDecoration(hintText: 'Başlangıç noktası'),
+                      decoration: InputDecoration(hintText: l10n.startPoint),
                     ),
                   ),
                 1 => _Step(
-                    title: 'Nereye?',
+                    title: l10n.toQuestion,
                     child: TextFormField(
                       key: const ValueKey('to'),
                       initialValue: _to,
                       autofocus: true,
                       onChanged: (v) => setState(() => _to = v),
-                      decoration: const InputDecoration(hintText: 'Varış noktası'),
+                      decoration: InputDecoration(hintText: l10n.endPoint),
                     ),
                   ),
                 _ => _Step(
-                    title: 'Saat ve Kapasite',
+                    title: l10n.rideDetails,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Yolculuk Saati'),
-                          trailing: Text(
-                            _time.format(context),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          leading: const Icon(Icons.calendar_today),
+                          title: Text(l10n.rideDate),
+                          trailing: Text(context.weekdayDate(_departure), style: valueStyle),
+                          onTap: _pickDate,
+                        ),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.access_time),
+                          title: Text(l10n.rideTime),
+                          trailing: Text(context.time(_departure), style: valueStyle),
                           onTap: _pickTime,
                         ),
-                        const SizedBox(height: AppSpacing.xl),
-                        Text('Vito Kapasitesi: ${_capacity.toInt()}'),
+                        if (departureInPast)
+                          Text(l10n.departureInPast, style: TextStyle(color: theme.colorScheme.error)),
+                        const SizedBox(height: AppSpacing.lg),
+                        Text(l10n.vitoCapacity(_capacity.toInt())),
                         Slider(
                           value: _capacity,
                           min: 1,
@@ -368,6 +473,19 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                           divisions: 7,
                           label: '${_capacity.toInt()}',
                           onChanged: (v) => setState(() => _capacity = v),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          key: const ValueKey('price'),
+                          initialValue: _price,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          onChanged: (v) => setState(() => _price = v),
+                          decoration: InputDecoration(
+                            labelText: l10n.pricePerPersonLabel,
+                            prefixText: '₺ ',
+                            helperText: l10n.pricePerPersonHelp,
+                          ),
                         ),
                       ],
                     ),
@@ -382,7 +500,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                   child: OutlinedButton(
                     onPressed: () => setState(() => _currentStep--),
                     style: OutlinedButton.styleFrom(minimumSize: const Size(0, 56)),
-                    child: const Text('Geri'),
+                    child: Text(l10n.back),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.lg),
@@ -390,7 +508,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: _canContinue ? _next : null,
-                  child: Text(_currentStep < _lastStep ? 'Devam Et' : 'Yolculuğu Oluştur'),
+                  child: Text(_currentStep < _lastStep ? l10n.continueLabel : l10n.createRideButton),
                 ),
               ),
             ],

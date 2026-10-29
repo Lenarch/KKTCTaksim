@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
@@ -9,6 +10,7 @@ class RoleSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -32,7 +34,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     Text(
-                      'KKTC TAKSİM',
+                      l10n.appNameUpper,
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         letterSpacing: 2,
@@ -40,32 +42,32 @@ class RoleSelectionScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Lütfen devam etmek için rolünüzü seçin',
+                      l10n.chooseRole,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const Spacer(),
                     const SizedBox(height: AppSpacing.xxxl),
                     _RoleButton(
-                      title: 'Ben Yolcuyum',
-                      subtitle: 'Taksi çağırın, yolculuk paylaşın',
+                      title: l10n.rolePassenger,
+                      subtitle: l10n.rolePassengerHint,
                       icon: Icons.person_outline_rounded,
                       highlighted: true,
                       onTap: () => Navigator.pushNamed(context, AppRoutes.login),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _RoleButton(
-                      title: 'Ben Şoförüm',
-                      subtitle: 'Çağrıları yönetin, kazanç sağlayın',
+                      title: l10n.roleDriver,
+                      subtitle: l10n.roleDriverHint,
                       icon: Icons.drive_eta_rounded,
-                      onTap: () => showComingSoon(context, 'Şoför girişi'),
+                      onTap: () => showComingSoon(context, l10n.driverLogin),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _RoleButton(
-                      title: 'Taksi Durağı',
-                      subtitle: 'Durağınızı ve filonuzu yönetin',
+                      title: l10n.roleStand,
+                      subtitle: l10n.roleStandHint,
                       icon: Icons.business_rounded,
-                      onTap: () => showComingSoon(context, 'Durak girişi'),
+                      onTap: () => showComingSoon(context, l10n.standLogin),
                     ),
                     const SizedBox(height: AppSpacing.huge),
                   ],

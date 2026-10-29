@@ -1,4 +1,4 @@
-package com.example.kktc_taksim
+package com.kktctaksim.app
 
 import io.flutter.embedding.android.FlutterActivity
 

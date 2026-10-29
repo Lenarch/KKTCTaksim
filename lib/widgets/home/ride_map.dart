@@ -5,15 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/geo.dart';
+import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/services/map_style_service.dart';
 
-/// Kullanıcının konumunu ve taksileri gösteren harita. Etiketler cihazın
-/// dilinde, renkler uygulamanın temasına (açık/koyu) göre gelir.
+/// Kullanıcının konumunu, taksileri ve rotayı gösteren harita. Etiketler
+/// uygulamanın dilinde, renkler temasına (açık/koyu) göre gelir.
 class RideMap extends StatefulWidget {
   final LatLng initialCenter;
   final LatLng? userLocation;
   final List<LatLng> taxis;
+
+  /// Yolcuya atanan taksi; konumu değiştikçe işaret yerinde kaydırılır.
   final LatLng? assignedTaxi;
+  final List<LatLng> route;
+  final LatLng? destination;
 
   const RideMap({
     super.key,
@@ -21,6 +27,8 @@ class RideMap extends StatefulWidget {
     this.userLocation,
     this.taxis = const [],
     this.assignedTaxi,
+    this.route = const [],
+    this.destination,
   });
 
   @override
@@ -35,16 +43,22 @@ class RideMapState extends State<RideMap> {
   MapLibreMapController? _controller;
   String? _style;
   Object? _styleError;
-  bool? _loadedDark;
+  (bool, String)? _loadedStyle;
   bool _styleReady = false;
   bool _syncing = false;
   bool _needsResync = false;
+
+  /// Son çizilen sabit işaretlerin (rota, varış, taksiler, kullanıcı) özeti;
+  /// yalnızca atanan taksi hareket ettiyse her şey yeniden çizilmez.
+  int? _drawnKey;
+  Symbol? _assignedSymbol;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final dark = Theme.of(context).brightness == Brightness.dark;
-    if (dark != _loadedDark) _loadStyle(dark);
+    final languageCode = Localizations.localeOf(context).languageCode;
+    if ((dark, languageCode) != _loadedStyle) _loadStyle(dark, languageCode);
   }
 
   @override
@@ -53,10 +67,9 @@ class RideMapState extends State<RideMap> {
     _syncMarkers();
   }
 
-  Future<void> _loadStyle(bool dark) async {
-    _loadedDark = dark;
+  Future<void> _loadStyle(bool dark, String languageCode) async {
+    _loadedStyle = (dark, languageCode);
     _styleReady = false;
-    final languageCode = View.of(context).platformDispatcher.locale.languageCode;
     try {
       final style = await _styles.load(dark: dark, languageCode: languageCode);
       if (!mounted) return;
@@ -75,13 +88,35 @@ class RideMapState extends State<RideMap> {
     await _controller?.animateCamera(CameraUpdate.newLatLngZoom(target, zoom));
   }
 
+  /// Noktaların hepsini gösterir; [bottomInset] kadar alt kısım (açık sheet) boş bırakılır.
+  Future<void> fitPoints(List<LatLng> points, {double bottomInset = 0}) async {
+    if (points.isEmpty) return;
+    if (points.length == 1) return moveTo(points.first);
+    const margin = AppSpacing.huge;
+    await _controller?.animateCamera(CameraUpdate.newLatLngBounds(
+      boundsOf(points),
+      left: margin,
+      top: margin * 2,
+      right: margin,
+      bottom: margin + bottomInset,
+    ));
+  }
+
+  /// Ekranın ortasındaki nokta ("haritadan seç" için).
+  LatLng? get center => _controller?.cameraPosition?.target;
+
   Future<void> _onStyleLoaded() async {
     final controller = _controller;
     if (controller == null) return;
     await controller.addImage(_taxiImage, await _renderTaxiIcon());
+    _drawnKey = null;
+    _assignedSymbol = null;
     _styleReady = true;
     await _syncMarkers();
   }
+
+  static String _hex(Color color) =>
+      '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
   /// Ardışık widget güncellemelerinde işaretleri tek tek, sırayla yeniden çizer.
   Future<void> _syncMarkers() async {
@@ -95,27 +130,65 @@ class RideMapState extends State<RideMap> {
     try {
       do {
         _needsResync = false;
-        await controller.clearCircles();
-        await controller.clearSymbols();
-
         final user = widget.userLocation;
-        if (user != null) {
-          await controller.addCircle(CircleOptions(
-            geometry: user,
-            circleRadius: 8,
-            circleColor: '#1E88E5',
-            circleStrokeWidth: 3,
-            circleStrokeColor: '#FFFFFF',
-          ));
+        final destination = widget.destination;
+        final key = Object.hashAll([user, destination, ...widget.taxis, ...widget.route]);
+
+        if (key != _drawnKey) {
+          await controller.clearLines();
+          await controller.clearCircles();
+          await controller.clearSymbols();
+          _assignedSymbol = null;
+
+          if (widget.route.length >= 2 && mounted) {
+            final dark = Theme.of(context).brightness == Brightness.dark;
+            await controller.addLine(LineOptions(
+              geometry: widget.route,
+              lineColor: _hex(dark ? AppTheme.primaryYellow : AppTheme.primaryBlack),
+              lineWidth: 5,
+              lineOpacity: 0.85,
+              lineJoin: 'round',
+            ));
+          }
+          if (user != null) {
+            await controller.addCircle(CircleOptions(
+              geometry: user,
+              circleRadius: 8,
+              circleColor: _hex(AppTheme.locationBlue),
+              circleStrokeWidth: 3,
+              circleStrokeColor: _hex(AppTheme.white),
+            ));
+          }
+          if (destination != null) {
+            await controller.addCircle(CircleOptions(
+              geometry: destination,
+              circleRadius: 9,
+              circleColor: _hex(AppTheme.errorRed),
+              circleStrokeWidth: 3,
+              circleStrokeColor: _hex(AppTheme.white),
+            ));
+          }
+          if (widget.taxis.isNotEmpty) {
+            await controller.addSymbols([
+              for (final taxi in widget.taxis)
+                SymbolOptions(geometry: taxi, iconImage: _taxiImage, iconSize: 0.4),
+            ]);
+          }
+          _drawnKey = key;
         }
 
         final assigned = widget.assignedTaxi;
-        await controller.addSymbols([
-          for (final taxi in widget.taxis)
-            SymbolOptions(geometry: taxi, iconImage: _taxiImage, iconSize: 0.4),
-          if (assigned != null)
+        final symbol = _assignedSymbol;
+        if (assigned == null) {
+          if (symbol != null) await controller.removeSymbol(symbol);
+          _assignedSymbol = null;
+        } else if (symbol == null) {
+          _assignedSymbol = await controller.addSymbol(
             SymbolOptions(geometry: assigned, iconImage: _taxiImage, iconSize: 0.5),
-        ]);
+          );
+        } else {
+          await controller.updateSymbol(symbol, SymbolOptions(geometry: assigned));
+        }
       } while (_needsResync && mounted);
     } finally {
       _syncing = false;
@@ -167,10 +240,13 @@ class RideMapState extends State<RideMap> {
               children: [
                 Icon(Icons.map_outlined, size: 48, color: colorScheme.onSurfaceVariant),
                 const SizedBox(height: AppSpacing.md),
-                const Text('Harita yüklenemedi. İnternet bağlantını kontrol et.', textAlign: TextAlign.center),
+                Text(context.l10n.mapLoadError, textAlign: TextAlign.center),
                 TextButton(
-                  onPressed: () => _loadStyle(Theme.of(context).brightness == Brightness.dark),
-                  child: const Text('Tekrar Dene'),
+                  onPressed: () => _loadStyle(
+                    Theme.of(context).brightness == Brightness.dark,
+                    Localizations.localeOf(context).languageCode,
+                  ),
+                  child: Text(context.l10n.retry),
                 ),
               ],
             ),
@@ -192,6 +268,7 @@ class RideMapState extends State<RideMap> {
       initialCameraPosition: CameraPosition(target: widget.initialCenter, zoom: _defaultZoom),
       onMapCreated: (controller) => _controller = controller,
       onStyleLoadedCallback: _onStyleLoaded,
+      trackCameraPosition: true,
       rotateGesturesEnabled: false,
       tiltGesturesEnabled: false,
       compassEnabled: false,

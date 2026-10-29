@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/screens/explore_screen.dart';
 import 'package:kktc_taksim/screens/home_screen.dart';
 import 'package:kktc_taksim/screens/my_trips_screen.dart';
@@ -20,7 +21,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // Google'ın resmi test reklam kimliği; yayından önce gerçek kimlikle değiştirilmeli.
   static const String _bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
 
-  int _selectedIndex = 0;
+  static const int _homeIndex = 0;
+
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey();
+  int _selectedIndex = _homeIndex;
   BannerAd? _bannerAd;
   bool _isAdLoaded = false;
 
@@ -58,6 +62,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     setState(() => _selectedIndex = index);
   }
 
+  void _callTaxiTo(GeoPlace place) {
+    _onItemTapped(_homeIndex);
+    _homeKey.currentState?.rideTo(place);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bannerAd = _bannerAd;
@@ -69,10 +78,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             child: IndexedStack(
               index: _selectedIndex,
               children: [
-                const HomeScreen(),
-                MyTripsScreen(onCallTaxi: () => _onItemTapped(0)),
+                HomeScreen(key: _homeKey),
+                MyTripsScreen(onCallTaxi: () => _onItemTapped(_homeIndex)),
                 const SharedRideScreen(),
-                const ExploreScreen(),
+                ExploreScreen(onCallTaxi: _callTaxiTo),
                 const ProfileScreen(),
               ],
             ),

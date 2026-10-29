@@ -1,0 +1,59 @@
+# KKTC Taksim: Uyarılar
+
+Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama şu an demo; aşağıdakiler yayından önce bilinmesi ve
+çözülmesi gereken noktalar.
+
+## Harici servisler
+- **Adres arama (Photon)** ve **rota (OSRM)** ücretsiz, herkese açık demo sunucularını kullanıyor.
+  Test için yeterli ama kullanım sınırları olduğu için **yayın için uygun değil**; kendi sunucumuz
+  ya da ücretli bir servis gerekecek.
+  İlgili dosyalar: `lib/services/geocoding_service.dart`, `lib/services/routing_service.dart`.
+- OSRM bazı rotaları olduğundan uzun çiziyor. Örnek: Lefkoşa → Bellapais 35,7 km çıktı; karayoluyla
+  yaklaşık 22 km olmalı. Fiyat tahmini bu mesafeye göre hesaplandığı için fiyat da yüksek çıkar.
+- Rota servisine ulaşılamazsa mesafe kuş uçuşunun 1,3 katı olarak tahmin edilir ve ekranda
+  "Yaklaşık" yazar.
+
+## Adres ve konum
+- Adres aramasında **Güney Kıbrıs sonuçları da** çıkıyor. İstenirse KKTC sınırına göre süzülebilir.
+- Uygulama Kıbrıs dışından açılırsa (örneğin bilgisayardan test) **gerçek konum** kullanılıyor;
+  Keşfet mesafeleri yüzlerce km görünüyor (testte 652 km). İstenirse hizmet bölgesi dışındayken
+  harita Lefkoşa merkeze düşürülebilir.
+- Keşfet'teki yerlerin koordinatları **yaklaşık**; görseller yer tutucu (renkli arka plan + ikon).
+
+## Fiyat
+- Tarife **örnek**: açılış ₺100, km başı ₺40, en az ₺150; Konfor ×1,3, XL ×1,8; ekranda ±%10 aralık.
+- Gerçek tarife belli olunca yalnızca `lib/core/fare_calculator.dart` içindeki `Tariff` değişir.
+
+## Güvenlik özellikleri
+- "Yolculuğumu paylaş" o anki konumun **anlık bir linkini** gönderir; **canlı takip değildir**.
+  Canlı konum paylaşımı backend gelince yapılabilir.
+- Paylaşım menüsü olmayan tarayıcılarda bilgiler panoya kopyalanır.
+
+## Demo davranışları
+- Sürücü arama, sürücünün gelişi (20 sn) ve yolculuk (30 sn) **simülasyondur**; gerçek süreden
+  bağımsız olarak hızlandırılmış oynatılır (`AppDurations`, `lib/core/app_tokens.dart`).
+- Giriş **gerçek Firebase** ile: gerçek numaraya gerçek SMS gider (ücretli, günde en fazla 1.000).
+  Denemelerde test numarasını kullan: `+90 533 000 00 00`, kod `123456` (SMS gitmez).
+- Firebase'de denemeden kalan bir test kullanıcısı var ("Test Kullanıcı", `+905330000000`);
+  yayından önce test numarasıyla birlikte silinmeli.
+- iPhone'da yerel Wi-Fi testi için bilgisayarın IP'si Firebase'in yetkili alan adlarına eklenmeli.
+- Yolculuk geçmişi ve rezervasyonlar **Firestore'da kalıcı**. Paylaşımlı gruplar ve taksi çağırma
+  hâlâ örnek veri (sayfa yenilenince sıfırlanır).
+- Sürücü fotoğrafı yok; avatar yerine baş harfler gösteriliyor.
+
+## Dil
+- İngilizce metinler bir anadil konuşana kontrol ettirilmeli. Rusça ileride eklenebilir.
+- Yeni bir metin eklerken hem `lib/l10n/app_tr.arb` hem `lib/l10n/app_en.arb` dosyasına eklenmeli.
+
+## Yeni paketler
+- `intl`, `share_plus`, `shared_preferences`, `firebase_core`, `firebase_auth`, `cloud_firestore`.
+- Firestore kural testleri için `firestore-tests/` (npm) ve bilgisayarda Java (Temurin JDK 21).
+
+## Yayından önce mutlaka
+- Backend: Firebase seçildi; plan ve senin yapacakların `docs/BACKEND_PLANI.md` içinde
+  (Blaze planı + kart, Firestore bölgesi sonradan değiştirilemez)
+- Gizlilik metni, kullanım koşulları ve hesap silme seçeneği
+- Şoför uygulaması (rol seçiminde hâlâ "yakında")
+- Firebase test numarası (`+90 533 000 00 00`) silinmeli: bu numara + kodla herkes giriş yapabilir
+- Firestore otomatik yedeklemeyi aç; App Check'i etkinleştir
+- AdMob test kimlikleri gerçek kimliklerle değişmeli

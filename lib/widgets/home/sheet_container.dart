@@ -38,7 +38,8 @@ class SheetContainer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            if (heightFactor == null) child else Expanded(child: child),
+            // Flexible: içerik ekrana sığmazsa kaydırılabilir bir child taşmadan küçülür.
+            if (heightFactor == null) Flexible(child: child) else Expanded(child: child),
           ],
         ),
       ),

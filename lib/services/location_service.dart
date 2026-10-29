@@ -24,6 +24,9 @@ class LocationResult {
 
 /// Cihaz konumunu okur; izin ve hata durumlarını [LocationStatus] ile bildirir.
 class LocationService {
+  /// En son alınan konum; Keşfet gibi ekranlar mesafe hesaplamak için kullanır.
+  static final ValueNotifier<LatLng?> lastKnown = ValueNotifier(null);
+
   static const LocationSettings _settings = LocationSettings(
     accuracy: LocationAccuracy.high,
     distanceFilter: 10,
@@ -61,7 +64,9 @@ class LocationService {
           timeLimit: Duration(seconds: 15),
         ),
       );
-      return LocationResult(LocationStatus.granted, LatLng(position.latitude, position.longitude));
+      final latLng = LatLng(position.latitude, position.longitude);
+      lastKnown.value = latLng;
+      return LocationResult(LocationStatus.granted, latLng);
     } catch (_) {
       return const LocationResult(LocationStatus.unavailable);
     }
@@ -69,7 +74,7 @@ class LocationService {
 
   /// Konum izni verildikten sonra kullanıcı hareket ettikçe yeni konumu yayar.
   Stream<LatLng> watch() => Geolocator.getPositionStream(locationSettings: _settings)
-      .map((p) => LatLng(p.latitude, p.longitude));
+      .map((p) => lastKnown.value = LatLng(p.latitude, p.longitude));
 
   /// Kalıcı olarak reddedilen izin veya kapalı konum servisi için ayarları açar.
   Future<void> openSettings(LocationStatus status) async {
@@ -80,13 +85,4 @@ class LocationService {
       await Geolocator.openAppSettings();
     }
   }
-
-  static String describe(LocationStatus status) => switch (status) {
-        LocationStatus.granted => '',
-        LocationStatus.denied => 'Konum izni verilmedi.',
-        LocationStatus.deniedForever => 'Konum izni kapalı. Ayarlardan açabilirsin.',
-        LocationStatus.serviceDisabled => 'Cihazının konum servisi kapalı.',
-        LocationStatus.insecureContext => 'Tarayıcı konumu yalnızca güvenli (https) bağlantıda paylaşır.',
-        LocationStatus.unavailable => 'Konumun şu an alınamadı.',
-      };
 }

@@ -36,4 +36,12 @@ class AppDurations {
   static const Duration splashAnimation = Duration(milliseconds: 1500);
   static const Duration splashHold = Duration(seconds: 3);
   static const Duration driverSearch = Duration(seconds: 4);
+
+  /// Demo: sürücünün yolcuya gelişi ve yolculuk, gerçek süreden bağımsız olarak bu sürede oynatılır.
+  static const Duration driverApproachDemo = Duration(seconds: 20);
+  static const Duration tripDemo = Duration(seconds: 30);
+  static const Duration simulationTick = Duration(milliseconds: 250);
+
+  /// Adres aramasında yazmayı bitirmeyi bekleme süresi.
+  static const Duration searchDebounce = Duration(milliseconds: 400);
 }

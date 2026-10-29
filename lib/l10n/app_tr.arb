@@ -1,0 +1,391 @@
+{
+  "@@locale": "tr",
+  "appName": "KKTC Taksim",
+  "appNameUpper": "KKTC TAKSİM",
+  "tagline": "KKTC'nin Akıllı Taksi Uygulaması",
+  "cancel": "Vazgeç",
+  "ok": "Tamam",
+  "back": "Geri",
+  "continueLabel": "Devam Et",
+  "retry": "Tekrar Dene",
+  "change": "Değiştir",
+  "settings": "Ayarlar",
+  "cannotOpen": "Bu işlem cihazında açılamadı.",
+  "comingSoon": "{feature} yakında eklenecek.",
+  "@comingSoon": {
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "estimated": "Tahmini",
+  "minutesShort": "{count} dk",
+  "@minutesShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chooseRole": "Lütfen devam etmek için rolünüzü seçin",
+  "rolePassenger": "Ben Yolcuyum",
+  "rolePassengerHint": "Taksi çağırın, yolculuk paylaşın",
+  "roleDriver": "Ben Şoförüm",
+  "roleDriverHint": "Çağrıları yönetin, kazanç sağlayın",
+  "roleStand": "Taksi Durağı",
+  "roleStandHint": "Durağınızı ve filonuzu yönetin",
+  "driverLogin": "Şoför girişi",
+  "standLogin": "Durak girişi",
+  "welcome": "Hoş Geldiniz",
+  "loginSubtitle": "Telefon numaranı gir, sana bir doğrulama kodu gönderelim",
+  "phoneNumber": "Telefon Numarası",
+  "phoneRequired": "Telefon numarası boş bırakılamaz",
+  "phoneInvalid": "Geçerli bir telefon numarası girin",
+  "fieldRequired": "Bu alan boş bırakılamaz",
+  "sendCode": "Kod Gönder",
+  "noAccount": "Hesabınız yok mu?",
+  "signUp": "Kayıt Ol",
+  "createAccount": "Yeni Hesap Oluştur",
+  "signupSubtitle": "Adını ve telefon numaranı gir, numaranı SMS ile doğrulayalım",
+  "fullName": "Ad Soyad",
+  "termsPrefix": "Kayıt olarak ",
+  "termsOfUse": "Kullanım Koşullarını",
+  "termsSuffix": " kabul etmiş sayılırsınız.",
+  "verificationCode": "Doğrulama Kodu",
+  "enterCode": "{phone} numarasına gönderilen {length} haneli kodu giriniz.",
+  "@enterCode": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      },
+      "length": {
+        "type": "int"
+      }
+    }
+  },
+  "verify": "Doğrula",
+  "didntGetCode": "Kod gelmedi mi?",
+  "resend": "Tekrar Gönder",
+  "codeResent": "Kod {phone} numarasına tekrar gönderildi.",
+  "@codeResent": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "verificationSuccess": "Doğrulama başarılı! Hoş geldiniz.",
+  "navHome": "Ana Sayfa",
+  "myTrips": "Yolculuklarım",
+  "navShared": "Paylaşımlı",
+  "explore": "Keşfet",
+  "profile": "Profil",
+  "greeting": "Merhaba {name} 👋",
+  "@greeting": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "whereToGo": "Nereye gitmek istersin?",
+  "whereTo": "Nereye gitmek istiyorsun?",
+  "currentLocation": "Mevcut konumun",
+  "goToMyLocation": "Konumuma git",
+  "showingFallbackCity": "Harita Lefkoşa merkezde gösteriliyor.",
+  "locationDenied": "Konum izni verilmedi.",
+  "locationDeniedForever": "Konum izni kapalı. Ayarlardan açabilirsin.",
+  "locationServiceDisabled": "Cihazının konum servisi kapalı.",
+  "locationInsecure": "Tarayıcı konumu yalnızca güvenli (https) bağlantıda paylaşır.",
+  "locationUnavailable": "Konumun şu an alınamadı.",
+  "mapLoadError": "Harita yüklenemedi. İnternet bağlantını kontrol et.",
+  "pickOnMap": "Haritadan seç",
+  "pickOnMapHint": "Haritayı kaydırıp iğneyi gideceğin yere getir",
+  "moveMapToPick": "Haritayı kaydırarak iğneyi varış noktasına getir",
+  "selectThisPoint": "Bu Noktayı Seç",
+  "pinnedLocation": "İşaretlenen konum",
+  "recentPlaces": "Son gidilen yerler",
+  "searchFailed": "Adres araması yapılamadı. İnternet bağlantını kontrol et.",
+  "searchNoResults": "Sonuç bulunamadı. Farklı yazmayı ya da haritadan seçmeyi dene.",
+  "calculatingRoute": "Rota hesaplanıyor...",
+  "finishCurrentRideFirst": "Önce devam eden yolculuğunu tamamla.",
+  "approximateRoute": "Yaklaşık {summary}",
+  "@approximateRoute": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "taxiEconomy": "Ekonomik",
+  "taxiComfort": "Konfor",
+  "taxiXl": "XL",
+  "pickupIn": "{count} dk içinde yanında",
+  "@pickupIn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fareDisclaimer": "Fiyatlar tahminidir; trafik ve bekleme süresine göre değişebilir.",
+  "paymentMethod": "Ödeme yöntemi",
+  "paymentCash": "Nakit",
+  "paymentCard": "Kart",
+  "when": "Ne zaman?",
+  "now": "Şimdi",
+  "later": "İleri tarih",
+  "scheduleTooSoon": "Rezervasyon en erken {minutes} dakika sonrası için yapılabilir.",
+  "@scheduleTooSoon": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "callTaxi": "TAKSİ ÇAĞIR",
+  "reserveTaxi": "REZERVE ET",
+  "rideScheduled": "Yolculuğun {when} için planlandı. Yolculuklarım > Yaklaşan'dan görebilirsin.",
+  "@rideScheduled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "searchingTaxi": "Taksi aranıyor...",
+  "searchingTaxiHint": "Yakındaki sürücülerle eşleştiriliyorsun",
+  "driverOnTheWay": "Sürücün yolda, yaklaşık {count} dk",
+  "@driverOnTheWay": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "driverArrived": "Sürücün geldi! Plakayı kontrol ederek bin.",
+  "plateLabel": "Plaka {plate}",
+  "@plateLabel": {
+    "placeholders": {
+      "plate": {
+        "type": "String"
+      }
+    }
+  },
+  "carWhite": "Beyaz",
+  "carSilver": "Gri",
+  "carBlack": "Siyah",
+  "message": "Mesaj",
+  "call": "Ara",
+  "startRideDemo": "YOLCULUĞU BAŞLAT (DEMO)",
+  "cancelRide": "Yolculuğu İptal Et",
+  "cancelRideTitle": "Yolculuk iptal edilsin mi?",
+  "cancelRideMessage": "Sürücün yola çıktı. İptal edersen yolculuk İptal Edilenler'e eklenir.",
+  "tripInProgress": "Yolculuğun devam ediyor",
+  "arrivedAtDestination": "Varış noktasına ulaştın",
+  "minutesLeft": "{count} dk kaldı",
+  "@minutesLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "completeRide": "TAMAMLA",
+  "finishDemo": "BİTİR (DEMO)",
+  "safetyTools": "Güvenlik",
+  "shareTrip": "Yolculuğumu paylaş",
+  "shareTripHint": "Sürücü, plaka, varış saati ve şu anki konum bir yakınına gönderilir",
+  "shareTripText": "KKTC Taksim ile yolculuktayım.\nSürücü: {driver}\nPlaka: {plate} – {car}\nVarış: {destination}, tahmini {arrival}\nŞu anki konum: {link}",
+  "@shareTripText": {
+    "placeholders": {
+      "driver": {
+        "type": "String"
+      },
+      "plate": {
+        "type": "String"
+      },
+      "car": {
+        "type": "String"
+      },
+      "destination": {
+        "type": "String"
+      },
+      "arrival": {
+        "type": "String"
+      },
+      "link": {
+        "type": "String"
+      }
+    }
+  },
+  "tripDetailsCopied": "Yolculuk bilgileri panoya kopyalandı; mesaj olarak yapıştırabilirsin.",
+  "emergencyCall": "Acil arama",
+  "police": "Polis",
+  "ambulance": "Ambulans",
+  "fireDepartment": "İtfaiye",
+  "tripCompleted": "Yolculuk Tamamlandı",
+  "totalAmount": "Toplam Tutar: {amount}",
+  "@totalAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "howWasTrip": "Yolculuğun nasıl geçti?",
+  "starCount": "{count} yıldız",
+  "@starCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "submitRating": "Değerlendirmeyi Gönder",
+  "tabUpcoming": "Yaklaşan",
+  "tabPast": "Geçmiş",
+  "tabCancelled": "İptal Edilen",
+  "noUpcomingTrips": "Yaklaşan yolculuğun yok",
+  "noUpcomingTripsHint": "Taksi çağırırken \"İleri tarih\"i seçerek yolculuk planlayabilirsin.",
+  "noPastTrips": "Henüz tamamlanmış yolculuğun yok",
+  "noCancelledTrips": "İptal edilmiş yolculuğun yok",
+  "callTaxiShort": "Taksi Çağır",
+  "statusScheduled": "Planlandı",
+  "statusCompleted": "Tamamlandı",
+  "statusCancelled": "İptal Edildi",
+  "cancelReservation": "İptal Et",
+  "cancelReservationTitle": "Rezervasyon iptal edilsin mi?",
+  "cancelReservationMessage": "{when} tarihli yolculuğun iptal edilecek.",
+  "@cancelReservationMessage": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedRides": "Paylaşımlı Yolculuk",
+  "howItWorks": "Nasıl çalışır?",
+  "sharedRidesInfo": "Aynı yöne giden yolcularla bir araç (Vito) paylaşırsın. Kartta yazan ücret kişi başıdır; herkes kendi payını öder. Kalkış saati geldiğinde yolculuk başlar.",
+  "sharedPromoTitle": "Birlikte yolculuk et,\ndaha avantajlı öde.",
+  "sharedPromoSubtitle": "Aynı yöne giden kişilerle maliyeti paylaş.",
+  "activeGroups": "Aktif Gruplar",
+  "noActiveGroups": "Şu an aktif grup yok. İlk grubu sen oluştur!",
+  "createGroup": "Grup Oluştur",
+  "perPerson": "kişi başı",
+  "peopleCount": "{current} / {capacity} kişi",
+  "@peopleCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "capacity": {
+        "type": "int"
+      }
+    }
+  },
+  "seatsLeft": "{count} koltuk kaldı",
+  "@seatsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "full": "Dolu",
+  "join": "Katıl",
+  "joinedGroup": "{from} → {to} grubuna katıldın.",
+  "@joinedGroup": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "leaveGroup": "Ayrıl",
+  "leaveGroupTitle": "Gruptan ayrılmak istiyor musun?",
+  "leaveGroupMessage": "{from} → {to} grubundaki yerin boşaltılacak.",
+  "@leaveGroupMessage": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "leftGroup": "Gruptan ayrıldın.",
+  "createRide": "Yolculuk Oluştur",
+  "stepOf": "Adım {step} / {total}",
+  "@stepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "fromQuestion": "Nereden?",
+  "toQuestion": "Nereye?",
+  "startPoint": "Başlangıç noktası",
+  "endPoint": "Varış noktası",
+  "rideDetails": "Tarih, Saat ve Ücret",
+  "rideDate": "Tarih",
+  "rideTime": "Saat",
+  "departureInPast": "Kalkış zamanı geçmişte kalamaz.",
+  "vitoCapacity": "Vito kapasitesi: {count}",
+  "@vitoCapacity": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pricePerPersonLabel": "Kişi başı ücret",
+  "pricePerPersonHelp": "Her yolcunun ödeyeceği tutar",
+  "createRideButton": "Yolculuğu Oluştur",
+  "exploreSearchHint": "Yakınında ne arıyorsun?",
+  "categoryAll": "Hepsi",
+  "categoryRestaurant": "Restoran",
+  "categoryCafe": "Kafe",
+  "categoryHotel": "Otel",
+  "categoryEntertainment": "Eğlence",
+  "categoryShopping": "Alışveriş",
+  "categoryHistoric": "Tarihi Yerler",
+  "popularPlaces": "Popüler Yerler",
+  "noPlacesFound": "Aramana uygun yer bulunamadı",
+  "discountBadge": "%{percent} İndirim",
+  "@discountBadge": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "callTaxiHere": "Buraya taksi",
+  "personalInfo": "Kişisel Bilgiler",
+  "savedAddresses": "Kayıtlı Adresler",
+  "paymentMethods": "Ödeme Yöntemleri",
+  "notifications": "Bildirimler",
+  "campaigns": "Kampanyalar",
+  "helpSupport": "Yardım ve Destek",
+  "language": "Dil",
+  "languageSystem": "Telefonun dili",
+  "logout": "Çıkış Yap",
+  "logoutMessage": "Hesabından çıkmak istediğine emin misin?",
+  "greetingNoName": "Merhaba 👋",
+  "authInvalidCode": "Kod hatalı. Lütfen SMS ile gelen kodu kontrol et.",
+  "authTooManyRequests": "Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.",
+  "networkError": "İnternet bağlantısı yok gibi görünüyor. Bağlantını kontrol et.",
+  "actionFailed": "İşlem tamamlanamadı. Lütfen tekrar dene.",
+  "loadError": "Veriler yüklenemedi.",
+  "noDriverFound": "Şu an uygun taksi bulunamadı. Biraz sonra tekrar dene.",
+  "groupFull": "Bu grup doldu."
+}

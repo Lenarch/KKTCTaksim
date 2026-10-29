@@ -5,36 +5,73 @@ import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/formatters.dart';
+import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/labels.dart';
+import 'package:kktc_taksim/core/ui_helpers.dart';
+import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
-import 'package:kktc_taksim/models/taxi_option.dart';
+import 'package:kktc_taksim/data/repositories/ride_repository.dart';
+import 'package:kktc_taksim/models/app_user.dart';
+import 'package:kktc_taksim/models/driver.dart';
+import 'package:kktc_taksim/models/geo_place.dart';
+import 'package:kktc_taksim/models/ride_request.dart';
+import 'package:kktc_taksim/models/ride_session.dart';
+import 'package:kktc_taksim/models/route_info.dart';
+import 'package:kktc_taksim/models/trip.dart';
+import 'package:kktc_taksim/services/geocoding_service.dart';
 import 'package:kktc_taksim/services/location_service.dart';
+import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:kktc_taksim/widgets/home/active_trip_sheet.dart';
 import 'package:kktc_taksim/widgets/home/destination_sheet.dart';
 import 'package:kktc_taksim/widgets/home/driver_found_sheet.dart';
 import 'package:kktc_taksim/widgets/home/ride_map.dart';
+import 'package:kktc_taksim/widgets/home/safety_sheet.dart';
 import 'package:kktc_taksim/widgets/home/taxi_selection_sheet.dart';
 import 'package:kktc_taksim/widgets/home/trip_completed_dialog.dart';
 
-enum RideState { idle, selectingTaxi, searching, driverFound, activeTrip, tripCompleted }
+enum RideState {
+  idle,
+  pickingOnMap,
+  routing,
+  selectingTaxi,
+  searching,
+  driverFound,
+  activeTrip,
+  tripCompleted,
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
+  /// Açık bir sheet haritanın bu kadarını kapatır; rota bunun üstüne sığdırılır.
+  static const double _sheetCoverage = 0.55;
+
   final GlobalKey<RideMapState> _mapKey = GlobalKey();
   final LocationService _locationService = LocationService();
+  final GeocodingService _geocoding = GeocodingService();
+  final RoutingService _routing = RoutingService();
   StreamSubscription<LatLng>? _positionSubscription;
   LatLng? _userLocation;
   LocationStatus? _locationStatus;
 
   RideState _state = RideState.idle;
-  Timer? _searchTimer;
-  String? _destination;
-  TaxiOption? _taxiOption;
+  GeoPlace? _destination;
+  RouteInfo? _route;
+
+  /// Başlangıç noktasının adı (ters aramayla); bulunamazsa "Mevcut konumun".
+  String? _pickupName;
+
+  /// Devam eden çağrının backend'den gelen son hâli; sürücü sheet'leri de bunu dinler.
+  final ValueNotifier<RideSession?> _session = ValueNotifier(null);
+  StreamSubscription<RideSession>? _rideSubscription;
+
+  RideRepository get _rides => Backend.instance.rides;
 
   @override
   void initState() {
@@ -44,13 +81,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _searchTimer?.cancel();
+    _rideSubscription?.cancel();
     _positionSubscription?.cancel();
+    _session.dispose();
     super.dispose();
   }
 
   /// Taksilerin ve haritanın merkezi: gerçek konum, yoksa Lefkoşa merkez.
   LatLng get _origin => _userLocation ?? MockData.fallbackLocation;
+
+  double get _sheetInset => MediaQuery.sizeOf(context).height * _sheetCoverage;
 
   Future<void> _locate({bool userInitiated = false}) async {
     final result = await _locationService.current();
@@ -61,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     if (result.isGranted) {
-      _mapKey.currentState?.moveTo(result.position!);
+      if (_state == RideState.idle) _mapKey.currentState?.moveTo(result.position!);
       _positionSubscription ??= _locationService.watch().listen((position) {
         if (mounted) setState(() => _userLocation = position);
       });
@@ -71,96 +111,253 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showLocationProblem(LocationStatus status) {
+    final l10n = context.l10n;
     final canOpenSettings = !kIsWeb &&
         (status == LocationStatus.deniedForever || status == LocationStatus.serviceDisabled);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-        content: Text('${LocationService.describe(status)} Harita Lefkoşa merkezde gösteriliyor.'),
+        content: Text('${status.label(l10n)} ${l10n.showingFallbackCity}'),
         action: canOpenSettings
-            ? SnackBarAction(label: 'Ayarlar', onPressed: () => _locationService.openSettings(status))
+            ? SnackBarAction(label: l10n.settings, onPressed: () => _locationService.openSettings(status))
             : null,
       ));
   }
 
   void _reset() {
-    _searchTimer?.cancel();
+    _rideSubscription?.cancel();
+    _rideSubscription = null;
+    _session.value = null;
     setState(() {
       _state = RideState.idle;
       _destination = null;
-      _taxiOption = null;
+      _route = null;
+      _pickupName = null;
     });
+    _mapKey.currentState?.moveTo(_origin);
+  }
+
+  /// Keşfet gibi başka sekmelerden doğrudan bir yere taksi çağırmak için.
+  void rideTo(GeoPlace place) {
+    if (_state != RideState.idle) {
+      showMessage(context, context.l10n.finishCurrentRideFirst);
+      return;
+    }
+    _planRide(place);
   }
 
   Future<void> _chooseDestination() async {
-    final destination = await showModalBottomSheet<String>(
+    final choice = await showModalBottomSheet<DestinationChoice>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const DestinationSheet(),
+      builder: (_) => DestinationSheet(geocoding: _geocoding, near: _origin),
     );
-    if (!mounted || destination == null) return;
-    _destination = destination;
-    await _chooseTaxi(destination);
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case PlaceChosen(:final place):
+        await _planRide(place);
+      case PickOnMapChosen():
+        setState(() => _state = RideState.pickingOnMap);
+    }
   }
 
-  Future<void> _chooseTaxi(String destination) async {
-    setState(() => _state = RideState.selectingTaxi);
-    final option = await showModalBottomSheet<TaxiOption>(
+  Future<void> _confirmMapPick() async {
+    final point = _mapKey.currentState?.center ?? _origin;
+    setState(() => _state = RideState.routing);
+    GeoPlace? place;
+    try {
+      place = await _geocoding.reverse(point);
+    } catch (_) {
+      // Adı bulunamazsa nokta "İşaretlenen konum" olarak kullanılır.
+    }
+    if (!mounted || _state != RideState.routing) return;
+    await _planRide(place ?? GeoPlace(name: context.l10n.pinnedLocation, position: point));
+  }
+
+  Future<void> _planRide(GeoPlace destination) async {
+    setState(() {
+      _state = RideState.routing;
+      _destination = destination;
+      _route = null;
+    });
+
+    final origin = _origin;
+    // Başlangıç noktasının adı yalnızca geçmişe yazmak için; rotayı bekletmesin.
+    _geocoding.reverse(origin).then((pickup) {
+      if (mounted && _destination == destination) _pickupName = pickup?.name;
+    }, onError: (_) {});
+
+    final route = await _routing.route(origin, destination.position);
+    if (!mounted || _state != RideState.routing || _destination != destination) return;
+
+    setState(() {
+      _route = route;
+      _state = RideState.selectingTaxi;
+    });
+    _mapKey.currentState?.fitPoints(route.points, bottomInset: _sheetInset);
+
+    final pickup = GeoPlace(name: _pickupName ?? context.l10n.currentLocation, position: origin);
+    final request = await showModalBottomSheet<RideRequest>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => TaxiSelectionSheet(destination: destination),
+      barrierColor: Colors.black12,
+      builder: (_) => TaxiSelectionSheet(pickup: pickup, destination: destination, route: route),
     );
     if (!mounted) return;
-    if (option == null) {
+    if (request == null) {
       _reset();
       return;
     }
-    _taxiOption = option;
-    _startSearching();
+    if (request.scheduledAt != null) {
+      await _schedule(request);
+    } else {
+      _callTaxi(request);
+    }
   }
 
-  void _startSearching() {
+  Future<void> _schedule(RideRequest request) async {
+    final l10n = context.l10n;
+    final scheduledAt = request.scheduledAt!;
+    final when = context.dateTime(scheduledAt);
+    final trips = Backend.instance.trips;
+    try {
+      await trips.add(Trip(
+        id: trips.newId(),
+        from: request.pickup.name,
+        to: request.destination.name,
+        dateTime: scheduledAt,
+        price: request.fare.typical,
+        status: TripStatus.upcoming,
+        taxiType: request.taxiType,
+        payment: request.payment,
+      ));
+      if (mounted) showMessage(context, l10n.rideScheduled(when));
+    } catch (_) {
+      if (mounted) showMessage(context, l10n.actionFailed);
+    }
+    if (mounted) _reset();
+  }
+
+  void _callTaxi(RideRequest request) {
     setState(() => _state = RideState.searching);
-    _searchTimer?.cancel();
-    _searchTimer = Timer(AppDurations.driverSearch, _onDriverFound);
+    _rideSubscription = _rides.request(request).listen(
+      _onSession,
+      onError: (_) {
+        if (!mounted) return;
+        showMessage(context, context.l10n.actionFailed);
+        _reset();
+      },
+    );
   }
 
-  Future<void> _onDriverFound() async {
+  /// Backend'den gelen her durum değişikliği. Sheet'ler aynı bilgiyi [_session]'dan izler.
+  void _onSession(RideSession session) {
+    _session.value = session;
     if (!mounted) return;
+    switch (session.status) {
+      case RideStatus.driverAssigned when _state == RideState.searching:
+        _showDriver(session);
+      case RideStatus.cancelled when _state == RideState.searching:
+        // Arama sırasında backend iptal ettiyse (örn. uygun sürücü yok).
+        showMessage(context, context.l10n.noDriverFound);
+        _reset();
+      default:
+        break;
+    }
+  }
+
+  Future<void> _cancelSearch() async {
+    final session = _session.value;
+    if (session != null) await _rides.cancel(session.id);
+    if (mounted) _reset();
+  }
+
+  Future<void> _showDriver(RideSession session) async {
+    final driver = session.driver!;
     setState(() => _state = RideState.driverFound);
+    final driverAt = session.progress?.position;
+    _mapKey.currentState?.fitPoints(
+      [if (driverAt != null) driverAt, session.request.pickup.position],
+      bottomInset: _sheetInset,
+    );
+
     final started = await showModalBottomSheet<bool>(
       context: context,
       isDismissible: false,
       enableDrag: false,
-      builder: (_) => const DriverFoundSheet(driver: MockData.driver),
+      isScrollControlled: true,
+      barrierColor: Colors.transparent,
+      builder: (_) => DriverFoundSheet(
+        driver: driver,
+        session: _session,
+        onStartDemo: _rides.hasDemoControls ? () => _rides.startTripDemo(session.id) : null,
+      ),
     );
-    if (!mounted) return;
+    if (!mounted || _state != RideState.driverFound) return;
     if (started != true) {
-      _reset();
+      await _rides.cancel(session.id);
+      if (mounted) _reset();
       return;
     }
-    await _startTrip();
+    await _showTrip(session.request, driver, session.id);
   }
 
-  Future<void> _startTrip() async {
+  Future<void> _showTrip(RideRequest request, Driver driver, String rideId) async {
     setState(() => _state = RideState.activeTrip);
+    _mapKey.currentState?.fitPoints(request.route.points, bottomInset: _sheetInset);
+
     final completed = await showModalBottomSheet<bool>(
       context: context,
       isDismissible: false,
       enableDrag: false,
-      builder: (_) => ActiveTripSheet(destination: _destination!, option: _taxiOption!),
+      isScrollControlled: true,
+      barrierColor: Colors.transparent,
+      builder: (_) => ActiveTripSheet(
+        request: request,
+        driver: driver,
+        session: _session,
+        onSafety: _showSafetyTools,
+        onCompleteDemo: _rides.hasDemoControls ? () => _rides.completeDemo(rideId) : null,
+      ),
     );
     if (!mounted) return;
     if (completed == true) {
       setState(() => _state = RideState.tripCompleted);
-      await showDialog<int>(
+      final rating = await showDialog<int>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => TripCompletedDialog(price: _taxiOption!.price),
+        builder: (_) => TripCompletedDialog(price: request.fare.typical, payment: request.payment),
       );
+      if (rating != null) await _rides.rate(rideId, rating);
       if (!mounted) return;
     }
     _reset();
+  }
+
+  void _showSafetyTools() {
+    final session = _session.value;
+    final driver = session?.driver;
+    if (session == null || driver == null) return;
+    final l10n = context.l10n;
+    final request = session.request;
+    final position = session.progress?.position ?? _origin;
+    final minutesLeft = session.progress?.minutesLeft ?? request.route.durationMinutes;
+    final mapLink = 'https://www.openstreetmap.org/?mlat=${position.latitude.toStringAsFixed(5)}'
+        '&mlon=${position.longitude.toStringAsFixed(5)}#map=16/${position.latitude}/${position.longitude}';
+
+    final shareText = l10n.shareTripText(
+      driver.name,
+      driver.plate,
+      '${driver.car} (${driver.carColor.label(l10n)})',
+      request.destination.name,
+      context.time(DateTime.now().add(Duration(minutes: minutesLeft))),
+      mapLink,
+    );
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafetySheet(shareText: shareText),
+    );
   }
 
   void _recenter() {
@@ -174,21 +371,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final showAssignedTaxi = _state == RideState.driverFound || _state == RideState.activeTrip;
+    final l10n = context.l10n;
+    final showRoute = const {
+      RideState.selectingTaxi,
+      RideState.searching,
+      RideState.driverFound,
+      RideState.activeTrip,
+    }.contains(_state);
+    final showNearbyTaxis = _state == RideState.idle || _state == RideState.pickingOnMap;
 
     return Scaffold(
       body: Stack(
         children: [
-          RideMap(
-            key: _mapKey,
-            initialCenter: _origin,
-            userLocation: _userLocation,
-            taxis: _state == RideState.idle
-                ? [for (final offset in MockData.nearbyTaxiOffsets) MockData.offsetFrom(_origin, offset)]
-                : const [],
-            assignedTaxi: showAssignedTaxi ? MockData.offsetFrom(_origin, MockData.assignedTaxiOffset) : null,
+          ValueListenableBuilder<RideSession?>(
+            valueListenable: _session,
+            builder: (context, session, _) => RideMap(
+              key: _mapKey,
+              initialCenter: _origin,
+              // Yolculukta kullanıcı taksinin içinde; ayrı bir nokta göstermeye gerek yok.
+              userLocation: _state == RideState.activeTrip ? null : _userLocation,
+              taxis: showNearbyTaxis
+                  ? [for (final offset in MockData.nearbyTaxiOffsets) MockData.offsetFrom(_origin, offset)]
+                  : const [],
+              assignedTaxi: session != null && session.status.hasDriver ? session.progress?.position : null,
+              route: showRoute ? _route?.points ?? const [] : const [],
+              destination: showRoute ? _destination?.position : null,
+            ),
           ),
           if (_state == RideState.idle) const _IdleHeader(),
+          if (_state == RideState.pickingOnMap) ...[
+            const _CenterPin(),
+            _TopBanner(text: l10n.moveMapToPick),
+          ],
           Positioned(
             left: AppSpacing.xl,
             right: AppSpacing.xl,
@@ -199,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 FloatingActionButton(
                   mini: true,
                   heroTag: null,
-                  tooltip: 'Konumuma git',
+                  tooltip: l10n.goToMyLocation,
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   foregroundColor: Theme.of(context).colorScheme.onSurface,
                   onPressed: _recenter,
@@ -209,11 +423,37 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   _SearchCard(onTap: _chooseDestination),
                 ],
+                if (_state == RideState.pickingOnMap) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _reset,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 56),
+                            backgroundColor: Theme.of(context).colorScheme.surface,
+                          ),
+                          child: Text(l10n.cancel),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(onPressed: _confirmMapPick, child: Text(l10n.selectThisPoint)),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
+          if (_state == RideState.routing)
+            Positioned.fill(child: _BusyOverlay(title: l10n.calculatingRoute, onCancel: _reset)),
           if (_state == RideState.searching)
-            Positioned.fill(child: _SearchingOverlay(onCancel: _reset)),
+            Positioned.fill(
+              child: _BusyOverlay(title: l10n.searchingTaxi, subtitle: l10n.searchingTaxiHint, onCancel: _cancelSearch),
+            ),
         ],
       ),
     );
@@ -225,6 +465,7 @@ class _IdleHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
 
     return SafeArea(
@@ -244,12 +485,19 @@ class _IdleHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Merhaba ${MockData.userName} 👋',
-                      style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                    StreamBuilder<AppUser?>(
+                      stream: Backend.instance.auth.authState,
+                      initialData: Backend.instance.auth.currentUser,
+                      builder: (context, snapshot) {
+                        final name = snapshot.data?.name;
+                        return Text(
+                          name == null || name.isEmpty ? l10n.greetingNoName : l10n.greeting(name.split(' ').first),
+                          style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                        );
+                      },
                     ),
                     Text(
-                      'Nereye gitmek istersin?',
+                      l10n.whereToGo,
                       style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -268,6 +516,57 @@ class _IdleHeader extends StatelessWidget {
   }
 }
 
+class _TopBanner extends StatelessWidget {
+  final String text;
+
+  const _TopBanner({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Material(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          elevation: 4,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              children: [
+                const Icon(Icons.pan_tool_alt_outlined),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600))),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Haritanın tam ortasını gösteren iğne; ucu merkezde olsun diye yukarı kaydırılır.
+class _CenterPin extends StatelessWidget {
+  static const double _size = 48;
+
+  const _CenterPin();
+
+  @override
+  Widget build(BuildContext context) {
+    return const IgnorePointer(
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: _size),
+          child: Icon(Icons.location_on, size: _size, color: AppTheme.errorRed),
+        ),
+      ),
+    );
+  }
+}
+
 class _SearchCard extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -275,6 +574,7 @@ class _SearchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
     final borderRadius = BorderRadius.circular(AppRadius.xxl);
 
@@ -294,7 +594,7 @@ class _SearchCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.location_on, color: AppTheme.locationBlue),
                   const SizedBox(width: AppSpacing.lg),
-                  Text('Mevcut konumun', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+                  Text(l10n.currentLocation, style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
                 ],
               ),
               const Padding(
@@ -305,9 +605,11 @@ class _SearchCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.circle, color: AppTheme.errorRed, size: 20),
                   const SizedBox(width: AppSpacing.lg),
-                  Text(
-                    'Nereye gitmek istiyorsun?',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Text(
+                      l10n.whereTo,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),
@@ -319,43 +621,53 @@ class _SearchCard extends StatelessWidget {
   }
 }
 
-class _SearchingOverlay extends StatelessWidget {
+class _BusyOverlay extends StatelessWidget {
+  final String title;
+  final String? subtitle;
   final VoidCallback onCancel;
 
-  const _SearchingOverlay({required this.onCancel});
+  const _BusyOverlay({required this.title, required this.onCancel, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final subtitle = this.subtitle;
 
     return ColoredBox(
       color: Colors.black.withValues(alpha: 0.6),
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: AppSpacing.xxxl),
-            Text(
-              'Taksi aranıyor...',
-              style: textTheme.headlineSmall?.copyWith(color: AppTheme.white, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Yakındaki sürücülerle eşleştiriliyorsun',
-              style: textTheme.bodyMedium?.copyWith(color: AppTheme.white.withValues(alpha: 0.7)),
-            ),
-            const SizedBox(height: AppSpacing.huge),
-            ElevatedButton(
-              onPressed: onCancel,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.white,
-                foregroundColor: AppTheme.primaryBlack,
-                minimumSize: const Size(200, 50),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: AppSpacing.xxxl),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: textTheme.headlineSmall?.copyWith(color: AppTheme.white, fontWeight: FontWeight.bold),
               ),
-              child: const Text('İptal Et'),
-            ),
-          ],
+              if (subtitle != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(color: AppTheme.white.withValues(alpha: 0.7)),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.huge),
+              ElevatedButton(
+                onPressed: onCancel,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.white,
+                  foregroundColor: AppTheme.primaryBlack,
+                  minimumSize: const Size(200, 50),
+                ),
+                child: Text(context.l10n.cancel),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,0 +1,26 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "kktctaksim-1ea24",
+          "appId": "1:314510172975:android:b9c5be1ecd194fd37177da",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "kktctaksim-1ea24",
+          "configurations": {
+            "android": "1:314510172975:android:b9c5be1ecd194fd37177da",
+            "ios": "1:314510172975:ios:1c16b6af1fe0534c7177da",
+            "web": "1:314510172975:web:9a722b226e3caca17177da"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

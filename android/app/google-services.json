@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "314510172975",
+    "project_id": "kktctaksim-1ea24",
+    "storage_bucket": "kktctaksim-1ea24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:314510172975:android:b9c5be1ecd194fd37177da",
+        "android_client_info": {
+          "package_name": "com.kktctaksim.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDR4Gls3m7YPheO1K1Lbu4WSUa3ohoDZ3k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

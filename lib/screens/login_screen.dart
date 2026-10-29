@@ -2,10 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/core/validators.dart';
+import 'package:kktc_taksim/core/labels.dart';
+import 'package:kktc_taksim/data/backend.dart';
+import 'package:kktc_taksim/data/repositories/auth_repository.dart';
+import 'package:kktc_taksim/screens/otp_screen.dart';
 import 'package:kktc_taksim/widgets/auth_header.dart';
+import 'package:kktc_taksim/widgets/loading_button.dart';
+import 'package:kktc_taksim/widgets/phone_field.dart';
 
+/// Telefon numarasıyla giriş: numaraya SMS kodu gönderilir, kod doğrulanınca ana sayfaya geçilir.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,16 +23,35 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  bool _isPasswordVisible = false;
+  final TextEditingController _phoneController = TextEditingController();
+  bool _busy = false;
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    // TODO: Gerçek kimlik doğrulama servisi bağlanınca burada çağrılacak.
-    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_busy || !_formKey.currentState!.validate()) return;
+    final l10n = context.l10n;
+    final phone = _phoneController.text.trim();
+    setState(() => _busy = true);
+    try {
+      await Backend.instance.auth.sendCode(phone);
+    } on AuthException catch (e) {
+      if (mounted) showMessage(context, e.code.label(l10n));
+      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(builder: (context) => OtpScreen(phoneNumber: phone)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -49,58 +76,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxxl),
-                const AuthHeader(title: 'Hoş Geldiniz', subtitle: 'Devam etmek için giriş yapın'),
+                AuthHeader(title: l10n.welcome, subtitle: l10n.loginSubtitle),
                 const SizedBox(height: AppSpacing.xxxl),
-                TextFormField(
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  autofillHints: const [AutofillHints.email],
-                  validator: Validators.email,
-                  decoration: const InputDecoration(
-                    labelText: 'E-posta',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
+                PhoneField(
+                  controller: _phoneController,
+                  autofocus: true,
+                  validator: (value) => Validators.phone(l10n, value),
+                  onSubmitted: _submit,
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                TextFormField(
-                  obscureText: !_isPasswordVisible,
-                  textInputAction: TextInputAction.done,
-                  autofillHints: const [AutofillHints.password],
-                  validator: Validators.password,
-                  onFieldSubmitted: (_) => _submit(),
-                  decoration: InputDecoration(
-                    labelText: 'Şifre',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      tooltip: _isPasswordVisible ? 'Şifreyi gizle' : 'Şifreyi göster',
-                      icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                    ),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => showComingSoon(context, 'Şifre sıfırlama'),
-                    child: const Text('Şifremi Unuttum'),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                ElevatedButton(
-                  onPressed: _submit,
-                  child: const Text('Giriş Yap'),
-                ),
+                const SizedBox(height: AppSpacing.xxl),
+                LoadingButton(loading: _busy, onPressed: _submit, label: l10n.sendCode),
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Hesabınız yok mu?',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    Flexible(
+                      child: Text(
+                        l10n.noAccount,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pushNamed(context, AppRoutes.signup),
-                      child: const Text('Kayıt Ol'),
+                      child: Text(l10n.signUp),
                     ),
                   ],
                 ),

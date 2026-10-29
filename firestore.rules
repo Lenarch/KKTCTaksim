@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// KKTC Taksim Firestore güvenlik kuralları.
+// Varsayılan: her şey kapalı. Her aşamada yalnızca gereken yerler açılır (docs/BACKEND_PLANI.md).
+// Yüklemek için: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Aşama 1: kullanıcı profili. Herkes yalnızca kendi belgesini okur ve yazar;
+    // belgedeki telefon, giriş yapılan telefonla aynı olmak zorunda.
+    match /users/{uid} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      function isValidProfile() {
+        let data = request.resource.data;
+        return data.keys().hasOnly(['phone', 'name', 'updatedAt'])
+          && data.phone == request.auth.token.phone_number
+          && (!('name' in data) || data.name == null
+              || (data.name is string && data.name.size() <= 80))
+          && data.updatedAt == request.time;
+      }
+
+      allow read: if isOwner();
+      allow create, update: if isOwner() && isValidProfile();
+      // Hesap silme ileride sunucu tarafında (tüm verileriyle birlikte) yapılacak.
+      allow delete: if false;
+
+      // Aşama 2: yolculuk geçmişi. Yalnızca sahibi okur.
+      // Not: tamamlanan yolculuğu şimdilik uygulama yazıyor (şoför tarafı yok). Eşleştirme
+      // sunucuya taşınınca (Aşama 5) "completed" kayıtları yalnızca sunucu yazabilecek.
+      match /trips/{tripId} {
+        function isValidTrip(data) {
+          return data.keys().hasOnly(['from', 'to', 'dateTime', 'price', 'status', 'taxiType', 'payment'])
+            && data.from is string && data.from.size() > 0 && data.from.size() <= 200
+            && data.to is string && data.to.size() > 0 && data.to.size() <= 200
+            && data.dateTime is int
+            && data.price is int && data.price >= 0 && data.price <= 1000000
+            && data.status in ['upcoming', 'completed', 'cancelled']
+            && (!('taxiType' in data) || data.taxiType == null || data.taxiType in ['economy', 'comfort', 'xl'])
+            && (!('payment' in data) || data.payment == null || data.payment in ['cash', 'card']);
+        }
+
+        allow read: if isOwner();
+        allow create: if isOwner() && isValidTrip(request.resource.data);
+        // Tek izin verilen değişiklik: planlanmış yolculuğu iptal etmek (ücret sıfırlanır).
+        allow update: if isOwner()
+          && resource.data.status == 'upcoming'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'price'])
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.price == 0;
+        allow delete: if false;
+      }
+    }
+  }
+}

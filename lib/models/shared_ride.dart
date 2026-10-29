@@ -1,38 +1,62 @@
 class SharedRide {
+  final String id;
   final String from;
   final String to;
-  final String date;
-  final String time;
+  final DateTime departure;
   final int capacity;
-  final int current;
-  final int price;
-  final bool joined;
+
+  /// Gruba katılan kullanıcıların kimlikleri; ilk sıradaki grubu oluşturan kişidir.
+  final List<String> memberIds;
+
+  /// Her yolcunun ödediği ücret (TL).
+  final int pricePerPerson;
 
   const SharedRide({
+    required this.id,
     required this.from,
     required this.to,
-    required this.date,
-    required this.time,
+    required this.departure,
     required this.capacity,
-    required this.current,
-    required this.price,
-    this.joined = false,
+    required this.memberIds,
+    required this.pricePerPerson,
   });
 
+  int get current => memberIds.length;
   bool get isFull => current >= capacity;
   int get seatsLeft => capacity - current;
   double get fillRatio => current / capacity;
 
-  SharedRide copyWith({int? current, bool? joined}) {
+  bool hasMember(String? userId) => userId != null && memberIds.contains(userId);
+
+  SharedRide copyWith({String? id, List<String>? memberIds}) {
     return SharedRide(
+      id: id ?? this.id,
       from: from,
       to: to,
-      date: date,
-      time: time,
+      departure: departure,
       capacity: capacity,
-      current: current ?? this.current,
-      price: price,
-      joined: joined ?? this.joined,
+      memberIds: memberIds ?? this.memberIds,
+      pricePerPerson: pricePerPerson,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'from': from,
+        'to': to,
+        'departure': departure.millisecondsSinceEpoch,
+        'capacity': capacity,
+        'memberIds': memberIds,
+        'pricePerPerson': pricePerPerson,
+      };
+
+  factory SharedRide.fromJson(Map<String, dynamic> json) => SharedRide(
+        id: json['id'] as String,
+        from: json['from'] as String,
+        to: json['to'] as String,
+        departure: DateTime.fromMillisecondsSinceEpoch(json['departure'] as int),
+        capacity: json['capacity'] as int,
+        memberIds: (json['memberIds'] as List).cast<String>(),
+        pricePerPerson: json['pricePerPerson'] as int,
+      );
 }

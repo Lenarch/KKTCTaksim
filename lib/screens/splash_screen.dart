@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/data/backend.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -38,9 +40,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _navigateNext() async {
     await Future.delayed(AppDurations.splashHold);
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
-    }
+    if (!mounted) return;
+    // Daha önce giriş yapılmışsa doğrudan ana sayfa.
+    final signedIn = Backend.instance.auth.currentUser != null;
+    Navigator.pushReplacementNamed(context, signedIn ? AppRoutes.main : AppRoutes.roleSelection);
   }
 
   @override
@@ -51,6 +54,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -77,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 Text(
-                  'KKTC TAKSİM',
+                  l10n.appNameUpper,
                   style: textTheme.headlineMedium?.copyWith(
                     color: AppTheme.primaryYellow,
                     fontWeight: FontWeight.bold,
@@ -86,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  "KKTC'nin Akıllı Taksi Uygulaması",
+                  l10n.tagline,
                   style: textTheme.bodyLarge?.copyWith(
                     color: AppTheme.white.withValues(alpha: 0.7),
                   ),

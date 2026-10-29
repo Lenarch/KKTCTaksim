@@ -3,21 +3,25 @@
 KKTC için taksi çağırma ve paylaşımlı yolculuk uygulaması (Flutter).
 
 ## Özellikler (demo)
-- Rol seçimi (yolcu / şoför / durak), e-posta ile giriş, kayıt ve SMS kodu doğrulama ekranları
-- Harita üzerinde taksi çağırma akışı: varış noktası → taksi tipi → sürücü arama → yolculuk → puanlama
-- Paylaşımlı yolculuk grupları: listeleme, katılma, yeni grup oluşturma
-- Keşfet: kategori ve isimle filtrelenen popüler yerler
-- Açık ve koyu tema (telefonun ayarını izler)
+- Rol seçimi (yolcu / şoför / durak), telefon numarası + SMS koduyla giriş ve kayıt
+- Gerçek konum, adres arama ve haritadan seçme, rota/mesafe/süre, mesafeye göre tahmini fiyat
+- Nakit/kart seçimi, ileri tarihli rezervasyon, sürücü takibi, yolculuk paylaşma ve acil arama
+- Yolculuk geçmişi; paylaşımlı yolculuk grupları (katılma, ayrılma, kişi başı ücret)
+- Keşfet: kategorili yerler ve "Buraya taksi"
+- Türkçe ve İngilizce; açık ve koyu tema
 
-Şu an backend yok; tüm veriler `lib/data/mock_data.dart` içindeki örnek verilerdir.
+Backend **Firebase** (proje `kktctaksim-1ea24`): giriş ve yolculuk geçmişi gerçek; paylaşımlı gruplar
+ve taksi çağırma şimdilik örnek veri. Yol haritası: `docs/BACKEND_PLANI.md`.
 
 ## Proje yapısı
 ```
 lib/
-  core/      tema, tasarım token'ları (boşluk/köşe/süre), rotalar, doğrulayıcılar
-  data/      örnek (mock) veriler
+  core/      tema, token'lar, rotalar, doğrulayıcılar, fiyat tarifesi (fare_calculator.dart), biçimlendirme
+  data/      Backend erişim noktası (backend.dart), repositories/ arayüzler,
+             firebase/ Firebase uygulamaları, mock/ örnek uygulamalar
   models/    Trip, Place, SharedRide, Driver, TaxiOption
-  services/  konum (geolocator) ve harita stili (MapLibre + OpenFreeMap, cihaz dilinde etiketler)
+  l10n/      dil dosyaları (app_tr.arb şablon, app_en.arb); kod `flutter gen-l10n` ile üretilir
+  services/  konum, adres arama (Photon), rota (OSRM), harita stili (MapLibre + OpenFreeMap), ayarlar
   screens/   tam sayfa ekranlar
   widgets/   ortak bileşenler; home/ altında ana sayfanın bottom sheet'leri
 ```
@@ -36,6 +40,6 @@ flutter run
 iPhone'da yerel ağ üzerinden test için `tool/README.md`, geliştirme durumu için `docs/ILERLEME.md`.
 
 ## Yayından önce yapılacaklar
-- `android/app/build.gradle.kts` içindeki `com.example.kktc_taksim` paket adı değiştirilmeli
 - AdMob test kimlikleri (AndroidManifest, Info.plist, `main_navigation_screen.dart`) gerçek kimliklerle değiştirilmeli
-- Gerçek kimlik doğrulama ve yolculuk servisleri bağlanmalı
+- Paylaşımlı gruplar, canlı konum ve yolcu–şoför eşleştirme Firebase'e taşınmalı
+- Ayrıntılı liste: `docs/UYARILAR.md`

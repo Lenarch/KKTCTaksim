@@ -20,7 +20,6 @@
 **/android/key.properties
 **/android/app/src/main/res/raw/google_services.json
 **/android/app/src/main/assets/google-services.json
-**/android/app/google-services.json
 **/android/app/src/debug/res/values/google_maps_api_key.xml
 **/android/app/src/release/res/values/google_maps_api_key.xml
 **/android/app/src/main/res/values/google_maps_api_key.xml
@@ -47,3 +46,14 @@ Yeni\ klasör/
 
 # Yerel https test sertifikaları
 /tool/certs/
+
+# Firestore kural testleri
+firestore-tests/node_modules/
+*-debug.log
+
+# Firebase CLI önbelleği (kurallar ve ayarlar firebase.json / firestore.rules'ta)
+.firebase/
+
+# Claude Code: yerel çalışma notları ve ayarları GitHub'a gitmez
+CLAUDE.md
+.claude/
