@@ -53,5 +53,53 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+
+    // Aşama 3: paylaşımlı gruplar. Giriş yapan herkes görür; üyeliği herkes yalnızca kendisi
+    // için değiştirir. Katılma/ayrılmayı uygulama transaction ile yapar; kurallar ise tek bir
+    // üyenin eklenip çıkarılmasından başka değişikliği reddeder.
+    match /sharedRides/{rideId} {
+      function signedIn() {
+        return request.auth != null;
+      }
+
+      function isValidSharedRide(data) {
+        return data.keys().hasAll(['from', 'to', 'departure', 'capacity', 'memberIds', 'pricePerPerson'])
+          && data.keys().hasOnly(['from', 'to', 'departure', 'capacity', 'memberIds', 'pricePerPerson'])
+          && data.from is string && data.from.size() > 0 && data.from.size() <= 200
+          && data.to is string && data.to.size() > 0 && data.to.size() <= 200
+          && data.departure is int && data.departure > request.time.toMillis()
+          && data.capacity is int && data.capacity >= 1 && data.capacity <= 8
+          && data.pricePerPerson is int && data.pricePerPerson > 0 && data.pricePerPerson <= 100000;
+      }
+
+      function onlyMembersChange() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds']);
+      }
+
+      function isJoin() {
+        let before = resource.data.memberIds;
+        let after = request.resource.data.memberIds;
+        return !(request.auth.uid in before)
+          && after == before.concat([request.auth.uid])
+          && after.size() <= resource.data.capacity
+          && resource.data.departure > request.time.toMillis();
+      }
+
+      // Son üye listeyi boşaltmaz, grubu siler (aşağıdaki delete).
+      function isLeave() {
+        let before = resource.data.memberIds;
+        let after = request.resource.data.memberIds;
+        return request.auth.uid in before
+          && after == before.removeAll([request.auth.uid])
+          && after.size() > 0;
+      }
+
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && isValidSharedRide(request.resource.data)
+        && request.resource.data.memberIds == [request.auth.uid];
+      allow update: if signedIn() && onlyMembersChange() && (isJoin() || isLeave());
+      allow delete: if signedIn() && resource.data.memberIds == [request.auth.uid];
+    }
   }
 }

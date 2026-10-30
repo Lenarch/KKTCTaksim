@@ -1,18 +1,20 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **29 Ekim 2026** (gün sonu). Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **30 Ekim 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
 
-## Kaldığımız yer (29 Ekim 2026 akşamı)
-- **Backend Aşama 0, 1 ve 2 bitti.** Giriş (telefon + SMS) ve yolculuk geçmişi gerçek Firebase'de.
-  Paylaşımlı gruplar ve taksi çağırma hâlâ örnek veri.
-- **Sıradaki iş: Backend Aşama 3** (paylaşımlı gruplar Firestore'a). Ayrıntılar en altta.
+## Kaldığımız yer (30 Ekim 2026)
+- **Backend Aşama 0, 1 ve 2 bitti; Aşama 3'ün kodu ve kuralları hazır** (dal
+  `backend/asama-3-paylasimli-gruplar`, GitHub'a gönderildi; `main`'e henüz birleştirilmedi). Kurallar 30 Ekim'de
+  **Firebase'e yüklendi**.
+- **Sıradaki iş:** web'de iki hesapla uçtan uca deneme (oluştur → başka hesapla katıl → ayrıl → son üye ayrılınca silinsin).
+- Taksi çağırma hâlâ örnek veri.
 - Bugünkü işin tamamı commit edilip GitHub'a gönderildi (`c8e4074`, gizli depo
   `Lenarch/KKTCTaksim`). `CLAUDE.md` artık **yalnızca yerelde**: kullanıcı GitHub'dan sildi,
   `.gitignore`'da. Git kimliği bu depoda `Berkay <43513762+Lenarch@users.noreply.github.com>`.
-- Durum: `flutter analyze` temiz, `flutter test` 34/34, Firestore kural testleri 13/13.
+- Durum (30 Ekim): `flutter analyze` temiz, `flutter test` 34/34, Firestore kural testleri 20/20.
 
 ## Uygulamanın amacı
 KKTC'ye özel taksi çağırma platformu. Üç rol var: **yolcu**, **şoför**, **taksi durağı** (şoför ve
@@ -98,6 +100,16 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
 - **Aşama 2:** `FirebaseTripRepository` (`users/{uid}/trips`), kurallar `firestore.rules`,
   kural testleri `firestore-tests/` (`npm test`, 13 test). Web'de uçtan uca denendi.
 
+## Yapılanlar (30 Ekim 2026)
+- **Backend Aşama 3 (paylaşımlı gruplar):** `lib/data/firebase/firebase_shared_ride_repository.dart`
+  (`sharedRides/{id}`); katılma/ayrılma transaction ile, son üye ayrılınca grup silinir. Üyelik
+  hesabı mock ile ortak: `membersAfterJoin` / `membersAfterLeave`
+  (`lib/data/repositories/shared_ride_repository.dart`). `Backend.firebase()` buna bağlandı.
+- **Kurallar** (`firestore.rules`): giriş yapan okur; oluşturan tek ilk üye; alanlar doğrulanır
+  (kapasite 1–8, fiyat > 0, kalkış gelecekte); güncellemede yalnızca `memberIds` değişir ve yalnızca
+  kendini sona ekleyerek (kapasite ve kalkış kontrolüyle) ya da kendini çıkararak; listeyi boşaltmak
+  yerine son üye grubu siler. 7 yeni kural testi.
+
 ## Alınan kararlar
 - **Backend: Firebase**, acele etmeden aşama aşama. Her aşamada: repository → kurallar → kural
   testleri (emülatör) → `firebase deploy --only firestore:rules` → web'de uçtan uca deneme.
@@ -109,7 +121,7 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
 - **Yayın:** internete yayın kurulmadı.
 
 ## Açık bulgular / eksikler (öncelik sırasıyla)
-1. **Backend Aşama 3–5**: paylaşımlı gruplar, canlı konum paylaşımı, yolcu–şoför eşleştirme
+1. **Backend Aşama 3'ün yüklenmesi, Aşama 4–5**: canlı konum paylaşımı, yolcu–şoför eşleştirme
    (`docs/BACKEND_PLANI.md`).
 2. **Şoför modu / uygulaması** (Aşama 5 ile birlikte).
 3. Photon ve OSRM demo sunucuları yayın için uygun değil; OSRM bazı rotaları uzun çiziyor.
@@ -121,10 +133,8 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
    Firestore yedekleme, gizlilik metni, hesap silme (`docs/UYARILAR.md`).
 
 ## Sıradaki adım
-1. **Backend Aşama 3: paylaşımlı gruplar**
-   - `FirebaseSharedRideRepository`: `sharedRides/{id}`; katılma/ayrılma **transaction** ile
-     (iki kişi aynı anda son koltuğa katılamasın); son üye ayrılınca grup silinir.
-   - Kurallar: giriş yapan herkes okur; oluşturan ilk üye olur; `memberIds`'e yalnızca kendini
-     ekleyip çıkarabilir; kapasite aşılamaz. Önce `firestore-tests/rules.test.js`'e testler, sonra yükleme.
-   - `test/backend_test.dart`'taki SharedRide sözleşme testleri yol gösterir.
-2. İsteğe bağlı: iPhone testi için IP'yi yetkili alan adlarına eklemek (kullanıcı onayıyla).
+1. **Aşama 3'ü bitirmek:** web'de iki hesapla uçtan uca dene
+   (ikinci hesap için Firebase'e ikinci bir test numarası gerekir: kullanıcı onayı), sonra dalı `main`'e birleştir.
+   Firestore boş başlar; örnek gruplar artık görünmez.
+2. Sonra **Aşama 4: canlı konum paylaşımı** (`docs/BACKEND_PLANI.md`).
+3. İsteğe bağlı: iPhone testi için IP'yi yetkili alan adlarına eklemek (kullanıcı onayıyla).

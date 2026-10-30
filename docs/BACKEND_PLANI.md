@@ -79,9 +79,15 @@ Henüz yapılmayanlar (platforma özel):
   aşamada önce bu testler genişletilip geçirilecek, sonra `firebase deploy --only firestore:rules`.
 - Web'de denendi: yolculuk tamamlandı → sayfa yenilendi → "Geçmiş"te duruyor.
 
-## Aşama 3: Paylaşımlı gruplar
-- `sharedRides/{rideId}` → `SharedRide.toJson()`; `memberIds` dizisi.
-- Katılma/ayrılma **transaction** ile (iki kişi aynı anda son koltuğa katılamasın).
+## Aşama 3: Paylaşımlı gruplar (kod hazır, kurallar yüklendi: 30 Ekim 2026)
+- `lib/data/firebase/firebase_shared_ride_repository.dart`: `sharedRides/{rideId}` →
+  `SharedRide.toJson()` (kimlik hariç, kalkış milisaniye); `memberIds` dizisi.
+- Katılma/ayrılma **transaction** ile (iki kişi aynı anda son koltuğa katılamasın); son üye
+  ayrılınca grup silinir. Liste `departure > şimdi` sorgusuyla, giriş yapan kullanıcıyı izler.
+- Kurallar: giriş yapan okur; oluşturan tek ilk üye; kapasite 1–8, fiyat > 0, kalkış gelecekte;
+  güncellemede yalnızca `memberIds`, yalnızca kendini ekleme (dolu/kalkışı geçmiş grupta değil) ya
+  da çıkarma; silmeyi yalnızca tek kalan üye yapar. Kural testleri 20/20.
+- Kalan: web'de iki hesapla uçtan uca deneme.
 
 ## Aşama 4: Canlı konum paylaşımı
 - Paylaşılan link bugün anlık konum. Canlı takip için `rides/{rideId}` belgesini okuyabilen kısa

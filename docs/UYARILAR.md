@@ -37,8 +37,8 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - Firebase'de denemeden kalan bir test kullanıcısı var ("Test Kullanıcı", `+905330000000`);
   yayından önce test numarasıyla birlikte silinmeli.
 - iPhone'da yerel Wi-Fi testi için bilgisayarın IP'si Firebase'in yetkili alan adlarına eklenmeli.
-- Yolculuk geçmişi ve rezervasyonlar **Firestore'da kalıcı**. Paylaşımlı gruplar ve taksi çağırma
-  hâlâ örnek veri (sayfa yenilenince sıfırlanır).
+- Yolculuk geçmişi ve rezervasyonlar **Firestore'da kalıcı**. Paylaşımlı gruplar da Firestore'a
+  taşındı (30 Ekim, kurallar yüklendi; iki hesapla uçtan uca deneme henüz yapılmadı). Firestore boş başladığı için örnek gruplar görünmez. Taksi çağırma hâlâ örnek veri.
 - Sürücü fotoğrafı yok; avatar yerine baş harfler gösteriliyor.
 
 ## Dil

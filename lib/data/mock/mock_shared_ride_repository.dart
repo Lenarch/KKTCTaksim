@@ -39,10 +39,9 @@ class MockSharedRideRepository implements SharedRideRepository {
   Future<void> join(String rideId) async {
     final index = _indexOf(rideId);
     final ride = _rides[index];
-    final userId = _userId;
-    if (ride.hasMember(userId)) return;
-    if (ride.isFull) throw const SharedRideException(SharedRideError.full);
-    _rides[index] = ride.copyWith(memberIds: [...ride.memberIds, userId]);
+    final members = membersAfterJoin(ride, _userId);
+    if (identical(members, ride.memberIds)) return;
+    _rides[index] = ride.copyWith(memberIds: members);
     _changes.add(null);
   }
 
@@ -50,7 +49,7 @@ class MockSharedRideRepository implements SharedRideRepository {
   Future<void> leave(String rideId) async {
     final index = _indexOf(rideId);
     final ride = _rides[index];
-    final members = ride.memberIds.where((id) => id != _userId).toList();
+    final members = membersAfterLeave(ride, _userId);
     if (members.isEmpty) {
       _rides.removeAt(index);
     } else {

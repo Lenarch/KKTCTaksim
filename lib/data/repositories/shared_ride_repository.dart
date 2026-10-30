@@ -25,3 +25,15 @@ abstract class SharedRideRepository {
   /// Son üye ayrılırsa grup silinir.
   Future<void> leave(String rideId);
 }
+
+/// [userId] katılınca üye listesi; zaten üyeyse liste aynen döner.
+/// Dolu grupta [SharedRideException] fırlatır.
+List<String> membersAfterJoin(SharedRide ride, String userId) {
+  if (ride.hasMember(userId)) return ride.memberIds;
+  if (ride.isFull) throw const SharedRideException(SharedRideError.full);
+  return [...ride.memberIds, userId];
+}
+
+/// [userId] ayrılınca üye listesi; boşsa grup silinmelidir.
+List<String> membersAfterLeave(SharedRide ride, String userId) =>
+    ride.memberIds.where((id) => id != userId).toList();

@@ -1,4 +1,5 @@
 import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
+import 'package:kktc_taksim/data/firebase/firebase_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_auth_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_ride_repository.dart';
@@ -38,7 +39,7 @@ class Backend {
     return Backend(
       auth: auth,
       trips: trips,
-      sharedRides: MockSharedRideRepository(auth),
+      sharedRides: FirebaseSharedRideRepository(),
       rides: MockRideRepository(trips: trips),
     );
   }

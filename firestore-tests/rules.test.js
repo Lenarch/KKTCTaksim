@@ -123,10 +123,87 @@ describe('users/{uid}/trips yolculuk geçmişi', () => {
   });
 });
 
+const CAROL = { uid: 'carol', phone: '+905330000003' };
+const FUTURE = Date.now() + 24 * 60 * 60 * 1000;
+
+const sharedRide = (overrides = {}) => ({
+  from: 'Girne',
+  to: 'Gazimağusa',
+  departure: FUTURE,
+  capacity: 4,
+  memberIds: ['alice'],
+  pricePerPerson: 300,
+  ...overrides,
+});
+
+describe('sharedRides paylaşımlı gruplar', () => {
+  test('giriş yapan herkes grupları okur; giriş yapmayan okuyamaz', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    await assertSucceeds(getDocs(collection(dbAs(BOB), 'sharedRides')));
+    await assertFails(getDoc(doc(anonymousDb(), 'sharedRides/g1')));
+  });
+
+  test('oluşturan tek ve ilk üye olur', async () => {
+    const db = dbAs(ALICE);
+    await assertSucceeds(setDoc(doc(db, 'sharedRides/g1'), sharedRide()));
+    await assertFails(setDoc(doc(db, 'sharedRides/g2'), sharedRide({ memberIds: ['bob'] })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g3'), sharedRide({ memberIds: ['alice', 'bob'] })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g4'), sharedRide({ memberIds: [] })));
+  });
+
+  test('geçersiz grup oluşturulamaz', async () => {
+    const db = dbAs(ALICE);
+    await assertFails(setDoc(doc(db, 'sharedRides/g1'), sharedRide({ departure: Date.now() - 60000 })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g2'), sharedRide({ capacity: 0 })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g3'), sharedRide({ capacity: 9 })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g4'), sharedRide({ pricePerPerson: 0 })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g5'), sharedRide({ from: '' })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g6'), sharedRide({ driverId: 'x' })));
+    const { to, ...missingTo } = sharedRide();
+    await assertFails(setDoc(doc(db, 'sharedRides/g7'), missingTo));
+  });
+
+  test('kullanıcı yalnızca kendini ekleyerek katılır', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    const ref = doc(dbAs(BOB), 'sharedRides/g1');
+    await assertFails(updateDoc(ref, { memberIds: ['alice', 'carol'] }));
+    await assertFails(updateDoc(ref, { memberIds: ['bob', 'alice'] }));
+    await assertFails(updateDoc(ref, { memberIds: ['alice', 'bob'], pricePerPerson: 1 }));
+    await assertSucceeds(updateDoc(ref, { memberIds: ['alice', 'bob'] }));
+    await assertFails(updateDoc(ref, { memberIds: ['alice', 'bob', 'bob'] }));
+  });
+
+  test('dolu ya da kalkışı geçmiş gruba katılınamaz', async () => {
+    await seed('sharedRides/full', sharedRide({ capacity: 2, memberIds: ['alice', 'carol'] }));
+    await seed('sharedRides/past', sharedRide({ departure: Date.now() - 60000 }));
+    const db = dbAs(BOB);
+    await assertFails(updateDoc(doc(db, 'sharedRides/full'), { memberIds: ['alice', 'carol', 'bob'] }));
+    await assertFails(updateDoc(doc(db, 'sharedRides/past'), { memberIds: ['alice', 'bob'] }));
+  });
+
+  test('kullanıcı yalnızca kendini çıkararak ayrılır', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob', 'carol'] }));
+    await assertFails(updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { memberIds: ['bob', 'carol'] }));
+    await assertSucceeds(updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { memberIds: ['alice', 'carol'] }));
+    // Son üye listeyi boşaltamaz; grubu silmesi gerekir.
+    await seed('sharedRides/g2', sharedRide());
+    await assertFails(updateDoc(doc(dbAs(ALICE), 'sharedRides/g2'), { memberIds: [] }));
+  });
+
+  test('grubu yalnızca tek kalan üye silebilir', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await assertFails(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g1')));
+    await assertFails(deleteDoc(doc(dbAs(CAROL), 'sharedRides/g1')));
+    await seed('sharedRides/g2', sharedRide());
+    await assertFails(deleteDoc(doc(dbAs(BOB), 'sharedRides/g2')));
+    await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g2')));
+  });
+});
+
 describe('diğer koleksiyonlar', () => {
   test('kurallarda açılmamış her yer kapalı', async () => {
     const db = dbAs(ALICE);
-    await assertFails(setDoc(doc(db, 'sharedRides/g1'), { from: 'A' }));
     await assertFails(getDoc(doc(db, 'rides/r1')));
+    await assertFails(setDoc(doc(db, 'rides/r1'), { from: 'A' }));
   });
 });
