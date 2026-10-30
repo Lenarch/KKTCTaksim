@@ -13,12 +13,18 @@ gerekenler ve yayından önce yapılacaklar).
   ayrılınca silindi; konsolda hata yok. **Başka hesabın katılması gerçek Firebase'de denenmedi**
   (yalnızca kural testleriyle doğrulandı): ikinci test numarasını Claude'un eklemesine izin
   verilmedi; kullanıcı konsoldan `+90 533 000 00 01` / `123456` ekleyince denenebilir.
-- **Sıradaki iş:** isteğe bağlı iki hesapla deneme, sonra **Aşama 4** (canlı konum paylaşımı).
+- **Grup sohbeti yazıldı** (dal `ozellik/grup-sohbeti`, 30 Ekim'de `main`'e birleştirildi). Kuralları 30 Ekim'de
+  **yüklendi**; web'de tek hesapla denendi: sohbet açıldı, iki mesaj sırayla gitti, yenileyince
+  duruyor, son üye ayrılınca grup mesajlarıyla silindi, konsolda hata yok. Denemede bulunan hata
+  (Enter'la gönderince yazı alanı odağı kaybediyordu) düzeltildi. İki hesapla (rozet, başkasının
+  mesajı) gerçek Firebase'de denenmedi; widget testi kapsıyor.
+- Firestore'da kullanıcının kendi açtığı bir deneme grubu var ("kürşaddan → allaha"); dokunulmadı.
+- **Sıradaki iş:** **Aşama 4** (canlı konum paylaşımı; takip sayfasının nerede duracağı henüz kararlaştırılmadı).
 - Taksi çağırma hâlâ örnek veri.
 - Bugünkü işin tamamı commit edilip GitHub'a gönderildi (`c8e4074`, gizli depo
   `Lenarch/KKTCTaksim`). `CLAUDE.md` artık **yalnızca yerelde**: kullanıcı GitHub'dan sildi,
   `.gitignore`'da. Git kimliği bu depoda `Berkay <43513762+Lenarch@users.noreply.github.com>`.
-- Durum (30 Ekim): `flutter analyze` temiz, `flutter test` 34/34, Firestore kural testleri 20/20.
+- Durum (30 Ekim): `flutter analyze` temiz, `flutter test` 36/36, Firestore kural testleri 25/25.
 
 ## Uygulamanın amacı
 KKTC'ye özel taksi çağırma platformu. Üç rol var: **yolcu**, **şoför**, **taksi durağı** (şoför ve
@@ -115,6 +121,13 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
   (kapasite 1–8, fiyat > 0, kalkış gelecekte); güncellemede yalnızca `memberIds` değişir ve yalnızca
   kendini sona ekleyerek (kapasite ve kalkış kontrolüyle) ya da kendini çıkararak; listeyi boşaltmak
   yerine son üye grubu siler. 7 yeni kural testi.
+- **Grup sohbeti** (kullanıcı istedi: Vito grubundakilerin haberleşecek yeri yoktu):
+  `sharedRides/{id}/messages` (`senderId`, `senderName`, `text` ≤ 500, `sentAt` sunucu zamanı).
+  Yalnızca o anki üyeler okur/yazar; telefon numarası gösterilmez, yalnızca ad; mesajlar
+  değiştirilemez; son üye ayrılırken uygulama önce mesajları siler (alt koleksiyon belgeyle
+  silinmez), sonra grubu. Ekran `lib/screens/group_chat_screen.dart`; kartta üyelere "Grup sohbeti"
+  düğmesi ve okunmamış mesaj rozeti (`lib/services/chat_read_state.dart`, cihazda saklanır).
+  **Push bildirim yok** (kullanıcı kararı: Aşama 5'te FCM + Cloud Functions ile).
 
 ## Alınan kararlar
 - **Backend: Firebase**, acele etmeden aşama aşama. Her aşamada: repository → kurallar → kural

@@ -193,6 +193,48 @@ void main() {
         throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.full)),
       );
     });
+
+    test('grup sohbeti: üyeler yazar ve okur, üye olmayan yazamaz, son üye ayrılınca silinir', () async {
+      final user = await _signIn(auth);
+      await auth.updateName('Ayşe');
+      await rides.create(SharedRide(
+        id: '',
+        from: 'Güzelyurt',
+        to: 'Lefkoşa',
+        departure: DateTime.now().add(const Duration(days: 1)),
+        capacity: 4,
+        memberIds: const [],
+        pricePerPerson: 150,
+      ));
+      final group = (await rides.watchActive().first).firstWhere((r) => r.from == 'Güzelyurt');
+      expect(await rides.watchMessages(group.id).first, isEmpty);
+      expect(await rides.watchLatestMessage(group.id).first, isNull);
+
+      await rides.sendMessage(group.id, '   ');
+      await rides.sendMessage(group.id, '  Saat 9 uygun mu?  ');
+      await rides.sendMessage(group.id, 'x' * 600);
+      final messages = await rides.watchMessages(group.id).first;
+      expect(messages.map((m) => m.text.length), [16, 500]);
+      expect(messages.first.text, 'Saat 9 uygun mu?');
+      expect(messages.first.senderId, user.id);
+      expect(messages.first.senderName, 'Ayşe');
+      expect((await rides.watchLatestMessage(group.id).first)?.text, 'x' * 500);
+
+      // Başka bir kullanıcı üye olmadan yazamaz ve okuyamaz; katılınca okur.
+      await auth.sendCode('+90 542 000 00 00');
+      await auth.verifyCode('1' * auth.codeLength);
+      final notMember = isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.notMember);
+      await expectLater(rides.sendMessage(group.id, 'Merhaba'), throwsA(notMember));
+      await expectLater(rides.watchMessages(group.id).first, throwsA(notMember));
+      await rides.join(group.id);
+      expect(await rides.watchMessages(group.id).first, hasLength(2));
+      await rides.leave(group.id);
+
+      // Son üye ayrılınca grup ve sohbeti silinir.
+      await _signIn(auth);
+      await rides.leave(group.id);
+      expect((await rides.watchActive().first).any((r) => r.id == group.id), isFalse);
+    });
   });
 
   group('RideRepository (demo)', () {

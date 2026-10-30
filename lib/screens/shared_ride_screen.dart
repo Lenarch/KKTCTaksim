@@ -7,7 +7,10 @@ import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
+import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
+import 'package:kktc_taksim/screens/group_chat_screen.dart';
+import 'package:kktc_taksim/services/chat_read_state.dart';
 import 'package:kktc_taksim/widgets/async_view.dart';
 import 'package:kktc_taksim/widgets/home/sheet_container.dart';
 
@@ -62,6 +65,10 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
     );
     if (!confirmed || !mounted) return;
     if (await _run(() => _repository.leave(ride.id)) && mounted) showMessage(context, l10n.leftGroup);
+  }
+
+  void _openChat(SharedRide ride) {
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => GroupChatScreen(ride: ride)));
   }
 
   void _showInfo() {
@@ -121,6 +128,7 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
                   joined: ride.hasMember(userId),
                   onJoin: () => _join(ride),
                   onLeave: () => _leave(ride),
+                  onChat: () => _openChat(ride),
                 ),
             ],
           );
@@ -187,8 +195,15 @@ class _RideCard extends StatelessWidget {
   final bool joined;
   final VoidCallback onJoin;
   final VoidCallback onLeave;
+  final VoidCallback onChat;
 
-  const _RideCard({required this.ride, required this.joined, required this.onJoin, required this.onLeave});
+  const _RideCard({
+    required this.ride,
+    required this.joined,
+    required this.onJoin,
+    required this.onLeave,
+    required this.onChat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -313,8 +328,55 @@ class _RideCard extends StatelessWidget {
                   ),
               ],
             ),
+            if (joined) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _ChatButton(rideId: ride.id, onPressed: onChat),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Üyelere görünen "Grup sohbeti" düğmesi; okunmamış mesaj varsa rozet gösterir.
+class _ChatButton extends StatefulWidget {
+  final String rideId;
+  final VoidCallback onPressed;
+
+  const _ChatButton({required this.rideId, required this.onPressed});
+
+  @override
+  State<_ChatButton> createState() => _ChatButtonState();
+}
+
+class _ChatButtonState extends State<_ChatButton> {
+  late final Stream<ChatMessage?> _latest = Backend.instance.sharedRides.watchLatestMessage(widget.rideId);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final userId = Backend.instance.auth.currentUser?.id;
+
+    return StreamBuilder<ChatMessage?>(
+      stream: _latest,
+      builder: (context, snapshot) => ValueListenableBuilder<Map<String, int>>(
+        valueListenable: ChatReadState.instance.lastRead,
+        builder: (context, _, __) {
+          final unread = ChatReadState.instance.isUnread(widget.rideId, snapshot.data, userId);
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.onPressed,
+              icon: Badge(
+                isLabelVisible: unread,
+                smallSize: 10,
+                child: const Icon(Icons.chat_bubble_outline),
+              ),
+              label: Text(unread ? '${l10n.groupChat} • ${l10n.newMessages}' : l10n.groupChat),
+            ),
+          );
+        },
       ),
     );
   }

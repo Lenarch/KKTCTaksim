@@ -24,6 +24,13 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - Tarife **örnek**: açılış ₺100, km başı ₺40, en az ₺150; Konfor ×1,3, XL ×1,8; ekranda ±%10 aralık.
 - Gerçek tarife belli olunca yalnızca `lib/core/fare_calculator.dart` içindeki `Tariff` değişir.
 
+## Grup sohbeti
+- Yeni mesaj gelince **bildirim gelmez**; okunmamış mesaj yalnızca Paylaşımlı sekmesindeki rozetle
+  görünür. Push bildirim Aşama 5'te.
+- Mesajlarda telefon numarası görünmez, yalnızca kayıttaki ad; adı olmayan "Yolcu" görünür.
+- Şikâyet/engelleme ve küfür filtresi yok; yayından önce düşünülmeli (App Store kullanıcı içeriği
+  olan uygulamalarda şikâyet etme ve engelleme ister).
+
 ## Güvenlik özellikleri
 - "Yolculuğumu paylaş" o anki konumun **anlık bir linkini** gönderir; **canlı takip değildir**.
   Canlı konum paylaşımı backend gelince yapılabilir.

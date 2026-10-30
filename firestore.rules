@@ -100,6 +100,35 @@ service cloud.firestore {
         && request.resource.data.memberIds == [request.auth.uid];
       allow update: if signedIn() && onlyMembersChange() && (isJoin() || isLeave());
       allow delete: if signedIn() && resource.data.memberIds == [request.auth.uid];
+
+      // Grup sohbeti. Yalnızca o anki üyeler okur ve yazar; mesajlar değiştirilemez.
+      // Gönderenin telefonu değil, yalnızca adı tutulur.
+      match /messages/{messageId} {
+        function groupPath() {
+          return /databases/$(database)/documents/sharedRides/$(rideId);
+        }
+
+        function isMember() {
+          return signedIn() && exists(groupPath())
+            && request.auth.uid in get(groupPath()).data.memberIds;
+        }
+
+        function isValidMessage(data) {
+          return data.keys().hasAll(['senderId', 'senderName', 'text', 'sentAt'])
+            && data.keys().hasOnly(['senderId', 'senderName', 'text', 'sentAt'])
+            && data.senderId == request.auth.uid
+            && (data.senderName == null || (data.senderName is string && data.senderName.size() <= 80))
+            && data.text is string && data.text.size() > 0 && data.text.size() <= 500
+            && data.sentAt == request.time;
+        }
+
+        allow read: if isMember();
+        allow create: if isMember() && isValidMessage(request.resource.data);
+        allow update: if false;
+        // Son üye ayrılırken grubu silmeden önce mesajları temizler.
+        allow delete: if signedIn() && exists(groupPath())
+          && get(groupPath()).data.memberIds == [request.auth.uid];
+      }
     }
   }
 }

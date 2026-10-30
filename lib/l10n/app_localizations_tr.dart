@@ -664,4 +664,35 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get groupFull => 'Bu grup doldu.';
+
+  @override
+  String get groupChat => 'Grup sohbeti';
+
+  @override
+  String groupChatTitle(String from, String to) {
+    return '$from → $to';
+  }
+
+  @override
+  String get chatEmpty =>
+      'Henüz mesaj yok. Buluşma yerini ve saatini konuşmak için ilk mesajı sen yaz!';
+
+  @override
+  String get chatPrivacyNote =>
+      'Telefon numaran gruptakilere gösterilmez; yalnızca adın görünür.';
+
+  @override
+  String get messageHint => 'Mesaj yaz…';
+
+  @override
+  String get sendMessage => 'Gönder';
+
+  @override
+  String get unnamedPassenger => 'Yolcu';
+
+  @override
+  String get newMessages => 'Yeni mesaj var';
+
+  @override
+  String get notGroupMember => 'Bu grubun üyesi değilsin.';
 }

@@ -15,6 +15,7 @@ import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/screens/my_trips_screen.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
+import 'package:kktc_taksim/services/chat_read_state.dart';
 import 'package:kktc_taksim/widgets/home/taxi_selection_sheet.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,6 +54,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     AppSettings.instance.locale.value = const Locale('tr');
     Backend.instance = Backend.mock();
+    ChatReadState.instance.lastRead.value = const {};
   });
 
   testWidgets('Splash ekranı açılır ve rol seçimine geçer', (tester) async {
@@ -151,6 +153,42 @@ void main() {
 
     expect(find.text('Ayrıl'), findsNothing);
     expect(find.text('Katıl'), findsNWidgets(2));
+  });
+
+  testWidgets('Katılınan grubun sohbetine mesaj yazılır; başkasının mesajı rozet gösterir', (tester) async {
+    final shared = Backend.instance.sharedRides;
+    // Önce başka bir yolcu gruba katılıp yazar.
+    await signIn(name: 'Mehmet');
+    await shared.join('demo-group-1');
+    await shared.sendMessage('demo-group-1', 'Havalimanına bavulla geleceğim');
+
+    await Backend.instance.auth.sendCode('+90 542 111 22 33');
+    await Backend.instance.auth.verifyCode('1' * Backend.instance.auth.codeLength);
+    await tester.pumpWidget(localized(const SharedRideScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('Grup sohbeti'), findsNothing);
+
+    await tester.tap(find.text('Katıl').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Grup sohbeti • Yeni mesaj var'), findsOneWidget);
+
+    // "Gruba katıldın" bildirimi kaybolsun; düğmenin üstünü kapatıyor.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Grup sohbeti • Yeni mesaj var'));
+    await tester.tap(find.text('Grup sohbeti • Yeni mesaj var'));
+    await tester.pumpAndSettle();
+    expect(find.text('Havalimanına bavulla geleceğim'), findsOneWidget);
+    expect(find.text('Mehmet'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('chatInput')), 'Ben de, 14:00 görüşürüz');
+    await tester.tap(find.byTooltip('Gönder'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ben de, 14:00 görüşürüz'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Geri'));
+    await tester.pumpAndSettle();
+    expect(find.text('Grup sohbeti'), findsOneWidget);
   });
 
   testWidgets('Taksi seçiminde tahmini fiyat, ödeme yöntemi ve zaman seçilir', (tester) async {

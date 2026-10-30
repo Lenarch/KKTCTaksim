@@ -14,11 +14,13 @@ import 'package:kktc_taksim/screens/role_selection_screen.dart';
 import 'package:kktc_taksim/screens/signup_screen.dart';
 import 'package:kktc_taksim/screens/splash_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
+import 'package:kktc_taksim/services/chat_read_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await AppSettings.instance.load();
+  await ChatReadState.instance.load();
   Backend.instance = Backend.firebase();
   await Backend.instance.init();
   // google_mobile_ads yalnızca Android ve iOS'ta çalışır; web'de reklamlar kapalı.

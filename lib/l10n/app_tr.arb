@@ -387,5 +387,24 @@
   "actionFailed": "İşlem tamamlanamadı. Lütfen tekrar dene.",
   "loadError": "Veriler yüklenemedi.",
   "noDriverFound": "Şu an uygun taksi bulunamadı. Biraz sonra tekrar dene.",
-  "groupFull": "Bu grup doldu."
+  "groupFull": "Bu grup doldu.",
+  "groupChat": "Grup sohbeti",
+  "groupChatTitle": "{from} → {to}",
+  "@groupChatTitle": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "chatEmpty": "Henüz mesaj yok. Buluşma yerini ve saatini konuşmak için ilk mesajı sen yaz!",
+  "chatPrivacyNote": "Telefon numaran gruptakilere gösterilmez; yalnızca adın görünür.",
+  "messageHint": "Mesaj yaz…",
+  "sendMessage": "Gönder",
+  "unnamedPassenger": "Yolcu",
+  "newMessages": "Yeni mesaj var",
+  "notGroupMember": "Bu grubun üyesi değilsin."
 }

@@ -698,4 +698,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupFull => 'This group is full.';
+
+  @override
+  String get groupChat => 'Group chat';
+
+  @override
+  String groupChatTitle(String from, String to) {
+    return '$from → $to';
+  }
+
+  @override
+  String get chatEmpty =>
+      'No messages yet. Write the first one to agree on a meeting point and time!';
+
+  @override
+  String get chatPrivacyNote =>
+      'Your phone number isn\'t shown to the group; only your name is.';
+
+  @override
+  String get messageHint => 'Write a message…';
+
+  @override
+  String get sendMessage => 'Send';
+
+  @override
+  String get unnamedPassenger => 'Passenger';
+
+  @override
+  String get newMessages => 'New messages';
+
+  @override
+  String get notGroupMember => 'You\'re not a member of this group.';
 }

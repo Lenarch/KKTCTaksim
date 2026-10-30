@@ -200,6 +200,59 @@ describe('sharedRides paylaşımlı gruplar', () => {
   });
 });
 
+const message = (overrides = {}) => ({
+  senderId: 'alice',
+  senderName: 'Alice',
+  text: 'Merhaba, saat 9 uygun mu?',
+  sentAt: serverTimestamp(),
+  ...overrides,
+});
+
+describe('sharedRides/{id}/messages grup sohbeti', () => {
+  test('üye mesaj yazar ve okur', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await assertSucceeds(setDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m1'), message()));
+    await assertSucceeds(getDocs(collection(dbAs(BOB), 'sharedRides/g1/messages')));
+  });
+
+  test('üye olmayan okuyamaz ve yazamaz', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    await seed('sharedRides/g1/messages/m1', { ...message(), sentAt: 1 });
+    const db = dbAs(CAROL);
+    await assertFails(getDocs(collection(db, 'sharedRides/g1/messages')));
+    await assertFails(getDoc(doc(db, 'sharedRides/g1/messages/m1')));
+    await assertFails(setDoc(doc(db, 'sharedRides/g1/messages/m2'), message({ senderId: 'carol' })));
+    await assertFails(getDocs(collection(anonymousDb(), 'sharedRides/g1/messages')));
+  });
+
+  test('başkası adına, boş, çok uzun ya da fazladan alanlı mesaj yazılamaz', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    const ref = (id) => doc(dbAs(ALICE), `sharedRides/g1/messages/${id}`);
+    await assertFails(setDoc(ref('m1'), message({ senderId: 'bob' })));
+    await assertFails(setDoc(ref('m2'), message({ text: '' })));
+    await assertFails(setDoc(ref('m3'), message({ text: 'x'.repeat(501) })));
+    await assertFails(setDoc(ref('m4'), message({ phone: ALICE.phone })));
+    await assertFails(setDoc(ref('m5'), message({ sentAt: 1 })));
+  });
+
+  test('mesaj değiştirilemez; silmeyi yalnızca tek kalan üye yapar', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await seed('sharedRides/g1/messages/m1', { ...message(), sentAt: 1 });
+    const ref = doc(dbAs(ALICE), 'sharedRides/g1/messages/m1');
+    await assertFails(updateDoc(ref, { text: 'değişti' }));
+    await assertFails(deleteDoc(ref));
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice'] }));
+    await assertFails(deleteDoc(doc(dbAs(BOB), 'sharedRides/g1/messages/m1')));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  test('ayrılan üye artık okuyamaz', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { memberIds: ['alice'] });
+    await assertFails(getDocs(collection(dbAs(BOB), 'sharedRides/g1/messages')));
+  });
+});
+
 describe('diğer koleksiyonlar', () => {
   test('kurallarda açılmamış her yer kapalı', async () => {
     const db = dbAs(ALICE);

@@ -1,6 +1,7 @@
+import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
-enum SharedRideError { full, notFound }
+enum SharedRideError { full, notFound, notMember }
 
 class SharedRideException implements Exception {
   final SharedRideError error;
@@ -22,8 +23,27 @@ abstract class SharedRideRepository {
   /// Dolu gruba katılmak [SharedRideException] fırlatır.
   Future<void> join(String rideId);
 
-  /// Son üye ayrılırsa grup silinir.
+  /// Son üye ayrılırsa grup sohbetiyle birlikte silinir.
   Future<void> leave(String rideId);
+
+  /// Grup sohbeti, eskiden yeniye (en fazla son [chatHistoryLimit] mesaj). Yalnızca üyeler okur.
+  Stream<List<ChatMessage>> watchMessages(String rideId);
+
+  /// Sohbetteki en son mesaj; okunmamış mesaj rozeti için. Mesaj yoksa null.
+  Stream<ChatMessage?> watchLatestMessage(String rideId);
+
+  /// Üye olmayan yazamaz ([SharedRideError.notMember]). Metin kırpılır; boşsa gönderilmez.
+  Future<void> sendMessage(String rideId, String text);
+}
+
+const int chatHistoryLimit = 200;
+
+/// Gönderilecek metin: baştaki/sondaki boşluklar atılır, [ChatMessage.maxLength]'e kısaltılır.
+/// Boş metin için null.
+String? normalizeMessage(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+  return trimmed.length <= ChatMessage.maxLength ? trimmed : trimmed.substring(0, ChatMessage.maxLength);
 }
 
 /// [userId] katılınca üye listesi; zaten üyeyse liste aynen döner.

@@ -90,6 +90,13 @@ Henüz yapılmayanlar (platforma özel):
 - Web'de tek hesapla denendi (oluştur → yenile → son üye ayrılınca silindi). Kalan: iki hesapla
   katılma denemesi (ikinci test numarası gerekir).
 
+### Grup sohbeti (30 Ekim 2026; kurallar yüklendi, web'de tek hesapla denendi)
+- `sharedRides/{rideId}/messages/{id}` → `senderId`, `senderName` (telefon yok), `text` (≤ 500),
+  `sentAt` (`request.time`). Okuma/yazma yalnızca o anki üyeler (`get()` ile grup belgesinden);
+  güncelleme yok; silme yalnızca tek kalan üye (grubu silmeden önce temizlik). Kural testleri 25/25.
+- Bildirim yok; Aşama 5'te FCM + Cloud Functions ile eklenecek. Aynı anda Cloud Function,
+  silinen grupların artık mesajlarını da temizleyebilir.
+
 ## Aşama 4: Canlı konum paylaşımı
 - Paylaşılan link bugün anlık konum. Canlı takip için `rides/{rideId}` belgesini okuyabilen kısa
   ömürlü bir paylaşım bağlantısı (web sayfası) gerekecek.

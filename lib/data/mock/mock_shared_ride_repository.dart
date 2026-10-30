@@ -4,11 +4,13 @@ import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/data/mock/watch_value.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
+import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 class MockSharedRideRepository implements SharedRideRepository {
   final AuthRepository _auth;
   final List<SharedRide> _rides = MockData.sharedRides();
+  final Map<String, List<ChatMessage>> _messages = {};
   final StreamController<void> _changes = StreamController.broadcast();
   int _nextId = 0;
 
@@ -52,9 +54,45 @@ class MockSharedRideRepository implements SharedRideRepository {
     final members = membersAfterLeave(ride, _userId);
     if (members.isEmpty) {
       _rides.removeAt(index);
+      _messages.remove(rideId);
     } else {
       _rides[index] = ride.copyWith(memberIds: members);
     }
+    _changes.add(null);
+  }
+
+  @override
+  Stream<List<ChatMessage>> watchMessages(String rideId) {
+    final userId = _auth.currentUser?.id;
+    if (!_rides[_indexOf(rideId)].hasMember(userId)) {
+      return Stream.error(const SharedRideException(SharedRideError.notMember));
+    }
+    return watchValue(_changes.stream, () {
+      final messages = _messages[rideId] ?? const [];
+      return messages.skip(messages.length > chatHistoryLimit ? messages.length - chatHistoryLimit : 0).toList();
+    });
+  }
+
+  @override
+  Stream<ChatMessage?> watchLatestMessage(String rideId) =>
+      watchMessages(rideId).map((messages) => messages.isEmpty ? null : messages.last);
+
+  @override
+  Future<void> sendMessage(String rideId, String text) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Giriş yapılmadan mesaj gönderilemez');
+    if (!_rides[_indexOf(rideId)].hasMember(user.id)) {
+      throw const SharedRideException(SharedRideError.notMember);
+    }
+    final normalized = normalizeMessage(text);
+    if (normalized == null) return;
+    (_messages[rideId] ??= []).add(ChatMessage(
+      id: 'message-${_nextId++}',
+      senderId: user.id,
+      senderName: user.name,
+      text: normalized,
+      sentAt: DateTime.now(),
+    ));
     _changes.add(null);
   }
 

@@ -1280,6 +1280,60 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Bu grup doldu.'**
   String get groupFull;
+
+  /// No description provided for @groupChat.
+  ///
+  /// In tr, this message translates to:
+  /// **'Grup sohbeti'**
+  String get groupChat;
+
+  /// No description provided for @groupChatTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'{from} → {to}'**
+  String groupChatTitle(String from, String to);
+
+  /// No description provided for @chatEmpty.
+  ///
+  /// In tr, this message translates to:
+  /// **'Henüz mesaj yok. Buluşma yerini ve saatini konuşmak için ilk mesajı sen yaz!'**
+  String get chatEmpty;
+
+  /// No description provided for @chatPrivacyNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Telefon numaran gruptakilere gösterilmez; yalnızca adın görünür.'**
+  String get chatPrivacyNote;
+
+  /// No description provided for @messageHint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Mesaj yaz…'**
+  String get messageHint;
+
+  /// No description provided for @sendMessage.
+  ///
+  /// In tr, this message translates to:
+  /// **'Gönder'**
+  String get sendMessage;
+
+  /// No description provided for @unnamedPassenger.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcu'**
+  String get unnamedPassenger;
+
+  /// No description provided for @newMessages.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yeni mesaj var'**
+  String get newMessages;
+
+  /// No description provided for @notGroupMember.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu grubun üyesi değilsin.'**
+  String get notGroupMember;
 }
 
 class _AppLocalizationsDelegate

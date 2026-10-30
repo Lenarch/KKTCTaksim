@@ -196,5 +196,14 @@
   "actionFailed": "That didn't work. Please try again.",
   "loadError": "Couldn't load the data.",
   "noDriverFound": "No taxi is available right now. Please try again shortly.",
-  "groupFull": "This group is full."
+  "groupFull": "This group is full.",
+  "groupChat": "Group chat",
+  "groupChatTitle": "{from} → {to}",
+  "chatEmpty": "No messages yet. Write the first one to agree on a meeting point and time!",
+  "chatPrivacyNote": "Your phone number isn't shown to the group; only your name is.",
+  "messageHint": "Write a message…",
+  "sendMessage": "Send",
+  "unnamedPassenger": "Passenger",
+  "newMessages": "New messages",
+  "notGroupMember": "You're not a member of this group."
 }

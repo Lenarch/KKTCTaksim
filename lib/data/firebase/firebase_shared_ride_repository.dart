@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
+import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 /// Paylaşımlı gruplar Firestore'da `sharedRides/{rideId}` altında; giriş yapan herkes görür,
@@ -15,6 +16,8 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
         _firestore = firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _rides => _firestore.collection('sharedRides');
+
+  CollectionReference<Map<String, dynamic>> _messages(String rideId) => _rides.doc(rideId).collection('messages');
 
   String get _userId {
     final user = _auth.currentUser;
@@ -67,6 +70,12 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
   Future<void> leave(String rideId) async {
     final userId = _userId;
     final ref = _rides.doc(rideId);
+    // Firestore alt koleksiyonları belgeyle birlikte silmez; kurallar mesajları yalnızca tek kalan
+    // üyenin silmesine izin verir. Bu arada biri katılırsa mesajlar yine silinmiş olur (nadir).
+    final current = await ref.get();
+    if (current.exists && sharedRideFromDocument(current).memberIds.every((id) => id == userId)) {
+      await _deleteMessages(rideId);
+    }
     final error = await _firestore.runTransaction<SharedRideError?>((transaction) async {
       final snapshot = await transaction.get(ref);
       if (!snapshot.exists) return SharedRideError.notFound;
@@ -82,6 +91,52 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
     });
     if (error != null) throw SharedRideException(error);
   }
+
+  Future<void> _deleteMessages(String rideId) async {
+    while (true) {
+      final batch = await _messages(rideId).limit(400).get();
+      if (batch.docs.isEmpty) return;
+      final writes = _firestore.batch();
+      for (final doc in batch.docs) {
+        writes.delete(doc.reference);
+      }
+      await writes.commit();
+    }
+  }
+
+  @override
+  Stream<List<ChatMessage>> watchMessages(String rideId) => _messages(rideId)
+      .orderBy('sentAt', descending: true)
+      .limit(chatHistoryLimit)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.reversed.map(chatMessageFromDocument).toList());
+
+  @override
+  Stream<ChatMessage?> watchLatestMessage(String rideId) => _messages(rideId)
+      .orderBy('sentAt', descending: true)
+      .limit(1)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.isEmpty ? null : chatMessageFromDocument(snapshot.docs.first));
+
+  @override
+  Future<void> sendMessage(String rideId, String text) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Giriş yapılmadan mesaj gönderilemez');
+    final normalized = normalizeMessage(text);
+    if (normalized == null) return;
+    try {
+      await _messages(rideId).add({
+        'senderId': user.uid,
+        'senderName': user.displayName,
+        'text': normalized,
+        'sentAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      // Kurallar üye olmayanı reddeder (gruptan çıkarılmış ya da grup silinmiş).
+      if (e.code == 'permission-denied') throw const SharedRideException(SharedRideError.notMember);
+      rethrow;
+    }
+  }
 }
 
 /// Belgede kimlik tekrar tutulmaz; belge kimliğinin kendisidir.
@@ -89,3 +144,16 @@ Map<String, dynamic> sharedRideToDocument(SharedRide ride) => ride.toJson()..rem
 
 SharedRide sharedRideFromDocument(DocumentSnapshot<Map<String, dynamic>> doc) =>
     SharedRide.fromJson({...doc.data()!, 'id': doc.id});
+
+/// Sunucu zamanı henüz yazılmamış (yeni gönderilen) mesajlarda şimdiki zaman kullanılır.
+ChatMessage chatMessageFromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
+  final data = doc.data()!;
+  final sentAt = data['sentAt'];
+  return ChatMessage(
+    id: doc.id,
+    senderId: data['senderId'] as String,
+    senderName: data['senderName'] as String?,
+    text: data['text'] as String,
+    sentAt: sentAt is Timestamp ? sentAt.toDate() : DateTime.now(),
+  );
+}
