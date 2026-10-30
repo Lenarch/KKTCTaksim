@@ -38,6 +38,13 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> init() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      // Android'de Firebase uygulamayı önce Play Integrity ile doğrular; Play Store'dan değil APK
+      // ile kurulan uygulamayı tanımadığı için gerçek numaralara SMS gitmiyordu ("Invalid app info
+      // in play_integrity_token"). reCAPTCHA (kısa bir tarayıcı sayfası) bu durumda da çalışır.
+      // Uygulama Play Store'a çıkınca bu satır kaldırılabilir (bkz. docs/UYARILAR.md).
+      await _auth.setSettings(forceRecaptchaFlow: true);
+    }
     // Kayıtlı oturum yüklenene kadar bekle; yoksa açılışta kullanıcı yanlışlıkla "çıkmış" görünür.
     await _auth.authStateChanges().first;
   }

@@ -70,6 +70,12 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - Web'de gerçek numarayla giriş `localhost`'ta `invalid-app-credential` veriyor; gerçek alan adında
   denenmeli.
 
+- Android'de giriş şimdilik **reCAPTCHA** ile (kısa bir tarayıcı sayfası, bazen resim
+  bulmacası): Play Store dışı APK'yı Play Integrity tanımıyor. Play Store'a çıkınca
+  `FirebaseAuthRepository.init`'teki `forceRecaptchaFlow` kaldırılmalı.
+- Aynı cihazdan çok sayıda kod isteyince Firebase cihazı birkaç saat engelliyor
+  (`too-many-requests`); denemelerde test numarasını kullan.
+
 ## Yayından önce mutlaka
 - Backend: Firebase seçildi; plan ve senin yapacakların `docs/BACKEND_PLANI.md` içinde
   (Blaze planı + kart, Firestore bölgesi sonradan değiştirilemez)

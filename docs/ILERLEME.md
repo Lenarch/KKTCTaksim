@@ -31,7 +31,13 @@ gerekenler ve yayından önce yapılacaklar).
   89,9 MB), kopyası proje klasörünün yanında `apk/KKTCTaksim-test.apk`. İlk APK telefonda açılır
   açılmaz çöküyordu (R8, WorkManager'ın `WorkDatabase_Impl` sınıfını siliyordu); keep kuralı
   `android/app/proguard-rules.pro`. Emülatörde (`kktc_test`, Pixel 7, Android 15 + Play) denendi:
-  açılış, test numarasıyla giriş, konum izni, harita. Firebase Android uygulamasına debug anahtarının
+  açılış, test numarasıyla giriş, konum izni, harita.
+- **Android'de gerçek numaraya SMS gitmiyordu:** `app-not-authorized … Invalid app info in
+  play_integrity_token` (APK Play Store'dan gelmediği için Play Integrity tanımıyor). Android'de
+  `setSettings(forceRecaptchaFlow: true)` ile reCAPTCHA'ya geçildi
+  (`FirebaseAuthRepository.init`). Emülatörde istek reCAPTCHA'dan geçip Firebase'e ulaştı; ancak
+  çok deneme yüzünden emülatör geçici engellendi (`too-many-requests`), SMS'in geldiği henüz
+  görülmedi. Kullanıcının arkadaşı kendi telefonunda deneyecek. Firebase Android uygulamasına debug anahtarının
   SHA-1/SHA-256'sı eklendi (telefonla giriş için).
 - **Web'de gerçek numarayla giriş `localhost`'ta çalışmıyor:** `invalid-app-credential` (Firebase
   localhost'tan gelen reCAPTCHA'yı reddediyor). Test numarası çalışır. Web gerçek bir adreste
