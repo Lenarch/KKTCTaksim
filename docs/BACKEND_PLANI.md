@@ -87,7 +87,8 @@ Henüz yapılmayanlar (platforma özel):
 - Kurallar: giriş yapan okur; oluşturan tek ilk üye; kapasite 1–8, fiyat > 0, kalkış gelecekte;
   güncellemede yalnızca `memberIds`, yalnızca kendini ekleme (dolu/kalkışı geçmiş grupta değil) ya
   da çıkarma; silmeyi yalnızca tek kalan üye yapar. Kural testleri 20/20.
-- Kalan: web'de iki hesapla uçtan uca deneme.
+- Web'de tek hesapla denendi (oluştur → yenile → son üye ayrılınca silindi). Kalan: iki hesapla
+  katılma denemesi (ikinci test numarası gerekir).
 
 ## Aşama 4: Canlı konum paylaşımı
 - Paylaşılan link bugün anlık konum. Canlı takip için `rides/{rideId}` belgesini okuyabilen kısa
