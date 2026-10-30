@@ -422,6 +422,12 @@ abstract class AppLocalizations {
   /// **'Mevcut konumun'**
   String get currentLocation;
 
+  /// No description provided for @tripStartPoint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Başlangıç noktası'**
+  String get tripStartPoint;
+
   /// No description provided for @goToMyLocation.
   ///
   /// In tr, this message translates to:
@@ -755,7 +761,7 @@ abstract class AppLocalizations {
   /// No description provided for @shareTripHint.
   ///
   /// In tr, this message translates to:
-  /// **'Sürücü, plaka, varış saati ve şu anki konum bir yakınına gönderilir'**
+  /// **'Sürücü, plaka, varış saati ve canlı konum bağlantısı bir yakınına gönderilir; yolculuk bitince bağlantı kapanır'**
   String get shareTripHint;
 
   /// No description provided for @shareTripText.
@@ -763,6 +769,13 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'KKTC Taksim ile yolculuktayım.\nSürücü: {driver}\nPlaka: {plate} – {car}\nVarış: {destination}, tahmini {arrival}\nŞu anki konum: {link}'**
   String shareTripText(String driver, String plate, String car,
+      String destination, String arrival, String link);
+
+  /// No description provided for @shareTripLiveText.
+  ///
+  /// In tr, this message translates to:
+  /// **'KKTC Taksim ile yolculuktayım.\nSürücü: {driver}\nPlaka: {plate} – {car}\nVarış: {destination}, tahmini {arrival}\nCanlı takip (yolculuk bitene kadar): {link}'**
+  String shareTripLiveText(String driver, String plate, String car,
       String destination, String arrival, String link);
 
   /// No description provided for @tripDetailsCopied.

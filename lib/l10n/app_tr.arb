@@ -92,6 +92,7 @@
   "whereToGo": "Nereye gitmek istersin?",
   "whereTo": "Nereye gitmek istiyorsun?",
   "currentLocation": "Mevcut konumun",
+  "tripStartPoint": "Başlangıç noktası",
   "goToMyLocation": "Konumuma git",
   "showingFallbackCity": "Harita Lefkoşa merkezde gösteriliyor.",
   "locationDenied": "Konum izni verilmedi.",
@@ -196,9 +197,32 @@
   "finishDemo": "BİTİR (DEMO)",
   "safetyTools": "Güvenlik",
   "shareTrip": "Yolculuğumu paylaş",
-  "shareTripHint": "Sürücü, plaka, varış saati ve şu anki konum bir yakınına gönderilir",
+  "shareTripHint": "Sürücü, plaka, varış saati ve canlı konum bağlantısı bir yakınına gönderilir; yolculuk bitince bağlantı kapanır",
   "shareTripText": "KKTC Taksim ile yolculuktayım.\nSürücü: {driver}\nPlaka: {plate} – {car}\nVarış: {destination}, tahmini {arrival}\nŞu anki konum: {link}",
   "@shareTripText": {
+    "placeholders": {
+      "driver": {
+        "type": "String"
+      },
+      "plate": {
+        "type": "String"
+      },
+      "car": {
+        "type": "String"
+      },
+      "destination": {
+        "type": "String"
+      },
+      "arrival": {
+        "type": "String"
+      },
+      "link": {
+        "type": "String"
+      }
+    }
+  },
+  "shareTripLiveText": "KKTC Taksim ile yolculuktayım.\nSürücü: {driver}\nPlaka: {plate} – {car}\nVarış: {destination}, tahmini {arrival}\nCanlı takip (yolculuk bitene kadar): {link}",
+  "@shareTripLiveText": {
     "placeholders": {
       "driver": {
         "type": "String"

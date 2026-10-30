@@ -183,6 +183,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get currentLocation => 'Your current location';
 
   @override
+  String get tripStartPoint => 'Starting point';
+
+  @override
   String get goToMyLocation => 'Go to my location';
 
   @override
@@ -393,12 +396,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareTripHint =>
-      'Sends the driver, plate, arrival time and current location to someone you trust';
+      'Sends the driver, plate, arrival time and a live location link to someone you trust; the link stops when the trip ends';
 
   @override
   String shareTripText(String driver, String plate, String car,
       String destination, String arrival, String link) {
     return 'I\'m on a KKTC Taksim ride.\nDriver: $driver\nPlate: $plate – $car\nGoing to: $destination, arriving around $arrival\nCurrent location: $link';
+  }
+
+  @override
+  String shareTripLiveText(String driver, String plate, String car,
+      String destination, String arrival, String link) {
+    return 'I\'m on a KKTC Taksim ride.\nDriver: $driver\nPlate: $plate – $car\nGoing to: $destination, arriving around $arrival\nFollow me live (until the trip ends): $link';
   }
 
   @override

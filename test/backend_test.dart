@@ -1,28 +1,34 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/mock/mock_auth_repository.dart';
+import 'package:kktc_taksim/data/mock/mock_live_share_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_ride_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_trip_repository.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
+import 'package:kktc_taksim/data/repositories/live_share_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/data/repositories/trip_repository.dart';
 import 'package:kktc_taksim/models/app_user.dart';
 import 'package:kktc_taksim/models/fare_estimate.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/models/payment_method.dart';
+import 'package:kktc_taksim/models/ride_progress.dart';
 import 'package:kktc_taksim/models/ride_request.dart';
 import 'package:kktc_taksim/models/ride_session.dart';
 import 'package:kktc_taksim/models/route_info.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/models/trip.dart';
+import 'package:kktc_taksim/services/live_share_controller.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -382,6 +388,87 @@ void main() {
 
       const user = AppUser(id: 'u1', phone: _phone, name: 'Ayşe');
       expect(AppUser.fromJson(user.toJson()).toJson(), user.toJson());
+    });
+  });
+
+  group('LiveShareController', () {
+    const info = LiveShareInfo(
+      from: 'Lefkoşa',
+      to: 'Girne',
+      destination: LatLng(35.3412, 33.3196),
+      driverName: 'Ahmet Yılmaz',
+      plate: 'ABC 123',
+      car: 'Toyota Corolla (Beyaz)',
+    );
+
+    RideSession session(RideStatus status, LatLng position) => RideSession(
+          id: 'ride-1',
+          request: _request(),
+          status: status,
+          progress: RideProgress(position: position, fraction: 0.5, minutesLeft: 10),
+        );
+
+    test('paylaşım bir kez başlar, konum aralıkla yazılır, yolculuk bitince kapanır', () async {
+      final repository = MockLiveShareRepository();
+      final rideSession = ValueNotifier<RideSession?>(session(RideStatus.inProgress, const LatLng(35.18, 33.38)));
+      var now = DateTime(2026, 10, 30, 12);
+      final controller = LiveShareController(repository, rideSession, now: () => now);
+
+      // Paylaşım başlamadan konum yazılmaz.
+      rideSession.value = session(RideStatus.inProgress, const LatLng(35.19, 33.38));
+      expect(controller.isSharing, isFalse);
+
+      final link = await controller.share(info, const LatLng(35.19, 33.38));
+      expect(link.toString(), startsWith('https://kktctaksim-1ea24.web.app/t/'));
+      final id = link.pathSegments.last;
+      // İkinci "paylaş" aynı bağlantıyı verir.
+      expect(await controller.share(info, const LatLng(35.19, 33.38)), link);
+
+      // Aralık dolmadan gelen konum yazılmaz, dolunca yazılır.
+      now = now.add(const Duration(seconds: 3));
+      rideSession.value = session(RideStatus.inProgress, const LatLng(35.20, 33.38));
+      expect(repository.positionOf(id), const LatLng(35.19, 33.38));
+      now = now.add(AppDurations.liveShareInterval);
+      rideSession.value = session(RideStatus.inProgress, const LatLng(35.25, 33.36));
+      expect(repository.positionOf(id), const LatLng(35.25, 33.36));
+
+      rideSession.value = session(RideStatus.completed, const LatLng(35.34, 33.32));
+      await pumpEventQueue();
+      expect(repository.isActive(id), isFalse);
+      expect(controller.isSharing, isFalse);
+      controller.dispose();
+    });
+
+    // testWidgets: Timer'lar sahte zamanla ilerler (tester.pump).
+    testWidgets('aralık dolmadan gelen son konum, aralık dolunca yine de yazılır', (tester) async {
+      final repository = MockLiveShareRepository();
+      final rideSession = ValueNotifier<RideSession?>(session(RideStatus.inProgress, const LatLng(35.18, 33.38)));
+      var now = DateTime(2026, 10, 30, 12);
+      final controller = LiveShareController(repository, rideSession, now: () => now);
+      final id = (await controller.share(info, const LatLng(35.18, 33.38))).pathSegments.last;
+
+      // Taksi varış noktasına ulaşıp durdu; bundan sonra yeni konum gelmiyor.
+      now = now.add(const Duration(seconds: 3));
+      rideSession.value = session(RideStatus.arrived, const LatLng(35.34, 33.32));
+      expect(repository.positionOf(id), const LatLng(35.18, 33.38));
+
+      now = now.add(AppDurations.liveShareInterval);
+      await tester.pump(AppDurations.liveShareInterval);
+      expect(repository.positionOf(id), const LatLng(35.34, 33.32));
+      controller.dispose();
+      await tester.pump();
+    });
+
+    test('yolculuk iptal edilir ya da ekran sıfırlanırsa paylaşım kapanır', () async {
+      final repository = MockLiveShareRepository();
+      final rideSession = ValueNotifier<RideSession?>(session(RideStatus.inProgress, const LatLng(35.18, 33.38)));
+      final controller = LiveShareController(repository, rideSession);
+      final id = (await controller.share(info, const LatLng(35.18, 33.38))).pathSegments.last;
+
+      rideSession.value = null;
+      await pumpEventQueue();
+      expect(repository.isActive(id), isFalse);
+      controller.dispose();
     });
   });
 }

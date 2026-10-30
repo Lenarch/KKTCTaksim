@@ -7,7 +7,17 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const ALICE = { uid: 'alice', phone: '+905330000001' };
 const BOB = { uid: 'bob', phone: '+905330000002' };
@@ -250,6 +260,80 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
     await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
     await updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { memberIds: ['alice'] });
     await assertFails(getDocs(collection(dbAs(BOB), 'sharedRides/g1/messages')));
+  });
+});
+
+const HOUR = 60 * 60 * 1000;
+
+const liveShare = (overrides = {}) => ({
+  ownerId: 'alice',
+  from: 'Lefkoşa',
+  to: 'Girne',
+  destination: { lat: 35.3412, lng: 33.3196 },
+  driverName: 'Ahmet Yılmaz',
+  plate: 'ABC 123',
+  car: 'Toyota Corolla (Beyaz)',
+  status: 'active',
+  position: { lat: 35.1856, lng: 33.3823 },
+  updatedAt: serverTimestamp(),
+  expiresAt: Date.now() + 4 * HOUR,
+  ...overrides,
+});
+
+/** Kurallara takılmadan hazır paylaşım koyar (sunucu zamanı yerine sabit). */
+const seedShare = (id, overrides = {}) => seed(`liveShares/${id}`, { ...liveShare(overrides), updatedAt: 1 });
+
+describe('liveShares canlı konum paylaşımı', () => {
+  test('yolcu paylaşımı başlatır; bağlantıyı bilen herkes (girişsiz) okur', async () => {
+    await assertSucceeds(setDoc(doc(dbAs(ALICE), 'liveShares/s1'), liveShare()));
+    await assertSucceeds(getDoc(doc(anonymousDb(), 'liveShares/s1')));
+    await assertSucceeds(getDoc(doc(dbAs(BOB), 'liveShares/s1')));
+  });
+
+  test('paylaşımlar listelenemez', async () => {
+    await seedShare('s1');
+    await assertFails(getDocs(collection(anonymousDb(), 'liveShares')));
+    await assertFails(getDocs(collection(dbAs(BOB), 'liveShares')));
+  });
+
+  test('süresi dolan paylaşımı yalnızca sahibi okur', async () => {
+    await seedShare('s1', { expiresAt: Date.now() - 1000 });
+    await assertFails(getDoc(doc(anonymousDb(), 'liveShares/s1')));
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'liveShares/s1')));
+  });
+
+  test('geçersiz paylaşım başlatılamaz', async () => {
+    const db = dbAs(ALICE);
+    const ref = (id) => doc(db, `liveShares/${id}`);
+    await assertFails(setDoc(ref('a'), liveShare({ ownerId: 'bob' })));
+    await assertFails(setDoc(ref('b'), liveShare({ expiresAt: Date.now() + 7 * HOUR })));
+    await assertFails(setDoc(ref('c'), liveShare({ expiresAt: Date.now() - 1000 })));
+    await assertFails(setDoc(ref('d'), liveShare({ position: { lat: 200, lng: 33 } })));
+    await assertFails(setDoc(ref('e'), liveShare({ status: 'ended' })));
+    await assertFails(setDoc(ref('f'), liveShare({ phone: ALICE.phone })));
+    await assertFails(setDoc(ref('g'), liveShare({ updatedAt: 1 })));
+    await assertFails(setDoc(doc(anonymousDb(), 'liveShares/h'), liveShare()));
+  });
+
+  test('sahibi konumu yeniler ve paylaşımı bitirir (konum silinir)', async () => {
+    await seedShare('s1');
+    const ref = doc(dbAs(ALICE), 'liveShares/s1');
+    await assertSucceeds(updateDoc(ref, { position: { lat: 35.2, lng: 33.4 }, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { status: 'ended', updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(ref, { status: 'ended', position: deleteField(), updatedAt: serverTimestamp() }));
+    // Bitmiş paylaşım yeniden açılamaz.
+    await assertFails(updateDoc(ref, { status: 'active', position: { lat: 35.2, lng: 33.4 }, updatedAt: serverTimestamp() }));
+  });
+
+  test('başkası güncelleyemez ve silemez; sahibi başka alan değiştiremez', async () => {
+    await seedShare('s1');
+    const bobRef = doc(dbAs(BOB), 'liveShares/s1');
+    await assertFails(updateDoc(bobRef, { position: { lat: 35.2, lng: 33.4 }, updatedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(bobRef));
+    const ref = doc(dbAs(ALICE), 'liveShares/s1');
+    await assertFails(updateDoc(ref, { expiresAt: Date.now() + 5 * HOUR, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { plate: 'XYZ 999', updatedAt: serverTimestamp() }));
+    await assertSucceeds(deleteDoc(ref));
   });
 });
 

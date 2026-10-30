@@ -32,8 +32,16 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
   olan uygulamalarda şikâyet etme ve engelleme ister).
 
 ## Güvenlik özellikleri
-- "Yolculuğumu paylaş" o anki konumun **anlık bir linkini** gönderir; **canlı takip değildir**.
-  Canlı konum paylaşımı backend gelince yapılabilir.
+- "Yolculuğumu paylaş" artık **canlı takip bağlantısı** gönderir (Aşama 4); başlatılamazsa (ör.
+  internet yok) eskisi gibi o anki konumun linki gider.
+- Konumu yolcunun uygulaması yazar: uygulama arka plandayken ya da telefon kilitliyken
+  güncelleme durur (sayfa 2 dakika sonra "konum bir süredir güncellenmedi" uyarısı gösterir).
+  Aşama 5'te konum şoför uygulamasından geleceği için bu sorun büyük ölçüde kalkar.
+- Takip sayfasında gösterilen konum **haritadaki taksinin konumu**; demoda bu simülasyondur, yani
+  telefonun gerçek GPS'i değil. Aşama 5'te şoförün gerçek konumu olacak.
+- Bağlantıyı alan herkes (iletirse onun ilettikleri de) yolculuk bitene kadar konumu görür; en
+  fazla 4 saat sonra bağlantı kapanır. Süresi dolan kayıtlar Firestore'da okunamaz halde kalır
+  (otomatik silme ileride Cloud Function ile).
 - Paylaşım menüsü olmayan tarayıcılarda bilgiler panoya kopyalanır.
 
 ## Demo davranışları

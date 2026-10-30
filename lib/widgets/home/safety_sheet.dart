@@ -19,20 +19,22 @@ class EmergencyNumbers {
 
 /// Yolculuk sırasında: yolculuğu bir yakınla paylaşma ve acil arama.
 class SafetySheet extends StatelessWidget {
-  /// Paylaşılacak hazır metin (sürücü, plaka, rota ve o anki konum bağlantısı).
-  final String shareText;
+  /// Paylaşılacak metni hazırlar (sürücü, plaka, rota ve canlı takip bağlantısı). Canlı
+  /// paylaşımı başlatmak sunucuya gittiği için asenkron.
+  final Future<String> Function() shareText;
 
   const SafetySheet({super.key, required this.shareText});
 
   Future<void> _share(BuildContext context) async {
     final copiedMessage = context.l10n.tripDetailsCopied;
+    final text = await shareText();
     try {
-      final result = await SharePlus.instance.share(ShareParams(text: shareText));
+      final result = await SharePlus.instance.share(ShareParams(text: text));
       if (result.status != ShareResultStatus.unavailable) return;
     } catch (_) {
       // Paylaşım menüsü olmayan tarayıcılarda panoya kopyalanır.
     }
-    await Clipboard.setData(ClipboardData(text: shareText));
+    await Clipboard.setData(ClipboardData(text: text));
     if (context.mounted) showMessage(context, copiedMessage);
   }
 

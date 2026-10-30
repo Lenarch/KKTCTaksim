@@ -11,6 +11,7 @@ import 'package:kktc_taksim/core/labels.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/data/repositories/live_share_repository.dart';
 import 'package:kktc_taksim/data/repositories/ride_repository.dart';
 import 'package:kktc_taksim/models/app_user.dart';
 import 'package:kktc_taksim/models/driver.dart';
@@ -20,6 +21,7 @@ import 'package:kktc_taksim/models/ride_session.dart';
 import 'package:kktc_taksim/models/route_info.dart';
 import 'package:kktc_taksim/models/trip.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
+import 'package:kktc_taksim/services/live_share_controller.dart';
 import 'package:kktc_taksim/services/location_service.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:kktc_taksim/widgets/home/active_trip_sheet.dart';
@@ -71,6 +73,9 @@ class HomeScreenState extends State<HomeScreen> {
   final ValueNotifier<RideSession?> _session = ValueNotifier(null);
   StreamSubscription<RideSession>? _rideSubscription;
 
+  /// Yolcu "Yolculuğumu paylaş" derse canlı konum paylaşımı; yolculuk bitince kendiliğinden kapanır.
+  late final LiveShareController _liveShare = LiveShareController(Backend.instance.liveShares, _session);
+
   RideRepository get _rides => Backend.instance.rides;
 
   @override
@@ -83,6 +88,7 @@ class HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _rideSubscription?.cancel();
     _positionSubscription?.cancel();
+    _liveShare.dispose();
     _session.dispose();
     super.dispose();
   }
@@ -342,17 +348,32 @@ class HomeScreenState extends State<HomeScreen> {
     final request = session.request;
     final position = session.progress?.position ?? _origin;
     final minutesLeft = session.progress?.minutesLeft ?? request.route.durationMinutes;
-    final mapLink = 'https://www.openstreetmap.org/?mlat=${position.latitude.toStringAsFixed(5)}'
-        '&mlon=${position.longitude.toStringAsFixed(5)}#map=16/${position.latitude}/${position.longitude}';
+    final car = '${driver.car} (${driver.carColor.label(l10n)})';
+    final arrival = context.time(DateTime.now().add(Duration(minutes: minutesLeft)));
 
-    final shareText = l10n.shareTripText(
-      driver.name,
-      driver.plate,
-      '${driver.car} (${driver.carColor.label(l10n)})',
-      request.destination.name,
-      context.time(DateTime.now().add(Duration(minutes: minutesLeft))),
-      mapLink,
-    );
+    Future<String> shareText() async {
+      try {
+        final link = await _liveShare.share(
+          LiveShareInfo(
+            // "Mevcut konumun" bağlantıyı açan kişi için anlamsız.
+            from: _pickupName ?? l10n.tripStartPoint,
+            to: request.destination.name,
+            destination: request.destination.position,
+            driverName: driver.name,
+            plate: driver.plate,
+            car: car,
+          ),
+          position,
+        );
+        return l10n.shareTripLiveText(driver.name, driver.plate, car, request.destination.name, arrival, '$link');
+      } catch (_) {
+        // Canlı paylaşım başlatılamazsa (ör. internet yok) o anki konumun bağlantısı gönderilir.
+        final mapLink = 'https://www.openstreetmap.org/?mlat=${position.latitude.toStringAsFixed(5)}'
+            '&mlon=${position.longitude.toStringAsFixed(5)}#map=16/${position.latitude}/${position.longitude}';
+        return l10n.shareTripText(driver.name, driver.plate, car, request.destination.name, arrival, mapLink);
+      }
+    }
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

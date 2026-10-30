@@ -1,0 +1,263 @@
+<!doctype html>
+<!--
+  KKTC Taksim canlı takip sayfası. Yolcunun "Yolculuğumu paylaş" ile gönderdiği bağlantı
+  (/t/<kimlik>) buraya düşer; firebase.json bu yolu bu dosyaya yönlendirir. Sayfa giriş
+  yapmadan `liveShares/<kimlik>` belgesini okur (bkz. firestore.rules) ve haritada gösterir.
+-->
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>KKTC Taksim – Canlı takip</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <style>
+    :root {
+      --yellow: #FFD600;
+      --black: #121212;
+      --bg: #F5F5F5;
+      --card: #FFFFFF;
+      --text: #121212;
+      --muted: #5F6368;
+      --red: #E53935;
+      --green: #2E7D32;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #121212; --card: #1E1E1E; --text: #F5F5F5; --muted: #A8A8A8; }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      display: flex; flex-direction: column;
+      background: var(--bg); color: var(--text);
+      font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; background: var(--black); color: #fff;
+    }
+    .logo {
+      width: 32px; height: 32px; border-radius: 8px; background: var(--yellow);
+      display: grid; place-items: center; font-size: 18px;
+    }
+    header h1 { margin: 0; font-size: 16px; }
+    header .live { margin-left: auto; font-size: 12px; color: var(--yellow); }
+    #map { flex: 1; min-height: 260px; }
+    .card {
+      background: var(--card); padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, .12);
+    }
+    .route { font-weight: 600; margin: 0 0 8px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; margin: 4px 0; }
+    .row span:first-child { color: var(--muted); }
+    .plate {
+      font-weight: 700; letter-spacing: 1px; border: 2px solid var(--text);
+      border-radius: 6px; padding: 0 6px;
+    }
+    .status { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+    .status.warn { color: var(--red); }
+    .message {
+      flex: 1; display: grid; place-items: center; text-align: center; padding: 32px 24px;
+    }
+    .message h2 { margin: 0 0 8px; font-size: 18px; }
+    .message p { margin: 0; color: var(--muted); }
+    .hidden { display: none !important; }
+    .taxi {
+      width: 34px; height: 34px; border-radius: 50%; background: var(--yellow);
+      border: 3px solid var(--black); display: grid; place-items: center; font-size: 17px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo" aria-hidden="true">🚕</div>
+    <h1 id="title">KKTC Taksim</h1>
+    <span class="live hidden" id="live">● CANLI</span>
+  </header>
+
+  <div id="map" class="hidden" role="img" aria-label=""></div>
+
+  <section class="card hidden" id="details">
+    <p class="route" id="route"></p>
+    <div class="row"><span id="driverLabel"></span><span id="driver"></span></div>
+    <div class="row"><span id="carLabel"></span><span id="car"></span></div>
+    <div class="row"><span id="plateLabel"></span><span class="plate" id="plate"></span></div>
+    <p class="status" id="status"></p>
+  </section>
+
+  <section class="message" id="message">
+    <div>
+      <h2 id="messageTitle"></h2>
+      <p id="messageText"></p>
+    </div>
+  </section>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+    import {
+      connectFirestoreEmulator,
+      doc,
+      getFirestore,
+      onSnapshot,
+    } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+    // Web uygulamasının herkese açık ayarları (lib/firebase_options.dart ile aynı). Erişimi
+    // bunlar değil Firestore kuralları sınırlar.
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCNJ9z4RjtMtqdtllOmvWqC_9TmJHi1vIo',
+      authDomain: 'kktctaksim-1ea24.firebaseapp.com',
+      projectId: 'kktctaksim-1ea24',
+      appId: '1:314510172975:web:9a722b226e3caca17177da',
+    };
+
+    // Konum bu süreden uzun güncellenmezse uyarı gösterilir (uygulama 10 sn'de bir yazar).
+    const STALE_AFTER_MS = 2 * 60 * 1000;
+
+    const texts = {
+      tr: {
+        title: 'Canlı yolculuk takibi',
+        live: '● CANLI',
+        mapLabel: 'Taksinin haritadaki konumu',
+        driver: 'Sürücü', car: 'Araç', plate: 'Plaka',
+        updated: (s) => s < 60 ? `Son güncelleme: ${s} sn önce` : `Son güncelleme: ${Math.round(s / 60)} dk önce`,
+        stale: 'Konum bir süredir güncellenmedi; telefonun interneti kesilmiş olabilir.',
+        loading: ['Yükleniyor…', ''],
+        ended: ['Yolculuk tamamlandı', 'Bu paylaşım sona erdi; konum artık gösterilmiyor.'],
+        invalid: ['Bağlantı geçersiz ya da süresi doldu', 'Paylaşım bitmiş olabilir. Yolculuktaki kişiden yeni bir bağlantı isteyebilirsin.'],
+        error: ['Bağlantı kurulamadı', 'İnternet bağlantını kontrol edip sayfayı yenile.'],
+      },
+      en: {
+        title: 'Live trip tracking',
+        live: '● LIVE',
+        mapLabel: "The taxi's position on the map",
+        driver: 'Driver', car: 'Car', plate: 'Plate',
+        updated: (s) => s < 60 ? `Updated ${s}s ago` : `Updated ${Math.round(s / 60)} min ago`,
+        stale: "The location hasn't updated for a while; the phone may have lost its connection.",
+        loading: ['Loading…', ''],
+        ended: ['Trip completed', 'This share has ended; the location is no longer shown.'],
+        invalid: ['Link invalid or expired', 'The share may have ended. You can ask the traveller for a new link.'],
+        error: ["Couldn't connect", 'Check your internet connection and reload the page.'],
+      },
+    };
+    const lang = navigator.language?.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+    const t = texts[lang];
+    document.documentElement.lang = lang;
+
+    const $ = (id) => document.getElementById(id);
+    $('title').textContent = t.title;
+    $('live').textContent = t.live;
+    $('map').setAttribute('aria-label', t.mapLabel);
+    $('driverLabel').textContent = t.driver;
+    $('carLabel').textContent = t.car;
+    $('plateLabel').textContent = t.plate;
+
+    function showMessage([title, text]) {
+      $('messageTitle').textContent = title;
+      $('messageText').textContent = text;
+      $('message').classList.remove('hidden');
+      for (const id of ['map', 'details', 'live']) $(id).classList.add('hidden');
+    }
+
+    function showTracking() {
+      $('message').classList.add('hidden');
+      for (const id of ['map', 'details', 'live']) $(id).classList.remove('hidden');
+    }
+
+    showMessage(t.loading);
+
+    // Bağlantı: /t/<kimlik> (yerel denemede ?id=<kimlik> da olur).
+    const shareId = location.pathname.match(/^\/t\/([A-Za-z0-9]{10,40})\/?$/)?.[1]
+      ?? new URLSearchParams(location.search).get('id');
+
+    let map = null;
+    let taxiMarker = null;
+    let updatedAt = null;
+    let framed = false;
+
+    function ensureMap(share) {
+      if (map) return;
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      map = new maplibregl.Map({
+        container: 'map',
+        style: `https://tiles.openfreemap.org/styles/${dark ? 'dark' : 'liberty'}`,
+        center: [share.position.lng, share.position.lat],
+        zoom: 14,
+        attributionControl: { compact: true },
+      });
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+      // Alttaki bilgi kartı dolunca harita alanı küçülüyor; MapLibre bunu yalnızca pencere
+      // boyutu değişince fark ettiği için taksi kartın altında kalıyordu.
+      new ResizeObserver(() => map.resize()).observe($('map'));
+      new maplibregl.Marker({ color: '#E53935' })
+        .setLngLat([share.destination.lng, share.destination.lat])
+        .addTo(map);
+      const el = document.createElement('div');
+      el.className = 'taxi';
+      el.textContent = '🚕';
+      taxiMarker = new maplibregl.Marker({ element: el }).setLngLat([share.position.lng, share.position.lat]).addTo(map);
+    }
+
+    function render(share) {
+      if (share.status !== 'active' || !share.position) {
+        showMessage(t.ended);
+        return;
+      }
+      showTracking();
+      $('route').textContent = `${share.from} → ${share.to}`;
+      $('driver').textContent = share.driverName;
+      $('car').textContent = share.car;
+      $('plate').textContent = share.plate;
+      updatedAt = share.updatedAt?.toMillis?.() ?? Date.now();
+      ensureMap(share);
+      map.resize();
+      taxiMarker.setLngLat([share.position.lng, share.position.lat]);
+      if (!framed) {
+        // İlk açılışta taksiyle varış noktası birlikte görünsün; sonra kullanıcı haritayı serbestçe gezer.
+        // Harita boyutu stil yüklenince kesinleşiyor; önce sığdırılırsa taksi kenarda kalıyordu.
+        framed = true;
+        const bounds = new maplibregl.LngLatBounds()
+          .extend([share.position.lng, share.position.lat])
+          .extend([share.destination.lng, share.destination.lat]);
+        const fit = () => {
+          map.resize();
+          map.fitBounds(bounds, { padding: { top: 60, right: 60, bottom: 80, left: 60 }, maxZoom: 15, duration: 0 });
+        };
+        if (map.loaded()) fit(); else map.once('load', fit);
+      } else {
+        map.easeTo({ center: [share.position.lng, share.position.lat], duration: 800 });
+      }
+      updateStatus();
+    }
+
+    function updateStatus() {
+      if (updatedAt == null) return;
+      const ageMs = Date.now() - updatedAt;
+      const stale = ageMs > STALE_AFTER_MS;
+      const el = $('status');
+      el.textContent = stale ? `${t.updated(Math.max(0, Math.round(ageMs / 1000)))} · ${t.stale}`
+        : t.updated(Math.max(0, Math.round(ageMs / 1000)));
+      el.classList.toggle('warn', stale);
+    }
+    setInterval(updateStatus, 1000);
+
+    if (!shareId) {
+      showMessage(t.invalid);
+    } else {
+      const db = getFirestore(initializeApp(firebaseConfig));
+      // Yerel deneme: `firebase emulators:start --only firestore,hosting` ve ?emulator.
+      if (location.hostname === 'localhost' && new URLSearchParams(location.search).has('emulator')) {
+        connectFirestoreEmulator(db, '127.0.0.1', 8080);
+      }
+      onSnapshot(
+        doc(db, 'liveShares', shareId),
+        (snapshot) => (snapshot.exists() ? render(snapshot.data()) : showMessage(t.invalid)),
+        // Kurallar süresi dolmuş ya da olmayan paylaşımı "izin yok" diye reddeder.
+        (error) => showMessage(error.code === 'permission-denied' ? t.invalid : t.error),
+      );
+    }
+  </script>
+</body>
+</html>

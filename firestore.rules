@@ -130,5 +130,58 @@ service cloud.firestore {
           && get(groupPath()).data.memberIds == [request.auth.uid];
       }
     }
+
+    // Aşama 4: canlı konum paylaşımı. Yolcu yolculuk sırasında bir takip bağlantısı paylaşır;
+    // bağlantıyı açan (uygulaması ve hesabı olmayan) kişi belgeyi kimliğiyle okur. Kimlik tahmin
+    // edilemez (Firestore'un 20 karakterlik rastgele kimliği) ve listeleme kapalı. Paylaşım
+    // yolculuk bitince "ended" olur ve konum silinir; en geç `expiresAt`'te okunamaz hale gelir.
+    match /liveShares/{shareId} {
+      function isPoint(p) {
+        return p is map && p.keys().hasAll(['lat', 'lng']) && p.keys().hasOnly(['lat', 'lng'])
+          && p.lat is number && p.lat >= -90 && p.lat <= 90
+          && p.lng is number && p.lng >= -180 && p.lng <= 180;
+      }
+
+      function isShortText(s) {
+        return s is string && s.size() > 0 && s.size() <= 200;
+      }
+
+      function isOwner() {
+        return request.auth != null && request.auth.uid == resource.data.ownerId;
+      }
+
+      allow get: if resource.data.expiresAt > request.time.toMillis() || isOwner();
+      allow list: if false;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['ownerId', 'from', 'to', 'destination', 'driverName',
+            'plate', 'car', 'status', 'position', 'updatedAt', 'expiresAt'])
+        && request.resource.data.keys().hasOnly(['ownerId', 'from', 'to', 'destination', 'driverName',
+            'plate', 'car', 'status', 'position', 'updatedAt', 'expiresAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && isShortText(request.resource.data.from)
+        && isShortText(request.resource.data.to)
+        && isPoint(request.resource.data.destination)
+        && isShortText(request.resource.data.driverName)
+        && isShortText(request.resource.data.plate)
+        && isShortText(request.resource.data.car)
+        && request.resource.data.status == 'active'
+        && isPoint(request.resource.data.position)
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.expiresAt is int
+        && request.resource.data.expiresAt > request.time.toMillis()
+        && request.resource.data.expiresAt <= request.time.toMillis() + 6 * 60 * 60 * 1000;
+
+      // Sahibi yalnızca konumu yeniler ya da paylaşımı bitirir (konum silinir); bitmiş paylaşım
+      // yeniden açılamaz.
+      allow update: if isOwner()
+        && resource.data.status == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['position', 'updatedAt', 'status'])
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.status == 'active' && isPoint(request.resource.data.position))
+            || (request.resource.data.status == 'ended' && !('position' in request.resource.data)));
+
+      allow delete: if isOwner();
+    }
   }
 }

@@ -19,12 +19,20 @@ gerekenler ve yayından önce yapılacaklar).
   (Enter'la gönderince yazı alanı odağı kaybediyordu) düzeltildi. İki hesapla (rozet, başkasının
   mesajı) gerçek Firebase'de denenmedi; widget testi kapsıyor.
 - Firestore'da kullanıcının kendi açtığı bir deneme grubu var ("kürşaddan → allaha"); dokunulmadı.
-- **Sıradaki iş:** **Aşama 4** (canlı konum paylaşımı; takip sayfasının nerede duracağı henüz kararlaştırılmadı).
+- **Aşama 4 (canlı konum paylaşımı) yazıldı** (dal `backend/asama-4-canli-konum`, 30 Ekim'de
+  `main`'e birleştirildi). Kurallar ve takip sayfası 30 Ekim'de **yüklendi** (`https://kktctaksim-1ea24.web.app`).
+  Gerçek Firebase'de uçtan uca denendi: web uygulamasında demo yolculuk → "Yolculuğumu paylaş" →
+  link açıldı, konum 10 sn'de bir güncellendi, taksi varınca son konum yazıldı, "Tamamla" ile sayfa
+  "Yolculuk tamamlandı"ya geçti ve konum silindi; girişsiz listeleme 403. Denemede iki hata
+  bulunup düzeltildi: aralık dolmadan gelen son konum hiç yazılmıyordu (taksi durunca sayfa eski
+  konumda kalıyordu) ve başlangıç yeri bağlantıyı açana "Mevcut konumun" görünüyordu.
+- Firestore'da denemeden kalan iki bitmiş paylaşım var (`liveShares`, konumsuz, 4 saatte okunamaz olur).
+- **Sıradaki iş:** Aşama 5 (şoför uygulaması ve eşleştirme).
 - Taksi çağırma hâlâ örnek veri.
 - Bugünkü işin tamamı commit edilip GitHub'a gönderildi (`c8e4074`, gizli depo
   `Lenarch/KKTCTaksim`). `CLAUDE.md` artık **yalnızca yerelde**: kullanıcı GitHub'dan sildi,
   `.gitignore`'da. Git kimliği bu depoda `Berkay <43513762+Lenarch@users.noreply.github.com>`.
-- Durum (30 Ekim): `flutter analyze` temiz, `flutter test` 36/36, Firestore kural testleri 25/25.
+- Durum (30 Ekim): `flutter analyze` temiz, `flutter test` 39/39, Firestore kural testleri 31/31.
 
 ## Uygulamanın amacı
 KKTC'ye özel taksi çağırma platformu. Üç rol var: **yolcu**, **şoför**, **taksi durağı** (şoför ve
@@ -129,6 +137,18 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
   düğmesi ve okunmamış mesaj rozeti (`lib/services/chat_read_state.dart`, cihazda saklanır).
   **Push bildirim yok** (kullanıcı kararı: Aşama 5'te FCM + Cloud Functions ile).
 
+- **Aşama 4: canlı konum paylaşımı.** Güvenlik menüsündeki "Yolculuğumu paylaş" artık
+  `https://kktctaksim-1ea24.web.app/t/<kimlik>` takip bağlantısı gönderiyor (uygulama ve hesap
+  gerekmez). `liveShares/{kimlik}`: rastgele kimlik, listeleme kapalı, girişsiz okuma yalnızca
+  `expiresAt`'e kadar (en fazla 6 saat; uygulama 4 saat veriyor). Konum en fazla 10 sn'de bir
+  yazılır (`AppDurations.liveShareInterval`); yolculuk bitince/iptalde paylaşım `ended` olur ve
+  konum silinir. Konum kaynağı: haritadaki taksi konumu (`RideSession.progress`; demoda
+  simülasyon, Aşama 5'te şoförün gerçek konumu). Başlatılamazsa eski "o anki konum" bağlantısı.
+  Kod: `lib/data/repositories/live_share_repository.dart`, `lib/services/live_share_controller.dart`,
+  sayfa `hosting/public/track.html` (MapLibre + OpenFreeMap + Firebase JS SDK, TR/EN).
+  Yerel deneme: `firebase emulators:start --only firestore,hosting` →
+  `http://localhost:5000/t/<kimlik>?emulator` (veriyi emülatöre REST ile yazarak).
+
 ## Alınan kararlar
 - **Backend: Firebase**, acele etmeden aşama aşama. Her aşamada: repository → kurallar → kural
   testleri (emülatör) → `firebase deploy --only firestore:rules` → web'de uçtan uca deneme.
@@ -137,10 +157,12 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
 - **Bütçe:** kullanıcıya aylık 10 $ / ~500 TL bütçe uyarısı önerildi (kurulup kurulmadığı doğrulanmadı).
 - **Dil:** Türkçe + İngilizce; Rusça ileride.
 - **Harita:** şimdilik OpenFreeMap; yayına yaklaşırken kendi PMTiles karo sunucumuz.
-- **Yayın:** internete yayın kurulmadı.
+- **Yayın:** uygulama internete yayınlanmadı. Canlı takip sayfası için **Firebase Hosting** seçildi
+  (kullanıcı kararı, 30 Ekim); Hosting'de yalnızca `hosting/public` (takip sayfası) var, Flutter
+  uygulaması değil.
 
 ## Açık bulgular / eksikler (öncelik sırasıyla)
-1. **Backend Aşama 3'ün yüklenmesi, Aşama 4–5**: canlı konum paylaşımı, yolcu–şoför eşleştirme
+1. **Aşama 4'ün yüklenmesi, Aşama 5**: canlı konum paylaşımı, yolcu–şoför eşleştirme
    (`docs/BACKEND_PLANI.md`).
 2. **Şoför modu / uygulaması** (Aşama 5 ile birlikte).
 3. Photon ve OSRM demo sunucuları yayın için uygun değil; OSRM bazı rotaları uzun çiziyor.

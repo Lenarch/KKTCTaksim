@@ -183,6 +183,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get currentLocation => 'Mevcut konumun';
 
   @override
+  String get tripStartPoint => 'Başlangıç noktası';
+
+  @override
   String get goToMyLocation => 'Konumuma git';
 
   @override
@@ -371,12 +374,18 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get shareTripHint =>
-      'Sürücü, plaka, varış saati ve şu anki konum bir yakınına gönderilir';
+      'Sürücü, plaka, varış saati ve canlı konum bağlantısı bir yakınına gönderilir; yolculuk bitince bağlantı kapanır';
 
   @override
   String shareTripText(String driver, String plate, String car,
       String destination, String arrival, String link) {
     return 'KKTC Taksim ile yolculuktayım.\nSürücü: $driver\nPlaka: $plate – $car\nVarış: $destination, tahmini $arrival\nŞu anki konum: $link';
+  }
+
+  @override
+  String shareTripLiveText(String driver, String plate, String car,
+      String destination, String arrival, String link) {
+    return 'KKTC Taksim ile yolculuktayım.\nSürücü: $driver\nPlaka: $plate – $car\nVarış: $destination, tahmini $arrival\nCanlı takip (yolculuk bitene kadar): $link';
   }
 
   @override

@@ -1,11 +1,14 @@
 import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
+import 'package:kktc_taksim/data/firebase/firebase_live_share_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_auth_repository.dart';
+import 'package:kktc_taksim/data/mock/mock_live_share_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_ride_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_trip_repository.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
+import 'package:kktc_taksim/data/repositories/live_share_repository.dart';
 import 'package:kktc_taksim/data/repositories/ride_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/data/repositories/trip_repository.dart';
@@ -17,8 +20,15 @@ class Backend {
   final TripRepository trips;
   final SharedRideRepository sharedRides;
   final RideRepository rides;
+  final LiveShareRepository liveShares;
 
-  Backend({required this.auth, required this.trips, required this.sharedRides, required this.rides});
+  Backend({
+    required this.auth,
+    required this.trips,
+    required this.sharedRides,
+    required this.rides,
+    required this.liveShares,
+  });
 
   factory Backend.mock() {
     final auth = MockAuthRepository();
@@ -28,6 +38,7 @@ class Backend {
       trips: trips,
       sharedRides: MockSharedRideRepository(auth),
       rides: MockRideRepository(trips: trips),
+      liveShares: MockLiveShareRepository(),
     );
   }
 
@@ -41,6 +52,7 @@ class Backend {
       trips: trips,
       sharedRides: FirebaseSharedRideRepository(),
       rides: MockRideRepository(trips: trips),
+      liveShares: FirebaseLiveShareRepository(),
     );
   }
 

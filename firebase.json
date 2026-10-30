@@ -22,5 +22,38 @@
   },
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "hosting/public",
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/t/**",
+        "destination": "/track.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      }
+    ]
   }
 }

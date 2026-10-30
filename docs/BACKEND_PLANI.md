@@ -97,9 +97,18 @@ Henüz yapılmayanlar (platforma özel):
 - Bildirim yok; Aşama 5'te FCM + Cloud Functions ile eklenecek. Aynı anda Cloud Function,
   silinen grupların artık mesajlarını da temizleyebilir.
 
-## Aşama 4: Canlı konum paylaşımı
-- Paylaşılan link bugün anlık konum. Canlı takip için `rides/{rideId}` belgesini okuyabilen kısa
-  ömürlü bir paylaşım bağlantısı (web sayfası) gerekecek.
+## Aşama 4: Canlı konum paylaşımı ✅ (30 Ekim 2026; yüklendi, uçtan uca denendi)
+- `liveShares/{shareId}` → `ownerId`, `from`, `to`, `destination {lat,lng}`, `driverName`, `plate`,
+  `car`, `status` (`active`/`ended`), `position {lat,lng}` (bitince silinir), `updatedAt`
+  (`request.time`), `expiresAt` (milisaniye, en fazla 6 saat sonrası).
+- Kurallar: kimliği bilen herkes (girişsiz) `expiresAt`'e kadar **get** eder; **list** kapalı;
+  yalnızca sahibi başlatır, konumu yeniler ya da bitirir (bitmiş paylaşım yeniden açılamaz,
+  diğer alanlar değişmez). Kural testleri 31/31.
+- Takip sayfası Firebase Hosting'de: `hosting/public/track.html`, `firebase.json` `/t/**`'i ona
+  yönlendirir. Yüklemek: `firebase deploy --only firestore:rules,hosting --project kktctaksim-1ea24`.
+- Uygulama: `LiveShareController` ilk paylaşımda başlatır, konumu 10 sn'de bir yazar, yolculuk
+  bitince/iptalde sonlandırır. Konum `RideSession.progress`'ten (Aşama 5'te şoförün gerçek konumu).
+- İleride: süresi dolan paylaşımları silen zamanlanmış Cloud Function (şimdilik okunamaz halde kalır).
 
 ## Aşama 5: Yolcu–şoför eşleştirme (şoför uygulamasıyla birlikte)
 - `rides/{rideId}` → istek, durum (`RideStatus`), sürücü, sürücünün konumu.
