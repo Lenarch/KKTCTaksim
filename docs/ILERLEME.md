@@ -7,13 +7,13 @@ gerekenler ve yayından önce yapılacaklar).
 
 ## Kaldığımız yer (30 Ekim 2026)
 - **Backend Aşama 0, 1 ve 2 bitti; Aşama 3'ün kodu ve kuralları hazır** (dal
-  `backend/asama-3-paylasimli-gruplar`, GitHub'a gönderildi; `main`'e henüz birleştirilmedi). Kurallar 30 Ekim'de
+  `backend/asama-3-paylasimli-gruplar`, 30 Ekim'de `main`'e birleştirildi ve gönderildi: `4b42b83`). Kurallar 30 Ekim'de
   **Firebase'e yüklendi**.
 - **Web'de tek hesapla denendi (30 Ekim):** grup oluştu (1/4), sayfa yenilenince duruyor, son üye
   ayrılınca silindi; konsolda hata yok. **Başka hesabın katılması gerçek Firebase'de denenmedi**
   (yalnızca kural testleriyle doğrulandı): ikinci test numarasını Claude'un eklemesine izin
   verilmedi; kullanıcı konsoldan `+90 533 000 00 01` / `123456` ekleyince denenebilir.
-- **Sıradaki iş:** isteğe bağlı iki hesapla deneme, sonra dalı `main`'e birleştir.
+- **Sıradaki iş:** isteğe bağlı iki hesapla deneme, sonra **Aşama 4** (canlı konum paylaşımı).
 - Taksi çağırma hâlâ örnek veri.
 - Bugünkü işin tamamı commit edilip GitHub'a gönderildi (`c8e4074`, gizli depo
   `Lenarch/KKTCTaksim`). `CLAUDE.md` artık **yalnızca yerelde**: kullanıcı GitHub'dan sildi,
@@ -139,8 +139,7 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
    Firestore yedekleme, gizlilik metni, hesap silme (`docs/UYARILAR.md`).
 
 ## Sıradaki adım
-1. **Aşama 3'ü bitirmek:** isteğe bağlı iki hesapla deneme (ikinci test numarasını kullanıcı
-   ekler), sonra dalı `main`'e birleştir.
+1. İsteğe bağlı: iki hesapla katılma denemesi (ikinci test numarasını kullanıcı ekler).
    Firestore boş başlar; örnek gruplar artık görünmez.
 2. Sonra **Aşama 4: canlı konum paylaşımı** (`docs/BACKEND_PLANI.md`).
 3. İsteğe bağlı: iPhone testi için IP'yi yetkili alan adlarına eklemek (kullanıcı onayıyla).
