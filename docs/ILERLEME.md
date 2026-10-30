@@ -28,8 +28,10 @@ gerekenler ve yayından önce yapılacaklar).
   konumda kalıyordu) ve başlangıç yeri bağlantıyı açana "Mevcut konumun" görünüyordu.
 - Firestore'da denemeden kalan iki bitmiş paylaşım var (`liveShares`, konumsuz, 4 saatte okunamaz olur).
 - **Android test APK'sı** (30 Ekim): `flutter build apk --release` (debug anahtarıyla imzalı,
-  89,8 MB), kopyası proje klasörünün yanında `apk/KKTCTaksim-test.apk`. Henüz bir cihazda
-  denenmedi; kullanıcının arkadaşı deneyecek. Firebase Android uygulamasına debug anahtarının
+  89,9 MB), kopyası proje klasörünün yanında `apk/KKTCTaksim-test.apk`. İlk APK telefonda açılır
+  açılmaz çöküyordu (R8, WorkManager'ın `WorkDatabase_Impl` sınıfını siliyordu); keep kuralı
+  `android/app/proguard-rules.pro`. Emülatörde (`kktc_test`, Pixel 7, Android 15 + Play) denendi:
+  açılış, test numarasıyla giriş, konum izni, harita. Firebase Android uygulamasına debug anahtarının
   SHA-1/SHA-256'sı eklendi (telefonla giriş için).
 - **Web'de gerçek numarayla giriş `localhost`'ta çalışmıyor:** `invalid-app-credential` (Firebase
   localhost'tan gelen reCAPTCHA'yı reddediyor). Test numarası çalışır. Web gerçek bir adreste
@@ -59,6 +61,8 @@ durak henüz "yakında"). Yolcu tarafında taksi çağırma, paylaşımlı yolcu
 | iPhone testi | Web sürümü yerel Wi-Fi üzerinden https ile yayınlanıyor (aşağıya bak) |
 
 Bilinen tuzaklar:
+- Emülatör: `%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe -avd kktc_test`; APK kurmak
+  `adb install -r <apk>`, çökme kaydı `adb logcat -b crash`.
 - Yeni Android komut satırı araçlarında `sdkmanager` yerine `android sdk install <paket/yol>`
   (ör. `ndk/28.2.13676358`). Gradle NDK'yı kendisi kuramıyor ("Package ndk not found"); elle kur.
 - `google_mobile_ads` 5.x Gradle 9 ile derlenmiyor (`configurations.all`); 9.2.0'a yükseltildi.

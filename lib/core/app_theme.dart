@@ -96,8 +96,13 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colorScheme.surfaceContainerHighest,
-        border: OutlineInputBorder(borderRadius: fieldRadius, borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: fieldRadius, borderSide: BorderSide.none),
+        // Açık temada dolgu rengi sayfa arka planıyla aynı; ince çerçeve olmadan boş alan (ör. SMS
+        // kodu kutuları) görünmüyordu.
+        border: OutlineInputBorder(borderRadius: fieldRadius, borderSide: BorderSide(color: colorScheme.outlineVariant)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: fieldRadius,
+          borderSide: BorderSide(color: colorScheme.outlineVariant),
+        ),
         focusedBorder: OutlineInputBorder(
           borderRadius: fieldRadius,
           borderSide: const BorderSide(color: primaryYellow, width: 2),
