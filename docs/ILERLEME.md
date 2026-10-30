@@ -27,6 +27,13 @@ gerekenler ve yayından önce yapılacaklar).
   bulunup düzeltildi: aralık dolmadan gelen son konum hiç yazılmıyordu (taksi durunca sayfa eski
   konumda kalıyordu) ve başlangıç yeri bağlantıyı açana "Mevcut konumun" görünüyordu.
 - Firestore'da denemeden kalan iki bitmiş paylaşım var (`liveShares`, konumsuz, 4 saatte okunamaz olur).
+- **Android test APK'sı** (30 Ekim): `flutter build apk --release` (debug anahtarıyla imzalı,
+  89,8 MB), kopyası proje klasörünün yanında `apk/KKTCTaksim-test.apk`. Henüz bir cihazda
+  denenmedi; kullanıcının arkadaşı deneyecek. Firebase Android uygulamasına debug anahtarının
+  SHA-1/SHA-256'sı eklendi (telefonla giriş için).
+- **Web'de gerçek numarayla giriş `localhost`'ta çalışmıyor:** `invalid-app-credential` (Firebase
+  localhost'tan gelen reCAPTCHA'yı reddediyor). Test numarası çalışır. Web gerçek bir adreste
+  yayınlanınca denenmeli.
 - **Sıradaki iş:** Aşama 5 (şoför uygulaması ve eşleştirme).
 - Taksi çağırma hâlâ örnek veri.
 - Bugünkü işin tamamı commit edilip GitHub'a gönderildi (`c8e4074`, gizli depo
@@ -48,10 +55,13 @@ durak henüz "yakında"). Yolcu tarafında taksi çağırma, paylaşımlı yolcu
 | Firebase CLI | `firebase` (npm global, 15.34.2), `firebase login` yapıldı: berkayserin1290@gmail.com |
 | FlutterFire CLI | `%LOCALAPPDATA%\Pub\Cache\bin\flutterfire.bat` (PATH'te değil, tam yolla çağır) |
 | Java | Eclipse Temurin JDK 21 (Firestore emülatörü için). Eski açık terminallerde PATH'te olmayabilir |
-| Android SDK | **Kurulu değil**: Android Studio kurulunca emülatör/telefon testi yapılabilir |
+| Android SDK | `%LOCALAPPDATA%\Android\Sdk` (Android Studio yok; komut satırı araçları 23, platform 35/36, build-tools 35/36, NDK 28.2.13676358, `ANDROID_HOME` ayarlı). Emülatör yok |
 | iPhone testi | Web sürümü yerel Wi-Fi üzerinden https ile yayınlanıyor (aşağıya bak) |
 
 Bilinen tuzaklar:
+- Yeni Android komut satırı araçlarında `sdkmanager` yerine `android sdk install <paket/yol>`
+  (ör. `ndk/28.2.13676358`). Gradle NDK'yı kendisi kuramıyor ("Package ndk not found"); elle kur.
+- `google_mobile_ads` 5.x Gradle 9 ile derlenmiyor (`configurations.all`); 9.2.0'a yükseltildi.
 - `flutter build web` "arb-dir doesn't allow reading and writing" derse: OneDrive `lib\l10n`'e
   salt-okunur işareti koymuş; `attrib -R` ile kaldır.
 - `flutter test` bazen `build\unit_test_assets` silinemedi diye düşüyor (OneDrive kilidi).

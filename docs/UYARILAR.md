@@ -64,6 +64,12 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - `intl`, `share_plus`, `shared_preferences`, `firebase_core`, `firebase_auth`, `cloud_firestore`.
 - Firestore kural testleri için `firestore-tests/` (npm) ve bilgisayarda Java (Temurin JDK 21).
 
+## Android
+- Test APK'sı **debug anahtarıyla** imzalı; mağazaya yüklenemez. Yayın için ayrı bir yükleme
+  anahtarı oluşturulmalı ve onun SHA parmak izleri de Firebase'e eklenmeli.
+- Web'de gerçek numarayla giriş `localhost`'ta `invalid-app-credential` veriyor; gerçek alan adında
+  denenmeli.
+
 ## Yayından önce mutlaka
 - Backend: Firebase seçildi; plan ve senin yapacakların `docs/BACKEND_PLANI.md` içinde
   (Blaze planı + kart, Firestore bölgesi sonradan değiştirilemez)

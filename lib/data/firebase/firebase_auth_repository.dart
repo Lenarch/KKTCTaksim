@@ -57,6 +57,8 @@ class FirebaseAuthRepository implements AuthRepository {
         await _verifyOnDevice(normalized);
       }
     } on FirebaseAuthException catch (e) {
+      // Kullanıcıya genel bir mesaj gider; asıl sebep (ör. invalid-app-credential) konsolda görünsün.
+      debugPrint('Firebase SMS gönderme hatası: ${e.code} – ${e.message}');
       throw AuthException(mapAuthError(e.code));
     }
   }
@@ -100,6 +102,7 @@ class FirebaseAuthRepository implements AuthRepository {
       await _saveProfile(user);
       return _toAppUser(user)!;
     } on FirebaseAuthException catch (e) {
+      debugPrint('Firebase kod doğrulama hatası: ${e.code} – ${e.message}');
       throw AuthException(mapAuthError(e.code));
     } finally {
       _autoSignIn = null;
