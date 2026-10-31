@@ -33,4 +33,8 @@ abstract class AuthRepository {
   Future<void> updateName(String name);
 
   Future<void> signOut();
+
+  /// Profili ve hesabı siler, oturumu kapatır. Firebase yakın zamanda giriş istediği için
+  /// çağırmadan hemen önce SMS koduyla yeniden doğrulanmalı (bkz. `deleteAccount` servisi).
+  Future<void> deleteAccount();
 }

@@ -37,6 +37,9 @@ abstract class LiveShareRepository {
 
   /// Paylaşılacak takip bağlantısı.
   Uri link(String shareId);
+
+  /// Hesap silinirken: kullanıcının bütün paylaşımlarını siler.
+  Future<void> deleteAllMine();
 }
 
 /// Takip sayfası Firebase Hosting'de: `https://<proje>.web.app/t/<kimlik>`.

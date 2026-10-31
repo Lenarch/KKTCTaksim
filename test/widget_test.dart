@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/data/backend.dart';
@@ -13,6 +14,7 @@ import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/models/trip.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/screens/my_trips_screen.dart';
+import 'package:kktc_taksim/screens/profile_screen.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
@@ -253,6 +255,41 @@ void main() {
     await tester.tap(find.byTooltip('Geri'));
     await tester.pumpAndSettle();
     expect(find.text('Grup sohbeti'), findsOneWidget);
+  });
+
+  testWidgets('Profil > Hesabımı Sil: onay ve SMS kodundan sonra hesap silinir', (tester) async {
+    await signIn(name: 'Ayşe');
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      locale: const Locale('tr'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
+      routes: {
+        '/': (_) => const ProfileScreen(),
+        AppRoutes.roleSelection: (_) => const Scaffold(body: Text('ROL SEÇİMİ')),
+      },
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Hesabımı Sil'), 200);
+    await tester.tap(find.text('Hesabımı Sil'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('kalıcı olarak silinecek'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Hesabımı Sil'));
+    await tester.pumpAndSettle();
+
+    // Yeniden doğrulama ekranı
+    expect(find.text('Doğrulama Kodu'), findsOneWidget);
+    for (var i = 0; i < Backend.instance.auth.codeLength; i++) {
+      await tester.enterText(find.byType(TextField).at(i), '1');
+      await tester.pump();
+    }
+    await tester.tap(find.text('Doğrula'));
+    await tester.pumpAndSettle();
+
+    expect(Backend.instance.auth.currentUser, isNull);
+    expect(find.text('ROL SEÇİMİ'), findsOneWidget);
+    expect(find.text('Hesabın ve verilerin silindi.'), findsOneWidget);
   });
 
   testWidgets('Taksi seçiminde tahmini fiyat, ödeme yöntemi ve zaman seçilir', (tester) async {

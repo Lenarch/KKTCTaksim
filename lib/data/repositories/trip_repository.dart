@@ -12,4 +12,7 @@ abstract class TripRepository {
 
   /// Planlanmış yolculuğu iptal eder; ücreti sıfırlanır.
   Future<void> cancel(String id);
+
+  /// Hesap silinirken: kullanıcının bütün yolculuklarını siler.
+  Future<void> deleteAll();
 }

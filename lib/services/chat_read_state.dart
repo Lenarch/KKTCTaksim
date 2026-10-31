@@ -32,6 +32,20 @@ class ChatReadState {
     return message.sentAt.millisecondsSinceEpoch > (lastRead.value[rideId] ?? 0);
   }
 
+  /// Hesap silinince cihazdaki okundu bilgileri de silinir.
+  Future<void> clear() async {
+    final keys = lastRead.value.keys.toList();
+    lastRead.value = const {};
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in keys) {
+        await prefs.remove('$_prefix$key');
+      }
+    } catch (_) {
+      // Silinemese de zararsız: başka bir hesabın grubunda aynı kimlik olmaz.
+    }
+  }
+
   Future<void> markRead(String rideId, DateTime at) async {
     final millis = at.millisecondsSinceEpoch;
     if ((lastRead.value[rideId] ?? 0) >= millis) return;

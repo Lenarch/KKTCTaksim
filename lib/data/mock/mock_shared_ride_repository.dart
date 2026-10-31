@@ -96,6 +96,18 @@ class MockSharedRideRepository implements SharedRideRepository {
     _changes.add(null);
   }
 
+  @override
+  Future<void> removeMe() async {
+    final userId = _userId;
+    for (final messages in _messages.values) {
+      messages.removeWhere((m) => m.senderId == userId);
+    }
+    for (final ride in _rides.where((r) => r.hasMember(userId)).toList()) {
+      await leave(ride.id);
+    }
+    _changes.add(null);
+  }
+
   int _indexOf(String rideId) {
     final index = _rides.indexWhere((r) => r.id == rideId);
     if (index == -1) throw const SharedRideException(SharedRideError.notFound);

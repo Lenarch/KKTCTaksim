@@ -684,6 +684,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logout => 'Log Out';
 
   @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get termsOfUseTitle => 'Terms of Use';
+
+  @override
+  String get deleteAccount => 'Delete My Account';
+
+  @override
+  String get deleteAccountMessage =>
+      'Your account and all your data (profile, trip history, group memberships and messages, location shares) will be permanently deleted. This can\'t be undone. To continue, we\'ll send a verification code to your phone.';
+
+  @override
+  String get accountDeleted => 'Your account and data have been deleted.';
+
+  @override
+  String get deleteAccountFailed =>
+      'Couldn\'t delete your account. Check your internet connection and try again.';
+
+  @override
   String get logoutMessage => 'Are you sure you want to log out?';
 
   @override

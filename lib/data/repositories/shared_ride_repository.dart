@@ -34,6 +34,10 @@ abstract class SharedRideRepository {
 
   /// Üye olmayan yazamaz ([SharedRideError.notMember]). Metin kırpılır; boşsa gönderilmez.
   Future<void> sendMessage(String rideId, String text);
+
+  /// Hesap silinirken: kullanıcının (kalkışı geçmişler dahil) bütün gruplarındaki kendi mesajlarını
+  /// siler ve gruplardan ayrılır; son üyesi olduğu gruplar sohbetiyle silinir.
+  Future<void> removeMe();
 }
 
 const int chatHistoryLimit = 200;

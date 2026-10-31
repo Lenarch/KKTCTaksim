@@ -81,7 +81,19 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 ## Yayından önce mutlaka
 - Backend: Firebase seçildi; plan ve senin yapacakların `docs/BACKEND_PLANI.md` içinde
   (Blaze planı + kart, Firestore bölgesi sonradan değiştirilemez)
-- Gizlilik metni, kullanım koşulları ve hesap silme seçeneği
+- ⚠️ **İLETİŞİM ADRESİ YER TUTUCUSU:** `hosting/public/gizlilik.html` ve `kosullar.html`
+  sayfalarında (TR ve EN, toplam 4 yerde) iletişim adresi olarak **`[İLETİŞİM E-POSTASI]`** yazıyor.
+  Yayından önce gerçek bir e-posta adresiyle değiştirilip `firebase deploy --only hosting` ile
+  yüklenmeli. App Store ve Google Play gizlilik politikasında çalışan bir iletişim adresi ister;
+  eksik kalırsa uygulama **reddedilir**, ayrıca kişisel veri mevzuatı (KVKK / KKTC Kişisel Verilerin
+  Korunması Yasası) açısından **hukuki risk** doğar. Kontrol: `grep -r "İLETİŞİM E-POSTASI" hosting/`.
+- Gizlilik politikası ve kullanım koşulları **taslak**: yayından önce bir hukukçuya okutulmalı.
+- ⚠️ **ŞOFÖR BELGE KONTROLÜ YOK:** şoförler şimdilik kendileri kaydoluyor ve hemen çağrı alabiliyor
+  (test kolaylığı için, kullanıcı kararı 31 Ekim 2026). Yayından önce ehliyet, ruhsat, taksi plakası
+  ve sigorta belgelerinin yüklenip **onaylanması** ve onaylanmayan şoförün çağrı alamaması
+  (Firestore kurallarında `approved` alanı) eklenmeli. Aksi halde herkes şoför olarak yolcu alabilir.
+- Sohbet şikâyetlerini inceleyecek bir süreç: şikâyetler şimdilik yalnızca Firebase konsolunda
+  (`reports` koleksiyonu) görülüyor.
 - Şoför uygulaması (rol seçiminde hâlâ "yakında")
 - Firebase test numarası (`+90 533 000 00 00`) silinmeli: bu numara + kodla herkes giriş yapabilir
 - Firestore otomatik yedeklemeyi aç; App Check'i etkinleştir

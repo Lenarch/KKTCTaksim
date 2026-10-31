@@ -92,6 +92,20 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
     if (error != null) throw SharedRideException(error);
   }
 
+  @override
+  Future<void> removeMe() async {
+    final userId = _userId;
+    final groups = await _rides.where('memberIds', arrayContains: userId).get();
+    for (final group in groups.docs) {
+      // Önce kendi mesajları (üyeyken silinebilir), sonra ayrılma; son üyeyse grup sohbetiyle gider.
+      final mine = await _messages(group.id).where('senderId', isEqualTo: userId).get();
+      for (final message in mine.docs) {
+        await message.reference.delete();
+      }
+      await leave(group.id);
+    }
+  }
+
   Future<void> _deleteMessages(String rideId) async {
     while (true) {
       final batch = await _messages(rideId).limit(400).get();

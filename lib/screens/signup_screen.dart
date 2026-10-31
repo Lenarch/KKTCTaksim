@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/legal_links.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/core/validators.dart';
 import 'package:kktc_taksim/core/labels.dart';
@@ -100,7 +101,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     children: [
                       Text(l10n.termsPrefix, style: mutedStyle),
                       GestureDetector(
-                        onTap: () => showComingSoon(context, l10n.termsOfUse),
+                        onTap: () async {
+                          final message = l10n.cannotOpen;
+                          final opened = await openLegalPage(termsOfUseUrl);
+                          if (!opened && context.mounted) showMessage(context, message);
+                        },
                         child: Text(
                           l10n.termsOfUse,
                           style: theme.textTheme.bodySmall?.copyWith(

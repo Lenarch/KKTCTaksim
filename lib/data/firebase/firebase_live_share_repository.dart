@@ -51,6 +51,16 @@ class FirebaseLiveShareRepository implements LiveShareRepository {
 
   @override
   Uri link(String shareId) => trackingLink(shareId);
+
+  @override
+  Future<void> deleteAllMine() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final shares = await _shares.where('ownerId', isEqualTo: user.uid).get();
+    for (final doc in shares.docs) {
+      await doc.reference.delete();
+    }
+  }
 }
 
 /// Kurallar enlem/boylamı sınırlar; fazla hane gereksiz (5 hane ≈ 1 m).

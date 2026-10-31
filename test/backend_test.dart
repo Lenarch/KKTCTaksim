@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
@@ -28,6 +29,7 @@ import 'package:kktc_taksim/models/route_info.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/models/trip.dart';
+import 'package:kktc_taksim/services/account_deletion.dart';
 import 'package:kktc_taksim/services/live_share_controller.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -470,5 +472,53 @@ void main() {
       expect(repository.isActive(id), isFalse);
       controller.dispose();
     });
+  });
+
+  test('hesap silinince yolculuklar, grup üyelikleri ve mesajlar, paylaşımlar ve oturum gider', () async {
+    final backend = Backend.mock();
+    final user = await _signIn(backend.auth);
+    final trips = backend.trips;
+    final shared = backend.sharedRides;
+
+    await shared.join('demo-group-1');
+    await shared.sendMessage('demo-group-1', 'Benim mesajım');
+    await shared.create(SharedRide(
+      id: '',
+      from: 'Silinecek grup',
+      to: 'Lefkoşa',
+      departure: DateTime.now().add(const Duration(days: 1)),
+      capacity: 4,
+      memberIds: const [],
+      pricePerPerson: 200,
+    ));
+    final shareId = await backend.liveShares.start(
+      const LiveShareInfo(
+        from: 'A',
+        to: 'B',
+        destination: LatLng(35.3, 33.3),
+        driverName: 'X',
+        plate: 'Y',
+        car: 'Z',
+      ),
+      const LatLng(35.2, 33.3),
+    );
+    expect(await trips.watch(TripStatus.completed).first, isNotEmpty);
+
+    await deleteAccountAndData(backend);
+
+    expect(backend.auth.currentUser, isNull);
+    expect(await trips.watch(TripStatus.completed).first, isEmpty);
+    expect(await trips.watch(TripStatus.upcoming).first, isEmpty);
+    expect((backend.liveShares as MockLiveShareRepository).isActive(shareId), isFalse);
+    final groups = await shared.watchActive().first;
+    expect(groups.any((g) => g.hasMember(user.id)), isFalse);
+    expect(groups.any((g) => g.from == 'Silinecek grup'), isFalse, reason: 'tek üyeli grup silinir');
+
+    // Grupta kalan biri, silinen kullanıcının mesajını artık görmez.
+    await backend.auth.sendCode('+90 542 000 00 00');
+    await backend.auth.verifyCode('1' * backend.auth.codeLength);
+    await shared.join('demo-group-1');
+    final messages = await shared.watchMessages('demo-group-1').first;
+    expect(messages.where((m) => m.senderId == user.id), isEmpty);
   });
 }

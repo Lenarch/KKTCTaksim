@@ -14,9 +14,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 const ALICE = { uid: 'alice', phone: '+905330000001' };
@@ -82,9 +84,11 @@ describe('users/{uid} profil', () => {
     await assertFails(getDoc(doc(anonymousDb(), 'users/alice')));
   });
 
-  test('profil silinemez', async () => {
+  test('profili yalnızca sahibi siler (hesap silme)', async () => {
     await seed('users/alice', { phone: ALICE.phone });
-    await assertFails(deleteDoc(doc(dbAs(ALICE), 'users/alice')));
+    await assertFails(deleteDoc(doc(dbAs(BOB), 'users/alice')));
+    await assertFails(deleteDoc(doc(anonymousDb(), 'users/alice')));
+    await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'users/alice')));
   });
 });
 
@@ -124,12 +128,13 @@ describe('users/{uid}/trips yolculuk geçmişi', () => {
     await assertFails(updateDoc(ref, { status: 'cancelled', price: 0, to: 'Gazimağusa' }));
   });
 
-  test('tamamlanmış yolculuk değiştirilemez ve silinemez', async () => {
+  test('tamamlanmış yolculuk değiştirilemez; silmeyi yalnızca sahibi yapar (hesap silme)', async () => {
     await seed('users/alice/trips/t1', trip({ status: 'completed' }));
     const ref = doc(dbAs(ALICE), 'users/alice/trips/t1');
     await assertFails(updateDoc(ref, { price: 1 }));
     await assertFails(updateDoc(ref, { status: 'cancelled', price: 0 }));
-    await assertFails(deleteDoc(ref));
+    await assertFails(deleteDoc(doc(dbAs(BOB), 'users/alice/trips/t1')));
+    await assertSucceeds(deleteDoc(ref));
   });
 });
 
@@ -245,15 +250,26 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
     await assertFails(setDoc(ref('m5'), message({ sentAt: 1 })));
   });
 
-  test('mesaj değiştirilemez; silmeyi yalnızca tek kalan üye yapar', async () => {
+  test('mesaj değiştirilemez; başkasının mesajını yalnızca tek kalan üye siler', async () => {
     await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
     await seed('sharedRides/g1/messages/m1', { ...message(), sentAt: 1 });
     const ref = doc(dbAs(ALICE), 'sharedRides/g1/messages/m1');
     await assertFails(updateDoc(ref, { text: 'değişti' }));
-    await assertFails(deleteDoc(ref));
+    await assertFails(deleteDoc(doc(dbAs(BOB), 'sharedRides/g1/messages/m1')));
+    await seed('sharedRides/g1/messages/m2', { ...message({ senderId: 'bob', senderName: 'Bob' }), sentAt: 1 });
     await seed('sharedRides/g1', sharedRide({ memberIds: ['alice'] }));
     await assertFails(deleteDoc(doc(dbAs(BOB), 'sharedRides/g1/messages/m1')));
+    // Tek kalan üye, ayrılan üyenin mesajını da temizleyebilir (grubu silmeden önce).
+    await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m2')));
     await assertSucceeds(deleteDoc(ref));
+  });
+
+  test('üye kendi mesajını siler (hesap silme), başkasınınkini silemez', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await seed('sharedRides/g1/messages/m1', { ...message(), sentAt: 1 });
+    await seed('sharedRides/g1/messages/m2', { ...message({ senderId: 'bob', senderName: 'Bob' }), sentAt: 1 });
+    await assertFails(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m2')));
+    await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m1')));
   });
 
   test('ayrılan üye artık okuyamaz', async () => {
@@ -290,10 +306,12 @@ describe('liveShares canlı konum paylaşımı', () => {
     await assertSucceeds(getDoc(doc(dbAs(BOB), 'liveShares/s1')));
   });
 
-  test('paylaşımlar listelenemez', async () => {
+  test('başkalarının paylaşımları listelenemez; sahibi kendininkileri listeler', async () => {
     await seedShare('s1');
     await assertFails(getDocs(collection(anonymousDb(), 'liveShares')));
     await assertFails(getDocs(collection(dbAs(BOB), 'liveShares')));
+    await assertFails(getDocs(query(collection(dbAs(BOB), 'liveShares'), where('ownerId', '==', 'alice'))));
+    await assertSucceeds(getDocs(query(collection(dbAs(ALICE), 'liveShares'), where('ownerId', '==', 'alice'))));
   });
 
   test('süresi dolan paylaşımı yalnızca sahibi okur', async () => {

@@ -128,6 +128,20 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() => _auth.signOut();
 
+  @override
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      await _firestore.collection('users').doc(user.uid).delete();
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Firebase hesap silme hatası: ${e.code} – ${e.message}');
+      throw AuthException(mapAuthError(e.code));
+    }
+    await _auth.signOut();
+  }
+
   /// Profil belgesi; Firestore kuralları yalnızca kullanıcının kendi belgesine izin verir.
   Future<void> _saveProfile(User user) async {
     try {

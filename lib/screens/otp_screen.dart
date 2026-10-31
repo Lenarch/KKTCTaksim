@@ -7,8 +7,12 @@ import 'package:kktc_taksim/core/labels.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
+import 'package:kktc_taksim/services/account_deletion.dart';
 import 'package:kktc_taksim/widgets/auth_header.dart';
 import 'package:kktc_taksim/widgets/loading_button.dart';
+
+/// Kod neden isteniyor: giriş, ya da hesabı silmeden önce kimliği yeniden doğrulamak.
+enum OtpPurpose { signIn, deleteAccount }
 
 /// SMS kodunu doğrular. Kod [phoneNumber]'a önceki ekranda gönderilmiş olmalı.
 class OtpScreen extends StatefulWidget {
@@ -16,8 +20,9 @@ class OtpScreen extends StatefulWidget {
 
   /// Kayıttan geliniyorsa kullanıcının adı; doğrulamadan sonra profile yazılır.
   final String? name;
+  final OtpPurpose purpose;
 
-  const OtpScreen({super.key, required this.phoneNumber, this.name});
+  const OtpScreen({super.key, required this.phoneNumber, this.name, this.purpose = OtpPurpose.signIn});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -64,13 +69,26 @@ class _OtpScreenState extends State<OtpScreen> {
       await auth.verifyCode(_controllers.map((c) => c.text).join());
       final name = widget.name;
       if (name != null) await auth.updateName(name);
+      if (widget.purpose == OtpPurpose.deleteAccount) await deleteAccountAndData(Backend.instance);
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       showMessage(context, e.code.label(l10n));
       return;
+    } catch (e) {
+      // Hesap silinirken veri silme adımlarından biri düştü; hesap ve kalan veri yerinde durur.
+      debugPrint('Hesap silme başarısız: $e');
+      if (!mounted) return;
+      setState(() => _busy = false);
+      showMessage(context, l10n.deleteAccountFailed);
+      return;
     }
     if (!mounted) return;
+    if (widget.purpose == OtpPurpose.deleteAccount) {
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.roleSelection, (route) => false);
+      messenger.showSnackBar(SnackBar(content: Text(l10n.accountDeleted)));
+      return;
+    }
     Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
     messenger.showSnackBar(SnackBar(content: Text(l10n.verificationSuccess)));
   }

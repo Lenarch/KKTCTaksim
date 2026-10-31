@@ -36,4 +36,10 @@ class MockTripRepository implements TripRepository {
     _trips[index] = _trips[index].copyWith(status: TripStatus.cancelled, price: 0);
     _changes.add(null);
   }
+
+  @override
+  Future<void> deleteAll() async {
+    _trips.clear();
+    _changes.add(null);
+  }
 }

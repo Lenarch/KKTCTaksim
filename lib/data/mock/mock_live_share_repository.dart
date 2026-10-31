@@ -29,4 +29,7 @@ class MockLiveShareRepository implements LiveShareRepository {
 
   @override
   Uri link(String shareId) => trackingLink(shareId);
+
+  @override
+  Future<void> deleteAllMine() async => _positions.clear();
 }

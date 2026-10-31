@@ -44,6 +44,14 @@ class FirebaseTripRepository implements TripRepository {
   Future<void> add(Trip trip) => _myTrips.doc(trip.id).set(tripToDocument(trip));
 
   @override
+  Future<void> deleteAll() async {
+    final trips = await _myTrips.get();
+    for (final doc in trips.docs) {
+      await doc.reference.delete();
+    }
+  }
+
+  @override
   Future<void> cancel(String id) => _myTrips.doc(id).update({
         'status': TripStatus.cancelled.name,
         'price': 0,

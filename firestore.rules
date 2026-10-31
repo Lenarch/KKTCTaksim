@@ -24,8 +24,8 @@ service cloud.firestore {
 
       allow read: if isOwner();
       allow create, update: if isOwner() && isValidProfile();
-      // Hesap silme ileride sunucu tarafında (tüm verileriyle birlikte) yapılacak.
-      allow delete: if false;
+      // Hesap silme: uygulama kullanıcının verisini kendisi temizler (Profil > Hesabımı sil).
+      allow delete: if isOwner();
 
       // Aşama 2: yolculuk geçmişi. Yalnızca sahibi okur.
       // Not: tamamlanan yolculuğu şimdilik uygulama yazıyor (şoför tarafı yok). Eşleştirme
@@ -50,7 +50,8 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'price'])
           && request.resource.data.status == 'cancelled'
           && request.resource.data.price == 0;
-        allow delete: if false;
+        // Yalnızca hesap silinirken (sahibi tüm geçmişini siler).
+        allow delete: if isOwner();
       }
     }
 
@@ -125,9 +126,12 @@ service cloud.firestore {
         allow read: if isMember();
         allow create: if isMember() && isValidMessage(request.resource.data);
         allow update: if false;
-        // Son üye ayrılırken grubu silmeden önce mesajları temizler.
+        // Son üye ayrılırken grubu silmeden önce mesajları temizler; hesabını silen üye de kendi
+        // mesajlarını siler.
         allow delete: if signedIn() && exists(groupPath())
-          && get(groupPath()).data.memberIds == [request.auth.uid];
+          && (get(groupPath()).data.memberIds == [request.auth.uid]
+              || (resource.data.senderId == request.auth.uid
+                  && request.auth.uid in get(groupPath()).data.memberIds));
       }
     }
 
@@ -151,7 +155,8 @@ service cloud.firestore {
       }
 
       allow get: if resource.data.expiresAt > request.time.toMillis() || isOwner();
-      allow list: if false;
+      // Başkalarının paylaşımları listelenemez; sahibi kendi paylaşımlarını (hesap silerken) listeler.
+      allow list: if isOwner();
 
       allow create: if request.auth != null
         && request.resource.data.keys().hasAll(['ownerId', 'from', 'to', 'destination', 'driverName',

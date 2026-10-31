@@ -649,6 +649,26 @@ class AppLocalizationsTr extends AppLocalizations {
   String get logout => 'Çıkış Yap';
 
   @override
+  String get privacyPolicy => 'Gizlilik Politikası';
+
+  @override
+  String get termsOfUseTitle => 'Kullanım Koşulları';
+
+  @override
+  String get deleteAccount => 'Hesabımı Sil';
+
+  @override
+  String get deleteAccountMessage =>
+      'Hesabın ve sana ait bütün veriler (profil, yolculuk geçmişi, grup üyeliklerin ve mesajların, konum paylaşımların) kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam etmek için telefonuna bir doğrulama kodu göndereceğiz.';
+
+  @override
+  String get accountDeleted => 'Hesabın ve verilerin silindi.';
+
+  @override
+  String get deleteAccountFailed =>
+      'Hesap silinemedi. İnternet bağlantını kontrol edip tekrar dene.';
+
+  @override
   String get logoutMessage => 'Hesabından çıkmak istediğine emin misin?';
 
   @override

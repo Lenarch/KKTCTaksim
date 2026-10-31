@@ -54,6 +54,16 @@ gerekenler ve yayından önce yapılacaklar).
   yapmamış olabilir (liste girişsiz de boş görünüyor). Grup işlemleri artık girişsizken "giriş
   yapmalısın" diyor, diğer hatalarda hata kodunu gösteriyor ("İşlem tamamlanamadı (kod)").
   Sıradaki ekran görüntüsü sebebi gösterecek.
+- **31 Ekim, plan onaylandı** (`C:\Users\MONSTER\.claude\plans\sprightly-sauteeing-sloth.md`):
+  A1 hesap silme + gizlilik/koşullar, A2 sohbette şikâyet/engelleme, A3 KKTC dışı adres/konum,
+  B1 şoför uygulaması + eşleştirme, B2 bildirimler (Cloud Functions + FCM). Kararlar: şoför şimdilik
+  kendisi kaydolur, iletişim adresi yer tutucu (ikisi de UYARILAR'da "Yayından önce mutlaka").
+- **A1 bitti (31 Ekim):** `hosting/public/gizlilik.html` ve `kosullar.html` (yüklendi:
+  `…web.app/gizlilik`, `/kosullar`); Profil'de Gizlilik / Koşullar / Hesabımı Sil; kayıt ekranındaki
+  koşullar bağlantısı. Hesap silme: onay → SMS ile yeniden doğrulama (`OtpScreen`, `OtpPurpose`) →
+  `deleteAccountAndData` (`lib/services/account_deletion.dart`): paylaşımlar, grup mesajları ve
+  üyelikler, yolculuklar, profil, hesap. Kurallar: sahibi kendi verisini siler (yüklendi). Emülatörde
+  denendi: test hesabı silindi (Firebase'de 1 hesap kaldı). Test numarasıyla tekrar girişte yeni hesap açılır.
 - Tuzak: `flutter build apk` OneDrive kilidi yüzünden "Unable to delete directory … buildpp\…"
   verebiliyor: `android\gradlew.bat --stop`, ilgili `buildpp\…` klasörünü sil, yeniden derle. Firebase Android uygulamasına debug anahtarının
   SHA-1/SHA-256'sı eklendi (telefonla giriş için).

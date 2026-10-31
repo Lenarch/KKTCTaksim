@@ -1246,6 +1246,42 @@ abstract class AppLocalizations {
   /// **'Çıkış Yap'**
   String get logout;
 
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In tr, this message translates to:
+  /// **'Gizlilik Politikası'**
+  String get privacyPolicy;
+
+  /// No description provided for @termsOfUseTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanım Koşulları'**
+  String get termsOfUseTitle;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hesabımı Sil'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountMessage.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hesabın ve sana ait bütün veriler (profil, yolculuk geçmişi, grup üyeliklerin ve mesajların, konum paylaşımların) kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam etmek için telefonuna bir doğrulama kodu göndereceğiz.'**
+  String get deleteAccountMessage;
+
+  /// No description provided for @accountDeleted.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hesabın ve verilerin silindi.'**
+  String get accountDeleted;
+
+  /// No description provided for @deleteAccountFailed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hesap silinemedi. İnternet bağlantını kontrol edip tekrar dene.'**
+  String get deleteAccountFailed;
+
   /// No description provided for @logoutMessage.
   ///
   /// In tr, this message translates to:

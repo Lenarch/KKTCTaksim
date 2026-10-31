@@ -3,9 +3,13 @@ import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/labels.dart';
+import 'package:kktc_taksim/core/legal_links.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
+import 'package:kktc_taksim/data/repositories/auth_repository.dart';
 import 'package:kktc_taksim/models/app_user.dart';
+import 'package:kktc_taksim/screens/otp_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -25,6 +29,40 @@ class ProfileScreen extends StatelessWidget {
     if (context.mounted) {
       Navigator.pushNamedAndRemoveUntil(context, AppRoutes.roleSelection, (route) => false);
     }
+  }
+
+  Future<void> _openLegal(BuildContext context, Uri url) async {
+    final message = context.l10n.cannotOpen;
+    final opened = await openLegalPage(url);
+    if (!opened && context.mounted) showMessage(context, message);
+  }
+
+  /// Onay → SMS koduyla yeniden doğrulama → veriler ve hesap silinir (OtpScreen).
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final l10n = context.l10n;
+    final user = Backend.instance.auth.currentUser;
+    if (user == null) return;
+    final confirmed = await confirm(
+      context,
+      title: l10n.deleteAccount,
+      message: l10n.deleteAccountMessage,
+      confirmLabel: l10n.deleteAccount,
+      destructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+    try {
+      await Backend.instance.auth.sendCode(user.phone);
+    } on AuthException catch (e) {
+      if (context.mounted) showMessage(context, e.code.label(l10n));
+      return;
+    }
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => OtpScreen(phoneNumber: user.phone, purpose: OtpPurpose.deleteAccount),
+      ),
+    );
   }
 
   Future<void> _chooseLanguage(BuildContext context) async {
@@ -118,6 +156,16 @@ class ProfileScreen extends StatelessWidget {
               onTap: () => _chooseLanguage(context),
             ),
           ),
+          _MenuItem(
+            icon: Icons.privacy_tip_outlined,
+            title: l10n.privacyPolicy,
+            onTap: () => _openLegal(context, privacyPolicyUrl),
+          ),
+          _MenuItem(
+            icon: Icons.description_outlined,
+            title: l10n.termsOfUseTitle,
+            onTap: () => _openLegal(context, termsOfUseUrl),
+          ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
             child: Divider(),
@@ -127,6 +175,12 @@ class ProfileScreen extends StatelessWidget {
             title: l10n.logout,
             isDestructive: true,
             onTap: () => _confirmLogout(context),
+          ),
+          _MenuItem(
+            icon: Icons.delete_forever_outlined,
+            title: l10n.deleteAccount,
+            isDestructive: true,
+            onTap: () => _confirmDeleteAccount(context),
           ),
           const SizedBox(height: AppSpacing.huge),
         ],
