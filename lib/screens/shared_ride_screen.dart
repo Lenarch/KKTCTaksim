@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/focus_after_transition.dart';
@@ -35,14 +36,31 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
     } on SharedRideException catch (e) {
       if (mounted) showMessage(context, e.error == SharedRideError.full ? l10n.groupFull : l10n.actionFailed);
     } catch (e) {
-      // Kullanıcıya genel mesaj; asıl sebep (ör. permission-denied) cihaz kaydında görünsün.
+      // Hata kodu mesajda da görünsün: testçiler cihaz kaydına bakamıyor, ekran görüntüsü atıyor.
       debugPrint('Paylaşımlı grup işlemi başarısız: $e');
-      if (mounted) showMessage(context, l10n.actionFailed);
+      if (mounted) showMessage(context, l10n.actionFailedWithCode(errorCode(e)));
     }
     return false;
   }
 
+  /// Liste giriş yapmadan da (boş) görünür; grup işlemleri ise giriş ister.
+  bool _ensureSignedIn() {
+    if (Backend.instance.auth.currentUser != null) return true;
+    final l10n = context.l10n;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(l10n.signInRequiredForGroups),
+        action: SnackBarAction(
+          label: l10n.signIn,
+          onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+        ),
+      ));
+    return false;
+  }
+
   Future<void> _showCreateRideSheet() async {
+    if (!_ensureSignedIn()) return;
     final ride = await showModalBottomSheet<SharedRide>(
       context: context,
       isScrollControlled: true,
@@ -53,6 +71,7 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   }
 
   Future<void> _join(SharedRide ride) async {
+    if (!_ensureSignedIn()) return;
     final message = context.l10n.joinedGroup(ride.from, ride.to);
     if (await _run(() => _repository.join(ride.id)) && mounted) showMessage(context, message);
   }
@@ -632,3 +651,8 @@ class _Step extends StatelessWidget {
     );
   }
 }
+
+/// Hatanın kısa kodu: Firebase hatalarında köşeli parantezdeki kod (ör. "cloud_firestore/permission-denied"),
+/// diğerlerinde hata türü.
+String errorCode(Object error) =>
+    RegExp(r'\[([^\]]+)\]').firstMatch('$error')?.group(1) ?? error.runtimeType.toString();

@@ -417,6 +417,16 @@
   "authTooManyRequests": "Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.",
   "networkError": "İnternet bağlantısı yok gibi görünüyor. Bağlantını kontrol et.",
   "actionFailed": "İşlem tamamlanamadı. Lütfen tekrar dene.",
+  "actionFailedWithCode": "İşlem tamamlanamadı ({code}). Lütfen tekrar dene.",
+  "@actionFailedWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "signInRequiredForGroups": "Grup açmak ya da gruba katılmak için giriş yapmalısın.",
+  "signIn": "Giriş yap",
   "loadError": "Veriler yüklenemedi.",
   "noDriverFound": "Şu an uygun taksi bulunamadı. Biraz sonra tekrar dene.",
   "groupFull": "Bu grup doldu.",

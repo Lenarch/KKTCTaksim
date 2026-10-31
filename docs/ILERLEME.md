@@ -47,7 +47,15 @@ gerekenler ve yayından önce yapılacaklar).
   User-Agent'ını 403 ile reddediyor; `lib/core/http_headers.dart` ile uygulama kimliği gönderiliyor,
   web'de gönderilmez). Form fiyatı/yer adını kurallarla aynı sınırlıyor (kişi başı ≤ 100.000 ₺,
   yer adı ≤ 200). Yeni gruptaki sohbet dinleyicisi grup sunucuya ulaşmadan "izin yok" alıyordu;
-  `retryWhilePermissionDenied` ile yeniden deniyor. Firebase Android uygulamasına debug anahtarının
+  `retryWhilePermissionDenied` ile yeniden deniyor.
+- **İkinci ekran kaydı (31 Ekim, Samsung):** klavye artık açılıyor; ama "Yolculuğu Oluştur"da
+  "İşlem tamamlanamadı". Aynı değerlerle emülatörde çalışıyor; sebep bulunamadı. Firebase'de
+  bugün gerçek numarayla giriş yok (1 gerçek hesap, son giriş 30 Ekim 20:02 UTC): arkadaş giriş
+  yapmamış olabilir (liste girişsiz de boş görünüyor). Grup işlemleri artık girişsizken "giriş
+  yapmalısın" diyor, diğer hatalarda hata kodunu gösteriyor ("İşlem tamamlanamadı (kod)").
+  Sıradaki ekran görüntüsü sebebi gösterecek.
+- Tuzak: `flutter build apk` OneDrive kilidi yüzünden "Unable to delete directory … buildpp\…"
+  verebiliyor: `android\gradlew.bat --stop`, ilgili `buildpp\…` klasörünü sil, yeniden derle. Firebase Android uygulamasına debug anahtarının
   SHA-1/SHA-256'sı eklendi (telefonla giriş için).
 - **Web'de gerçek numarayla giriş `localhost`'ta çalışmıyor:** `invalid-app-credential` (Firebase
   localhost'tan gelen reCAPTCHA'yı reddediyor). Test numarası çalışır. Web gerçek bir adreste

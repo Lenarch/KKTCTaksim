@@ -1282,6 +1282,24 @@ abstract class AppLocalizations {
   /// **'İşlem tamamlanamadı. Lütfen tekrar dene.'**
   String get actionFailed;
 
+  /// No description provided for @actionFailedWithCode.
+  ///
+  /// In tr, this message translates to:
+  /// **'İşlem tamamlanamadı ({code}). Lütfen tekrar dene.'**
+  String actionFailedWithCode(String code);
+
+  /// No description provided for @signInRequiredForGroups.
+  ///
+  /// In tr, this message translates to:
+  /// **'Grup açmak ya da gruba katılmak için giriş yapmalısın.'**
+  String get signInRequiredForGroups;
+
+  /// No description provided for @signIn.
+  ///
+  /// In tr, this message translates to:
+  /// **'Giriş yap'**
+  String get signIn;
+
   /// No description provided for @loadError.
   ///
   /// In tr, this message translates to:

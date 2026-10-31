@@ -670,6 +670,18 @@ class AppLocalizationsTr extends AppLocalizations {
   String get actionFailed => 'İşlem tamamlanamadı. Lütfen tekrar dene.';
 
   @override
+  String actionFailedWithCode(String code) {
+    return 'İşlem tamamlanamadı ($code). Lütfen tekrar dene.';
+  }
+
+  @override
+  String get signInRequiredForGroups =>
+      'Grup açmak ya da gruba katılmak için giriş yapmalısın.';
+
+  @override
+  String get signIn => 'Giriş yap';
+
+  @override
   String get loadError => 'Veriler yüklenemedi.';
 
   @override

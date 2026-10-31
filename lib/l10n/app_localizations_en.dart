@@ -704,6 +704,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionFailed => 'That didn\'t work. Please try again.';
 
   @override
+  String actionFailedWithCode(String code) {
+    return 'That didn\'t work ($code). Please try again.';
+  }
+
+  @override
+  String get signInRequiredForGroups =>
+      'You need to sign in to create or join a group.';
+
+  @override
+  String get signIn => 'Sign in';
+
+  @override
   String get loadError => 'Couldn\'t load the data.';
 
   @override

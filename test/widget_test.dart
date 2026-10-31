@@ -185,6 +185,21 @@ void main() {
     );
   });
 
+  testWidgets('Giriş yapmadan grup açılmak istenirse giriş yapılması söylenir', (tester) async {
+    await tester.pumpWidget(localized(const SharedRideScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Grup Oluştur'));
+    await tester.pumpAndSettle();
+    expect(find.text('Grup açmak ya da gruba katılmak için giriş yapmalısın.'), findsOneWidget);
+    expect(find.text('Nereden?'), findsNothing);
+  });
+
+  test('Hata kodu Firebase mesajından çıkarılır', () {
+    expect(errorCode(Exception('[cloud_firestore/permission-denied] Missing or insufficient permissions.')),
+        'cloud_firestore/permission-denied');
+    expect(errorCode(StateError('x')), 'StateError');
+  });
+
   testWidgets('Paylaşımlı yolculukta katılınan gruptan ayrılınabilir', (tester) async {
     await signIn();
     await tester.pumpWidget(localized(const SharedRideScreen()));
