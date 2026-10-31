@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:kktc_taksim/core/http_headers.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/models/route_info.dart';
@@ -24,7 +25,7 @@ class RoutingService {
     try {
       final coordinates = '${from.longitude},${from.latitude};${to.longitude},${to.latitude}';
       final response = await _client
-          .get(Uri.parse('$_baseUrl$coordinates?overview=full&geometries=geojson'))
+          .get(Uri.parse('$_baseUrl$coordinates?overview=full&geometries=geojson'), headers: externalServiceHeaders)
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final route = parseOsrmRoute(jsonDecode(response.body) as Map<String, dynamic>);

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:kktc_taksim/core/http_headers.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 
 /// Photon (OpenStreetMap verisi) ile adres arama ve haritadaki bir noktanın adını bulma.
@@ -37,7 +38,7 @@ class GeocodingService {
   }
 
   Future<Map<String, dynamic>> _get(Uri uri) async {
-    final response = await _client.get(uri).timeout(const Duration(seconds: 10));
+    final response = await _client.get(uri, headers: externalServiceHeaders).timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) {
       throw Exception('Adres servisi yanıt vermedi (${response.statusCode})');
     }

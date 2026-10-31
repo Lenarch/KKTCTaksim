@@ -1,4 +1,9 @@
 class SharedRide {
+  /// Firestore kurallarındaki sınırlarla aynı (firestore.rules, sharedRides).
+  static const int maxPlaceLength = 200;
+  static const int maxCapacity = 8;
+  static const int maxPricePerPerson = 100000;
+
   final String id;
   final String from;
   final String to;

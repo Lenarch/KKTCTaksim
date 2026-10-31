@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/focus_after_transition.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
@@ -48,9 +49,21 @@ class _DestinationSheetState extends State<DestinationSheet> {
   /// Yavaş gelen eski bir aramanın sonucu yenisinin üzerine yazılmasın diye.
   int _requestId = 0;
 
+  final FocusNode _searchFocus = FocusNode();
+  bool _focusRequested = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_focusRequested) return;
+    _focusRequested = true;
+    focusAfterTransition(context, _searchFocus);
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -82,7 +95,8 @@ class _DestinationSheetState extends State<DestinationSheet> {
         _results = results;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Adres araması başarısız: $e');
       if (!mounted || requestId != _requestId) return;
       setState(() {
         _results = const [];
@@ -105,7 +119,7 @@ class _DestinationSheetState extends State<DestinationSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
-            autofocus: true,
+            focusNode: _searchFocus,
             textInputAction: TextInputAction.search,
             onChanged: _onChanged,
             onSubmitted: (value) {

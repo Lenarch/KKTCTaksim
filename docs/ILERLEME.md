@@ -37,7 +37,17 @@ gerekenler ve yayından önce yapılacaklar).
   `setSettings(forceRecaptchaFlow: true)` ile reCAPTCHA'ya geçildi
   (`FirebaseAuthRepository.init`). Emülatörde istek reCAPTCHA'dan geçip Firebase'e ulaştı; ancak
   çok deneme yüzünden emülatör geçici engellendi (`too-many-requests`), SMS'in geldiği henüz
-  görülmedi. Kullanıcının arkadaşı kendi telefonunda deneyecek. Firebase Android uygulamasına debug anahtarının
+  görülmedi. Kullanıcının arkadaşı kendi telefonunda deneyecek.
+- **31 Ekim, arkadaşın telefonunda grup açılamıyordu** (ekran kaydı: "Nereden?" alanı seçili ama
+  klavye hiç açılmıyor; Xiaomi/MIUI benzeri). Alt penceredeki `autofocus` odağı açılış kayması
+  sırasında istiyordu; artık `focusAfterTransition` (`lib/core/focus_after_transition.dart`) ile
+  kayma bitince odaklanıyor (grup formu ve "Nereye?" araması). Emülatörde doğrulandı; gerçek
+  Xiaomi'de denenmedi.
+- Aynı gün bulunanlar: **Android'de adres araması hiç çalışmıyordu** (Photon, Dart'ın varsayılan
+  User-Agent'ını 403 ile reddediyor; `lib/core/http_headers.dart` ile uygulama kimliği gönderiliyor,
+  web'de gönderilmez). Form fiyatı/yer adını kurallarla aynı sınırlıyor (kişi başı ≤ 100.000 ₺,
+  yer adı ≤ 200). Yeni gruptaki sohbet dinleyicisi grup sunucuya ulaşmadan "izin yok" alıyordu;
+  `retryWhilePermissionDenied` ile yeniden deniyor. Firebase Android uygulamasına debug anahtarının
   SHA-1/SHA-256'sı eklendi (telefonla giriş için).
 - **Web'de gerçek numarayla giriş `localhost`'ta çalışmıyor:** `invalid-app-credential` (Firebase
   localhost'tan gelen reCAPTCHA'yı reddediyor). Test numarası çalışır. Web gerçek bir adreste

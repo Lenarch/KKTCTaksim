@@ -1108,6 +1108,12 @@ abstract class AppLocalizations {
   /// **'Her yolcunun ödeyeceği tutar'**
   String get pricePerPersonHelp;
 
+  /// No description provided for @pricePerPersonInvalid.
+  ///
+  /// In tr, this message translates to:
+  /// **'1 ile {max} arasında bir tutar gir'**
+  String pricePerPersonInvalid(String max);
+
   /// No description provided for @createRideButton.
   ///
   /// In tr, this message translates to:

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:kktc_taksim/core/http_headers.dart';
 import 'package:kktc_taksim/core/fare_calculator.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/l10n.dart';
@@ -67,6 +68,16 @@ void main() {
       expect(route.isApproximate, isTrue);
       expect(route.distanceMeters, greaterThan(distanceMeters(lefkosa, girne)));
     });
+  });
+
+  test("Photon'a uygulamanın kimliğiyle istek gider (varsayılan Dart kimliği 403 alıyordu)", () async {
+    http.Request? sent;
+    final client = MockClient((request) async {
+      sent = request;
+      return http.Response('{"features":[]}', 200);
+    });
+    await GeocodingService(client: client).search('Girne');
+    expect(sent!.headers['User-Agent'], appUserAgent);
   });
 
   test('Photon sonuçları ad, adres ve konuma çevrilir', () {

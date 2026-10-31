@@ -374,6 +374,14 @@
   },
   "pricePerPersonLabel": "Kişi başı ücret",
   "pricePerPersonHelp": "Her yolcunun ödeyeceği tutar",
+  "pricePerPersonInvalid": "1 ile {max} arasında bir tutar gir",
+  "@pricePerPersonInvalid": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "createRideButton": "Yolculuğu Oluştur",
   "exploreSearchHint": "Yakınında ne arıyorsun?",
   "categoryAll": "Hepsi",

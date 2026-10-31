@@ -100,6 +100,41 @@ void main() {
     expect(find.byType(TextField), findsNWidgets(Backend.instance.auth.codeLength));
   });
 
+  testWidgets('Grup formu alttan açılınca, kayma bitince "Nereden?" alanı odaklanır', (tester) async {
+    await tester.pumpWidget(localized(Builder(
+      builder: (context) => Scaffold(
+        body: ElevatedButton(
+          onPressed: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => const CreateSharedRideSheet(),
+          ),
+          child: const Text('aç'),
+        ),
+      ),
+    )));
+    await tester.tap(find.text('aç'));
+    await tester.pump();
+    // Kayma sürerken odak istenmez (bazı Android telefonlarda klavye açılmıyordu).
+    expect(tester.testTextInput.isVisible, isFalse);
+    await tester.pumpAndSettle();
+    expect(tester.testTextInput.isVisible, isTrue);
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.focusNode.hasFocus, isTrue);
+
+    // Sonraki adımın alanı da odaklanır.
+    await tester.enterText(find.byType(TextFormField), 'Girne');
+    await tester.pump();
+    await tester.tap(find.text('Devam Et'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus, isTrue);
+    // Klavye yeni alana bağlı: yazılan 2. adımın alanına gider.
+    expect(tester.testTextInput.isVisible, isTrue);
+    tester.testTextInput.enterText('Lefkoşa');
+    await tester.pump();
+    expect(find.text('Lefkoşa'), findsOneWidget);
+  });
+
   testWidgets('Grup oluştururken 2. adımın alanı 1. adımın yazısını taşımaz', (tester) async {
     await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
 
@@ -134,6 +169,20 @@ void main() {
     await tester.pump();
     final create = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur'));
     expect(create.onPressed, isNull, reason: 'Ücret girilmeden grup oluşturulamaz');
+
+    // Firestore kuralları 100.000 ₺ üstünü reddeder; form bunu önceden söyler.
+    await tester.enterText(find.byType(TextFormField), '150000');
+    await tester.pump();
+    expect(find.text('1 ile ₺100.000 arasında bir tutar gir'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed, isNull);
+
+    await tester.enterText(find.byType(TextFormField), '250');
+    await tester.pump();
+    expect(find.text('1 ile ₺100.000 arasında bir tutar gir'), findsNothing);
+    expect(
+      tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed,
+      isNotNull,
+    );
   });
 
   testWidgets('Paylaşımlı yolculukta katılınan gruptan ayrılınabilir', (tester) async {

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:kktc_taksim/core/http_headers.dart';
 
 /// OpenFreeMap (OpenStreetMap verisi) harita stillerini indirir ve etiketleri
 /// istenen dile çevirir. Vektör karolarda her yerin adı birçok dilde
@@ -20,7 +21,7 @@ class MapStyleService {
     final cached = _cache[cacheKey];
     if (cached != null) return cached;
 
-    final response = await _client.get(Uri.parse('$_baseUrl$styleName'));
+    final response = await _client.get(Uri.parse('$_baseUrl$styleName'), headers: externalServiceHeaders);
     if (response.statusCode != 200) {
       throw Exception('Harita stili yüklenemedi (${response.statusCode})');
     }

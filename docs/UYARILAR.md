@@ -14,6 +14,8 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
   "Yaklaşık" yazar.
 
 ## Adres ve konum
+- Photon, Dart'ın varsayılan User-Agent'ını reddediyor; harici servis isteklerine
+  `externalServiceHeaders` eklenmeli (`lib/core/http_headers.dart`).
 - Adres aramasında **Güney Kıbrıs sonuçları da** çıkıyor. İstenirse KKTC sınırına göre süzülebilir.
 - Uygulama Kıbrıs dışından açılırsa (örneğin bilgisayardan test) **gerçek konum** kullanılıyor;
   Keşfet mesafeleri yüzlerce km görünüyor (testte 652 km). İstenirse hizmet bölgesi dışındayken

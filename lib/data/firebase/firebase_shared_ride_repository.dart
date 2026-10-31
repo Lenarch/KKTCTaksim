@@ -105,18 +105,18 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
   }
 
   @override
-  Stream<List<ChatMessage>> watchMessages(String rideId) => _messages(rideId)
+  Stream<List<ChatMessage>> watchMessages(String rideId) => retryWhilePermissionDenied(() => _messages(rideId)
       .orderBy('sentAt', descending: true)
       .limit(chatHistoryLimit)
       .snapshots()
-      .map((snapshot) => snapshot.docs.reversed.map(chatMessageFromDocument).toList());
+      .map((snapshot) => snapshot.docs.reversed.map(chatMessageFromDocument).toList()));
 
   @override
-  Stream<ChatMessage?> watchLatestMessage(String rideId) => _messages(rideId)
+  Stream<ChatMessage?> watchLatestMessage(String rideId) => retryWhilePermissionDenied(() => _messages(rideId)
       .orderBy('sentAt', descending: true)
       .limit(1)
       .snapshots()
-      .map((snapshot) => snapshot.docs.isEmpty ? null : chatMessageFromDocument(snapshot.docs.first));
+      .map((snapshot) => snapshot.docs.isEmpty ? null : chatMessageFromDocument(snapshot.docs.first)));
 
   @override
   Future<void> sendMessage(String rideId, String text) async {
@@ -135,6 +135,27 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       // Kurallar üye olmayanı reddeder (gruptan çıkarılmış ya da grup silinmiş).
       if (e.code == 'permission-denied') throw const SharedRideException(SharedRideError.notMember);
       rethrow;
+    }
+  }
+}
+
+/// Yeni oluşturulan ya da yeni katılınan grupta sohbet dinlemesi, grup belgesi sunucuya ulaşmadan
+/// başlayabiliyor; kurallar o an üyeliği göremediği için "izin yok" deyip dinlemeyi kapatıyordu.
+/// Kısa aralıklarla birkaç kez yeniden dener; gerçekten üye değilse hata sonunda iletilir.
+Stream<T> retryWhilePermissionDenied<T>(
+  Stream<T> Function() open, {
+  int retries = 3,
+  Duration delay = const Duration(seconds: 2),
+}) async* {
+  for (var attempt = 0;; attempt++) {
+    try {
+      await for (final value in open()) {
+        yield value;
+      }
+      return;
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied' || attempt >= retries) rethrow;
+      await Future<void>.delayed(delay);
     }
   }
 }

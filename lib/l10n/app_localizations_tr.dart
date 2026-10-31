@@ -576,6 +576,11 @@ class AppLocalizationsTr extends AppLocalizations {
   String get pricePerPersonHelp => 'Her yolcunun ödeyeceği tutar';
 
   @override
+  String pricePerPersonInvalid(String max) {
+    return '1 ile $max arasında bir tutar gir';
+  }
+
+  @override
   String get createRideButton => 'Yolculuğu Oluştur';
 
   @override

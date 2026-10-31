@@ -168,6 +168,7 @@
   "vitoCapacity": "Van capacity: {count}",
   "pricePerPersonLabel": "Price per person",
   "pricePerPersonHelp": "The amount each passenger pays",
+  "pricePerPersonInvalid": "Enter an amount between 1 and {max}",
   "createRideButton": "Create Ride",
   "exploreSearchHint": "What are you looking for nearby?",
   "categoryAll": "All",

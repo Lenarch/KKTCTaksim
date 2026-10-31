@@ -611,6 +611,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pricePerPersonHelp => 'The amount each passenger pays';
 
   @override
+  String pricePerPersonInvalid(String max) {
+    return 'Enter an amount between 1 and $max';
+  }
+
+  @override
   String get createRideButton => 'Create Ride';
 
   @override

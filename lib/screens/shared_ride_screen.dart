@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/focus_after_transition.dart';
 import 'package:kktc_taksim/core/formatters.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
@@ -33,7 +34,9 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
       return true;
     } on SharedRideException catch (e) {
       if (mounted) showMessage(context, e.error == SharedRideError.full ? l10n.groupFull : l10n.actionFailed);
-    } catch (_) {
+    } catch (e) {
+      // Kullanıcıya genel mesaj; asıl sebep (ör. permission-denied) cihaz kaydında görünsün.
+      debugPrint('Paylaşımlı grup işlemi başarısız: $e');
       if (mounted) showMessage(context, l10n.actionFailed);
     }
     return false;
@@ -396,6 +399,12 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
   static const Duration _maximumLeadTime = Duration(days: 30);
 
   int _currentStep = 0;
+
+  /// Nereden/nereye alanlarının odakları. Ayrı olmalı: tek düğüm paylaşılınca 2. adımın alanı
+  /// odağı "zaten var" bulup klavyeyi açmıyordu (alan seçili görünür ama yazılamazdı).
+  final FocusNode _fromFocus = FocusNode();
+  final FocusNode _toFocus = FocusNode();
+  bool _focusRequested = false;
   String _from = '';
   String _to = '';
   double _capacity = 4;
@@ -408,9 +417,11 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
     return DateTime(now.year, now.month, now.day, now.hour + 1);
   }
 
+  /// Firestore kuralları 1 – [SharedRide.maxPricePerPerson] dışını reddeder; burada yakalanmazsa
+  /// kullanıcı yalnızca "İşlem tamamlanamadı" görüyordu.
   int? get _pricePerPerson {
     final value = int.tryParse(_price);
-    return value != null && value > 0 ? value : null;
+    return value != null && value > 0 && value <= SharedRide.maxPricePerPerson ? value : null;
   }
 
   bool get _canContinue => switch (_currentStep) {
@@ -419,9 +430,26 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
         _ => _pricePerPerson != null && _departure.isAfter(DateTime.now()),
       };
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_focusRequested) return;
+    _focusRequested = true;
+    focusAfterTransition(context, _fromFocus);
+  }
+
+  @override
+  void dispose() {
+    _fromFocus.dispose();
+    _toFocus.dispose();
+    super.dispose();
+  }
+
   void _next() {
     if (_currentStep < _lastStep) {
       setState(() => _currentStep++);
+      // Pencere zaten açık; yeni adımın alanı çizilince odaklansın (klavye açık kalsın).
+      if (_currentStep == 1) focusAfterTransition(context, _toFocus);
       return;
     }
     Navigator.pop(
@@ -490,9 +518,10 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                       // Flutter önceki adımın alanını (ve yazısını) yeniden kullanır.
                       key: const ValueKey('from'),
                       initialValue: _from,
-                      autofocus: true,
+                      focusNode: _fromFocus,
+                      maxLength: SharedRide.maxPlaceLength,
                       onChanged: (v) => setState(() => _from = v),
-                      decoration: InputDecoration(hintText: l10n.startPoint),
+                      decoration: InputDecoration(hintText: l10n.startPoint, counterText: ''),
                     ),
                   ),
                 1 => _Step(
@@ -500,9 +529,10 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                     child: TextFormField(
                       key: const ValueKey('to'),
                       initialValue: _to,
-                      autofocus: true,
+                      focusNode: _toFocus,
+                      maxLength: SharedRide.maxPlaceLength,
                       onChanged: (v) => setState(() => _to = v),
-                      decoration: InputDecoration(hintText: l10n.endPoint),
+                      decoration: InputDecoration(hintText: l10n.endPoint, counterText: ''),
                     ),
                   ),
                 _ => _Step(
@@ -531,8 +561,8 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                         Slider(
                           value: _capacity,
                           min: 1,
-                          max: 8,
-                          divisions: 7,
+                          max: SharedRide.maxCapacity.toDouble(),
+                          divisions: SharedRide.maxCapacity - 1,
                           label: '${_capacity.toInt()}',
                           onChanged: (v) => setState(() => _capacity = v),
                         ),
@@ -547,6 +577,9 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                             labelText: l10n.pricePerPersonLabel,
                             prefixText: '₺ ',
                             helperText: l10n.pricePerPersonHelp,
+                            errorText: _pricePerPerson == null
+                                ? l10n.pricePerPersonInvalid(context.lira(SharedRide.maxPricePerPerson))
+                                : null,
                           ),
                         ),
                       ],
