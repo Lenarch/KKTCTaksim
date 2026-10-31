@@ -26,9 +26,9 @@ class ChatReadState {
     }
   }
 
-  /// [message] başkasından geldiyse ve sohbet o mesajdan sonra açılmadıysa true.
-  bool isUnread(String rideId, ChatMessage? message, String? userId) {
-    if (message == null || message.senderId == userId) return false;
+  /// [message] başkasından (engellenmemiş birinden) geldiyse ve sohbet o mesajdan sonra açılmadıysa true.
+  bool isUnread(String rideId, ChatMessage? message, String? userId, {Set<String> blocked = const {}}) {
+    if (message == null || message.senderId == userId || blocked.contains(message.senderId)) return false;
     return message.sentAt.millisecondsSinceEpoch > (lastRead.value[rideId] ?? 0);
   }
 

@@ -6,6 +6,10 @@ import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/data/backend.dart';
+import 'package:kktc_taksim/screens/group_chat_screen.dart';
+import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
+import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
+import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/main.dart';
 import 'package:kktc_taksim/models/payment_method.dart';
 import 'package:kktc_taksim/models/ride_request.dart';
@@ -290,6 +294,57 @@ void main() {
     expect(Backend.instance.auth.currentUser, isNull);
     expect(find.text('ROL SEÇİMİ'), findsOneWidget);
     expect(find.text('Hesabın ve verilerin silindi.'), findsOneWidget);
+  });
+
+  testWidgets('Sohbette başkasının mesajı şikâyet edilir; engellenen kişinin mesajı gizlenir', (tester) async {
+    final shared = Backend.instance.sharedRides as MockSharedRideRepository;
+    await signIn(name: 'Mehmet');
+    await shared.join('demo-group-1');
+    await shared.sendMessage('demo-group-1', 'Kaba bir mesaj');
+    final mehmet = Backend.instance.auth.currentUser!.id;
+
+    await Backend.instance.auth.sendCode('+90 542 111 22 33');
+    await Backend.instance.auth.verifyCode('1' * Backend.instance.auth.codeLength);
+    await shared.join('demo-group-1');
+    // Widget testinde akışı `await ….first` ile beklemek testi kilitler; grup örnek veriden alınır.
+    final ride = MockData.sharedRides().firstWhere((r) => r.id == 'demo-group-1');
+    await tester.pumpWidget(localized(GroupChatScreen(ride: ride)));
+    await tester.pumpAndSettle();
+
+    // Şikâyet
+    await tester.longPress(find.text('Kaba bir mesaj'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Şikâyet et'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hakaret veya taciz'));
+    await tester.pumpAndSettle();
+    expect(find.text('Teşekkürler, şikâyetin incelenmek üzere iletildi.'), findsOneWidget);
+    expect(shared.reports.single.$2.senderId, mehmet);
+    expect(shared.reports.single.$3, ReportReason.harassment);
+
+    // Engelle
+    await tester.longPress(find.text('Kaba bir mesaj'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bu kişiyi engelle'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Bu kişiyi engelle'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kaba bir mesaj'), findsNothing);
+    expect(find.text('Engellediğin bir kişinin mesajı'), findsOneWidget);
+    final latest = await tester.runAsync(() => shared.watchLatestMessage('demo-group-1').first);
+    final blocked = await tester.runAsync(() => shared.watchBlocked().first);
+    expect(blocked, {mehmet});
+    expect(
+      ChatReadState.instance.isUnread('demo-group-1', latest, Backend.instance.auth.currentUser!.id, blocked: blocked!),
+      isFalse,
+    );
+
+    // Engeli kaldır
+    await tester.longPress(find.text('Engellediğin bir kişinin mesajı'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Engeli kaldır'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kaba bir mesaj'), findsOneWidget);
   });
 
   testWidgets('Taksi seçiminde tahmini fiyat, ödeme yöntemi ve zaman seçilir', (tester) async {

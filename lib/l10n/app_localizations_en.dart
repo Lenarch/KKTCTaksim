@@ -762,6 +762,65 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your phone number isn\'t shown to the group; only your name is.';
 
   @override
+  String get locationOutsideServiceArea =>
+      'You\'re outside the service area (North Cyprus).';
+
+  @override
+  String get chatRulesNote =>
+      'Long-press a message to report it or block the sender.';
+
+  @override
+  String get reportMessage => 'Report';
+
+  @override
+  String get reportReasonTitle => 'Reason for report';
+
+  @override
+  String get reasonSpam => 'Spam or advertising';
+
+  @override
+  String get reasonHarassment => 'Insults or harassment';
+
+  @override
+  String get reasonInappropriate => 'Inappropriate content';
+
+  @override
+  String get reasonOther => 'Other';
+
+  @override
+  String get reportSent => 'Thanks, your report has been sent for review.';
+
+  @override
+  String get blockUser => 'Block this person';
+
+  @override
+  String blockUserTitle(String name) {
+    return 'Block $name?';
+  }
+
+  @override
+  String get blockUserMessage =>
+      'You won\'t see this person\'s messages anymore. Long-press a hidden message to unblock.';
+
+  @override
+  String userBlocked(String name) {
+    return '$name has been blocked.';
+  }
+
+  @override
+  String get unblockUser => 'Unblock';
+
+  @override
+  String get unblockUserMessage =>
+      'This person\'s messages will be shown again.';
+
+  @override
+  String get userUnblocked => 'Unblocked.';
+
+  @override
+  String get blockedMessage => 'Message from someone you blocked';
+
+  @override
   String get messageHint => 'Write a message…';
 
   @override

@@ -53,6 +53,31 @@ service cloud.firestore {
         // Yalnızca hesap silinirken (sahibi tüm geçmişini siler).
         allow delete: if isOwner();
       }
+
+      // Engellenen kişiler (grup sohbetinde mesajları gizlenir). Yalnızca sahibi görür ve değiştirir.
+      match /blocked/{otherId} {
+        allow read, delete: if isOwner();
+        allow create: if isOwner() && otherId != uid
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.createdAt == request.time;
+      }
+    }
+
+    // Sohbet şikâyetleri. Yalnızca kendi adına oluşturulur; kimse okuyamaz (Firebase konsolundan
+    // incelenir). App Store / Google Play kullanıcı içeriği olan uygulamalarda şikâyet ister.
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['reporterId', 'reportedId', 'rideId', 'messageId', 'text', 'reason', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['reporterId', 'reportedId', 'rideId', 'messageId', 'text', 'reason', 'createdAt'])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.reportedId is string
+        && request.resource.data.reportedId != request.auth.uid
+        && request.resource.data.rideId is string
+        && request.resource.data.messageId is string
+        && request.resource.data.text is string && request.resource.data.text.size() <= 500
+        && request.resource.data.reason in ['spam', 'harassment', 'inappropriate', 'other']
+        && request.resource.data.createdAt == request.time;
+      allow read, update, delete: if false;
     }
 
     // Aşama 3: paylaşımlı gruplar. Giriş yapan herkes görür; üyeliği herkes yalnızca kendisi

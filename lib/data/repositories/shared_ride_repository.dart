@@ -3,6 +3,9 @@ import 'package:kktc_taksim/models/shared_ride.dart';
 
 enum SharedRideError { full, notFound, notMember }
 
+/// Sohbet mesajı şikâyet nedenleri; Firestore kurallarındaki listeyle aynı adlar.
+enum ReportReason { spam, harassment, inappropriate, other }
+
 class SharedRideException implements Exception {
   final SharedRideError error;
 
@@ -36,8 +39,19 @@ abstract class SharedRideRepository {
   Future<void> sendMessage(String rideId, String text);
 
   /// Hesap silinirken: kullanıcının (kalkışı geçmişler dahil) bütün gruplarındaki kendi mesajlarını
-  /// siler ve gruplardan ayrılır; son üyesi olduğu gruplar sohbetiyle silinir.
+  /// siler, gruplardan ayrılır (son üyesi olduğu gruplar sohbetiyle silinir) ve engelleme listesini siler.
   Future<void> removeMe();
+
+  /// Mesajı incelenmek üzere şikâyet eder (kimse okuyamaz; Firebase konsolundan incelenir).
+  Future<void> report(String rideId, ChatMessage message, ReportReason reason);
+
+  /// Engellenen kişinin sohbet mesajları gizlenir ve okunmamış rozetini etkilemez.
+  Future<void> block(String userId);
+
+  Future<void> unblock(String userId);
+
+  /// Giriş yapan kullanıcının engellediği kişiler; girişsizken boş.
+  Stream<Set<String>> watchBlocked();
 }
 
 const int chatHistoryLimit = 200;

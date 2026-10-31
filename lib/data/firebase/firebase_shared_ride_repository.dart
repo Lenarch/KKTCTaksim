@@ -19,6 +19,9 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
 
   CollectionReference<Map<String, dynamic>> _messages(String rideId) => _rides.doc(rideId).collection('messages');
 
+  CollectionReference<Map<String, dynamic>> _blockedOf(String userId) =>
+      _firestore.collection('users').doc(userId).collection('blocked');
+
   String get _userId {
     final user = _auth.currentUser;
     if (user == null) throw StateError('Giriş yapılmadan paylaşımlı yolculuk değiştirilemez');
@@ -104,7 +107,39 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       }
       await leave(group.id);
     }
+    final blocked = await _blockedOf(userId).get();
+    for (final doc in blocked.docs) {
+      await doc.reference.delete();
+    }
   }
+
+  @override
+  Future<void> report(String rideId, ChatMessage message, ReportReason reason) =>
+      _firestore.collection('reports').add({
+        'reporterId': _userId,
+        'reportedId': message.senderId,
+        'rideId': rideId,
+        'messageId': message.id,
+        'text': message.text,
+        'reason': reason.name,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+  @override
+  Future<void> block(String userId) async {
+    final me = _userId;
+    if (userId == me) return;
+    await _blockedOf(me).doc(userId).set({'createdAt': FieldValue.serverTimestamp()});
+  }
+
+  @override
+  Future<void> unblock(String userId) => _blockedOf(_userId).doc(userId).delete();
+
+  @override
+  Stream<Set<String>> watchBlocked() => switchMap(_auth.authStateChanges(), (User? user) {
+        if (user == null) return Stream.value(const <String>{});
+        return _blockedOf(user.uid).snapshots().map((snapshot) => snapshot.docs.map((d) => d.id).toSet());
+      });
 
   Future<void> _deleteMessages(String rideId) async {
     while (true) {

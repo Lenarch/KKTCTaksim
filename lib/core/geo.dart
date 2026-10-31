@@ -6,6 +6,16 @@ const double _earthRadiusMeters = 6371000;
 
 double _radians(double degrees) => degrees * math.pi / 180;
 
+/// Kıbrıs adasını kapsayan kutu (adres araması da bununla sınırlı).
+const double cyprusWest = 32.2, cyprusSouth = 34.5, cyprusEast = 34.7, cyprusNorth = 35.8;
+
+/// Konum Kıbrıs dışındaysa (ör. bilgisayardan test) gerçek konum yerine Lefkoşa kullanılır.
+bool isInCyprus(LatLng point) =>
+    point.longitude >= cyprusWest &&
+    point.longitude <= cyprusEast &&
+    point.latitude >= cyprusSouth &&
+    point.latitude <= cyprusNorth;
+
 /// İki nokta arasındaki kuş uçuşu mesafe (metre).
 double distanceMeters(LatLng a, LatLng b) {
   final dLat = _radians(b.latitude - a.latitude);

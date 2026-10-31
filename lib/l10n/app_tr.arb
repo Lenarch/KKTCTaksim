@@ -450,6 +450,37 @@
   },
   "chatEmpty": "Henüz mesaj yok. Buluşma yerini ve saatini konuşmak için ilk mesajı sen yaz!",
   "chatPrivacyNote": "Telefon numaran gruptakilere gösterilmez; yalnızca adın görünür.",
+  "locationOutsideServiceArea": "Hizmet bölgesinin (KKTC) dışındasın.",
+  "chatRulesNote": "Uygunsuz bir mesajı şikâyet etmek ya da kişiyi engellemek için mesaja uzun bas.",
+  "reportMessage": "Şikâyet et",
+  "reportReasonTitle": "Şikâyet nedeni",
+  "reasonSpam": "Spam ya da reklam",
+  "reasonHarassment": "Hakaret veya taciz",
+  "reasonInappropriate": "Uygunsuz içerik",
+  "reasonOther": "Diğer",
+  "reportSent": "Teşekkürler, şikâyetin incelenmek üzere iletildi.",
+  "blockUser": "Bu kişiyi engelle",
+  "blockUserTitle": "{name} engellensin mi?",
+  "@blockUserTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "blockUserMessage": "Bu kişinin mesajlarını artık görmeyeceksin. Engeli, gizlenen mesajına uzun basarak kaldırabilirsin.",
+  "userBlocked": "{name} engellendi.",
+  "@userBlocked": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "unblockUser": "Engeli kaldır",
+  "unblockUserMessage": "Bu kişinin mesajları yeniden görünecek.",
+  "userUnblocked": "Engel kaldırıldı.",
+  "blockedMessage": "Engellediğin bir kişinin mesajı",
   "messageHint": "Mesaj yaz…",
   "sendMessage": "Gönder",
   "unnamedPassenger": "Yolcu",

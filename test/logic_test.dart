@@ -80,6 +80,29 @@ void main() {
     expect(sent!.headers['User-Agent'], appUserAgent);
   });
 
+  test('Adres aramasında Güney Kıbrıs sonuçları elenir', () {
+    Map<String, dynamic> feature(String name, String? state) => {
+          'properties': {'name': name, if (state != null) 'state': state},
+          'geometry': {
+            'coordinates': [33.3, 35.2],
+          },
+        };
+    final places = parsePhotonFeatures({
+      'features': [
+        feature('Girne', northCyprusState),
+        feature('Λάρνακα', 'Κύπρος'),
+        feature('Bilinmeyen', null),
+      ],
+    });
+    expect(places.map((p) => p.name), ['Girne', 'Bilinmeyen']);
+  });
+
+  test('Kıbrıs dışındaki konum hizmet bölgesi sayılmaz', () {
+    expect(isInCyprus(const LatLng(35.1856, 33.3823)), isTrue);
+    expect(isInCyprus(const LatLng(37.4220, -122.0841)), isFalse);
+    expect(isInCyprus(const LatLng(41.0082, 28.9784)), isFalse);
+  });
+
   test('Photon sonuçları ad, adres ve konuma çevrilir', () {
     final places = parsePhotonFeatures({
       'features': [

@@ -1378,6 +1378,108 @@ abstract class AppLocalizations {
   /// **'Telefon numaran gruptakilere gösterilmez; yalnızca adın görünür.'**
   String get chatPrivacyNote;
 
+  /// No description provided for @locationOutsideServiceArea.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hizmet bölgesinin (KKTC) dışındasın.'**
+  String get locationOutsideServiceArea;
+
+  /// No description provided for @chatRulesNote.
+  ///
+  /// In tr, this message translates to:
+  /// **'Uygunsuz bir mesajı şikâyet etmek ya da kişiyi engellemek için mesaja uzun bas.'**
+  String get chatRulesNote;
+
+  /// No description provided for @reportMessage.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şikâyet et'**
+  String get reportMessage;
+
+  /// No description provided for @reportReasonTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şikâyet nedeni'**
+  String get reportReasonTitle;
+
+  /// No description provided for @reasonSpam.
+  ///
+  /// In tr, this message translates to:
+  /// **'Spam ya da reklam'**
+  String get reasonSpam;
+
+  /// No description provided for @reasonHarassment.
+  ///
+  /// In tr, this message translates to:
+  /// **'Hakaret veya taciz'**
+  String get reasonHarassment;
+
+  /// No description provided for @reasonInappropriate.
+  ///
+  /// In tr, this message translates to:
+  /// **'Uygunsuz içerik'**
+  String get reasonInappropriate;
+
+  /// No description provided for @reasonOther.
+  ///
+  /// In tr, this message translates to:
+  /// **'Diğer'**
+  String get reasonOther;
+
+  /// No description provided for @reportSent.
+  ///
+  /// In tr, this message translates to:
+  /// **'Teşekkürler, şikâyetin incelenmek üzere iletildi.'**
+  String get reportSent;
+
+  /// No description provided for @blockUser.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu kişiyi engelle'**
+  String get blockUser;
+
+  /// No description provided for @blockUserTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'{name} engellensin mi?'**
+  String blockUserTitle(String name);
+
+  /// No description provided for @blockUserMessage.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu kişinin mesajlarını artık görmeyeceksin. Engeli, gizlenen mesajına uzun basarak kaldırabilirsin.'**
+  String get blockUserMessage;
+
+  /// No description provided for @userBlocked.
+  ///
+  /// In tr, this message translates to:
+  /// **'{name} engellendi.'**
+  String userBlocked(String name);
+
+  /// No description provided for @unblockUser.
+  ///
+  /// In tr, this message translates to:
+  /// **'Engeli kaldır'**
+  String get unblockUser;
+
+  /// No description provided for @unblockUserMessage.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu kişinin mesajları yeniden görünecek.'**
+  String get unblockUserMessage;
+
+  /// No description provided for @userUnblocked.
+  ///
+  /// In tr, this message translates to:
+  /// **'Engel kaldırıldı.'**
+  String get userUnblocked;
+
+  /// No description provided for @blockedMessage.
+  ///
+  /// In tr, this message translates to:
+  /// **'Engellediğin bir kişinin mesajı'**
+  String get blockedMessage;
+
   /// No description provided for @messageHint.
   ///
   /// In tr, this message translates to:

@@ -728,6 +728,64 @@ class AppLocalizationsTr extends AppLocalizations {
       'Telefon numaran gruptakilere gösterilmez; yalnızca adın görünür.';
 
   @override
+  String get locationOutsideServiceArea =>
+      'Hizmet bölgesinin (KKTC) dışındasın.';
+
+  @override
+  String get chatRulesNote =>
+      'Uygunsuz bir mesajı şikâyet etmek ya da kişiyi engellemek için mesaja uzun bas.';
+
+  @override
+  String get reportMessage => 'Şikâyet et';
+
+  @override
+  String get reportReasonTitle => 'Şikâyet nedeni';
+
+  @override
+  String get reasonSpam => 'Spam ya da reklam';
+
+  @override
+  String get reasonHarassment => 'Hakaret veya taciz';
+
+  @override
+  String get reasonInappropriate => 'Uygunsuz içerik';
+
+  @override
+  String get reasonOther => 'Diğer';
+
+  @override
+  String get reportSent => 'Teşekkürler, şikâyetin incelenmek üzere iletildi.';
+
+  @override
+  String get blockUser => 'Bu kişiyi engelle';
+
+  @override
+  String blockUserTitle(String name) {
+    return '$name engellensin mi?';
+  }
+
+  @override
+  String get blockUserMessage =>
+      'Bu kişinin mesajlarını artık görmeyeceksin. Engeli, gizlenen mesajına uzun basarak kaldırabilirsin.';
+
+  @override
+  String userBlocked(String name) {
+    return '$name engellendi.';
+  }
+
+  @override
+  String get unblockUser => 'Engeli kaldır';
+
+  @override
+  String get unblockUserMessage => 'Bu kişinin mesajları yeniden görünecek.';
+
+  @override
+  String get userUnblocked => 'Engel kaldırıldı.';
+
+  @override
+  String get blockedMessage => 'Engellediğin bir kişinin mesajı';
+
+  @override
   String get messageHint => 'Mesaj yaz…';
 
   @override

@@ -1,5 +1,6 @@
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
+import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/driver.dart';
 import 'package:kktc_taksim/models/payment_method.dart';
 import 'package:kktc_taksim/models/place.dart';
@@ -59,5 +60,15 @@ extension LocationStatusLabel on LocationStatus {
         LocationStatus.serviceDisabled => l10n.locationServiceDisabled,
         LocationStatus.insecureContext => l10n.locationInsecure,
         LocationStatus.unavailable => l10n.locationUnavailable,
+        LocationStatus.outsideServiceArea => l10n.locationOutsideServiceArea,
+      };
+}
+
+extension ReportReasonLabel on ReportReason {
+  String label(AppLocalizations l10n) => switch (this) {
+        ReportReason.spam => l10n.reasonSpam,
+        ReportReason.harassment => l10n.reasonHarassment,
+        ReportReason.inappropriate => l10n.reasonInappropriate,
+        ReportReason.other => l10n.reasonOther,
       };
 }

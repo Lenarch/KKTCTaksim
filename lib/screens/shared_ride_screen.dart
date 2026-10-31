@@ -374,18 +374,23 @@ class _ChatButton extends StatefulWidget {
 
 class _ChatButtonState extends State<_ChatButton> {
   late final Stream<ChatMessage?> _latest = Backend.instance.sharedRides.watchLatestMessage(widget.rideId);
+  late final Stream<Set<String>> _blocked = Backend.instance.sharedRides.watchBlocked();
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final userId = Backend.instance.auth.currentUser?.id;
 
-    return StreamBuilder<ChatMessage?>(
+    return StreamBuilder<Set<String>>(
+      stream: _blocked,
+      initialData: const {},
+      builder: (context, blocked) => StreamBuilder<ChatMessage?>(
       stream: _latest,
       builder: (context, snapshot) => ValueListenableBuilder<Map<String, int>>(
         valueListenable: ChatReadState.instance.lastRead,
         builder: (context, _, __) {
-          final unread = ChatReadState.instance.isUnread(widget.rideId, snapshot.data, userId);
+          final unread = ChatReadState.instance
+              .isUnread(widget.rideId, snapshot.data, userId, blocked: blocked.data ?? const {});
           return SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -399,6 +404,7 @@ class _ChatButtonState extends State<_ChatButton> {
             ),
           );
         },
+      ),
       ),
     );
   }

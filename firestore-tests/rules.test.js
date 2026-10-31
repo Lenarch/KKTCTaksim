@@ -355,6 +355,49 @@ describe('liveShares canlı konum paylaşımı', () => {
   });
 });
 
+const report = (overrides = {}) => ({
+  reporterId: 'alice',
+  reportedId: 'bob',
+  rideId: 'g1',
+  messageId: 'm1',
+  text: 'kaba bir mesaj',
+  reason: 'harassment',
+  createdAt: serverTimestamp(),
+  ...overrides,
+});
+
+describe('reports ve users/{uid}/blocked şikâyet ve engelleme', () => {
+  test('kendi adına şikâyet oluşturur; kimse okuyamaz, değiştiremez, silemez', async () => {
+    const ref = doc(dbAs(ALICE), 'reports/r1');
+    await assertSucceeds(setDoc(ref, report()));
+    await assertFails(getDoc(ref));
+    await assertFails(getDocs(collection(dbAs(BOB), 'reports')));
+    await assertFails(updateDoc(ref, { reason: 'spam' }));
+    await assertFails(deleteDoc(ref));
+  });
+
+  test('başkası adına, kendini, girişsiz ya da geçersiz nedenle şikâyet edilemez', async () => {
+    const db = dbAs(ALICE);
+    await assertFails(setDoc(doc(db, 'reports/a'), report({ reporterId: 'bob' })));
+    await assertFails(setDoc(doc(db, 'reports/b'), report({ reportedId: 'alice' })));
+    await assertFails(setDoc(doc(db, 'reports/c'), report({ reason: 'sevmedim' })));
+    await assertFails(setDoc(doc(db, 'reports/d'), report({ phone: ALICE.phone })));
+    await assertFails(setDoc(doc(anonymousDb(), 'reports/e'), report()));
+  });
+
+  test('engelleme listesini yalnızca sahibi görür ve değiştirir', async () => {
+    const ref = doc(dbAs(ALICE), 'users/alice/blocked/bob');
+    await assertSucceeds(setDoc(ref, { createdAt: serverTimestamp() }));
+    await assertSucceeds(getDocs(collection(dbAs(ALICE), 'users/alice/blocked')));
+    await assertFails(getDocs(collection(dbAs(BOB), 'users/alice/blocked')));
+    await assertFails(setDoc(doc(dbAs(BOB), 'users/alice/blocked/carol'), { createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(dbAs(ALICE), 'users/alice/blocked/alice'), { createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(dbAs(ALICE), 'users/alice/blocked/carol'), { createdAt: serverTimestamp(), note: 'x' }));
+    await assertFails(deleteDoc(doc(dbAs(BOB), 'users/alice/blocked/bob')));
+    await assertSucceeds(deleteDoc(ref));
+  });
+});
+
 describe('diğer koleksiyonlar', () => {
   test('kurallarda açılmamış her yer kapalı', async () => {
     const db = dbAs(ALICE);

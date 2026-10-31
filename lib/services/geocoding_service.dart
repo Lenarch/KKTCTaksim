@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/http_headers.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 
@@ -12,7 +13,7 @@ class GeocodingService {
   static const String _baseUrl = 'https://photon.komoot.io';
 
   /// Aramaları Kıbrıs adasıyla sınırlar (batı, güney, doğu, kuzey).
-  static const String _cyprusBbox = '32.2,34.5,34.7,35.8';
+  static const String _cyprusBbox = '$cyprusWest,$cyprusSouth,$cyprusEast,$cyprusNorth';
 
   final http.Client _client;
 
@@ -46,6 +47,9 @@ class GeocodingService {
   }
 }
 
+/// Photon'un KKTC'deki yerler için verdiği `state`.
+const String northCyprusState = 'Kuzey Kıbrıs Türk Cumhuriyeti';
+
 /// Ters aramada en yakın sonuç çoğu zaman bir dükkân ya da bina olur; yolcuya
 /// tanıdık gelsin diye ad olarak sokak, yoksa semt/şehir kullanılır.
 /// Konum olarak sonucun kendisi değil, seçilen [point] döner.
@@ -67,6 +71,9 @@ List<GeoPlace> parsePhotonFeatures(Map<String, dynamic> json) {
   final places = <GeoPlace>[];
   for (final feature in (json['features'] as List? ?? const []).cast<Map<String, dynamic>>()) {
     final props = feature['properties'] as Map<String, dynamic>? ?? const {};
+    // Hizmet yalnızca KKTC'de; Güney Kıbrıs sonuçlarında `state` "Κύπρος" geliyor.
+    final state = props['state'];
+    if (state is String && state != northCyprusState) continue;
     final coordinates = (feature['geometry']?['coordinates'] as List?)?.cast<num>();
     if (coordinates == null || coordinates.length < 2) continue;
 

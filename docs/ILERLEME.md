@@ -64,6 +64,17 @@ gerekenler ve yayından önce yapılacaklar).
   `deleteAccountAndData` (`lib/services/account_deletion.dart`): paylaşımlar, grup mesajları ve
   üyelikler, yolculuklar, profil, hesap. Kurallar: sahibi kendi verisini siler (yüklendi). Emülatörde
   denendi: test hesabı silindi (Firebase'de 1 hesap kaldı). Test numarasıyla tekrar girişte yeni hesap açılır.
+- **A2 bitti (31 Ekim):** sohbette başkasının mesajına uzun basınca Şikâyet et / Bu kişiyi engelle.
+  `reports/{id}` (yalnızca kendi adına oluşturulur, kimse okuyamaz; konsoldan incelenir),
+  `users/{uid}/blocked/{otherUid}` (yalnızca sahibi). Engellenenin mesajı "Engellediğin bir kişinin
+  mesajı" notuna döner (uzun bas → engeli kaldır), rozeti yakmaz. Kurallar yüklendi; iki hesapla
+  gerçek ortamda **denenmedi** (ikinci test numarası yok), widget testi kapsıyor.
+- **A3 bitti (31 Ekim):** Photon sonuçlarında `state != "Kuzey Kıbrıs Türk Cumhuriyeti"` olanlar
+  elenir (`parsePhotonFeatures`); Kıbrıs dışındaki konum `LocationStatus.outsideServiceArea` olur,
+  harita Lefkoşa'da açılır (`isInCyprus`, `lib/core/geo.dart`). Emülatörde doğrulandı.
+- **Sıradaki iş: B1** (şoför uygulaması + eşleştirme), sonra B2 (bildirimler; Functions'ı açmak için onay).
+- Tuzak: widget testinde akışı `await ….first` ile beklemek testi kilitler (31 Ekim'de yine oldu);
+  gerekirse `tester.runAsync`. `flutter test --timeout 120s` ile çalıştır ki kilitlenince düşsün.
 - Tuzak: `flutter build apk` OneDrive kilidi yüzünden "Unable to delete directory … buildpp\…"
   verebiliyor: `android\gradlew.bat --stop`, ilgili `buildpp\…` klasörünü sil, yeniden derle. Firebase Android uygulamasına debug anahtarının
   SHA-1/SHA-256'sı eklendi (telefonla giriş için).
@@ -214,8 +225,6 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
    (`docs/BACKEND_PLANI.md`).
 2. **Şoför modu / uygulaması** (Aşama 5 ile birlikte).
 3. Photon ve OSRM demo sunucuları yayın için uygun değil; OSRM bazı rotaları uzun çiziyor.
-4. Adres aramasında Güney Kıbrıs sonuçları da çıkıyor.
-5. Kıbrıs dışındaki konum gerçek kabul ediliyor (Keşfet mesafeleri yüzlerce km).
 6. Gerçek tarife, Keşfet görselleri ve kesin koordinatlar.
 7. İngilizce metinlerin anadil kontrolü.
 8. Yayından önce: AdMob test kimlikleri, Firebase test numarası ve test kullanıcısı, App Check,

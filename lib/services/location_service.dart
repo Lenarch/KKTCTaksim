@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:kktc_taksim/core/geo.dart';
 
 enum LocationStatus {
   granted,
@@ -10,6 +11,9 @@ enum LocationStatus {
 
   /// Tarayıcılar konumu yalnızca HTTPS (veya localhost) üzerinden verir.
   insecureContext,
+
+  /// Konum alındı ama Kıbrıs dışında; harita Lefkoşa'da gösterilir.
+  outsideServiceArea,
   unavailable,
 }
 
@@ -65,6 +69,7 @@ class LocationService {
         ),
       );
       final latLng = LatLng(position.latitude, position.longitude);
+      if (!isInCyprus(latLng)) return const LocationResult(LocationStatus.outsideServiceArea);
       lastKnown.value = latLng;
       return LocationResult(LocationStatus.granted, latLng);
     } catch (_) {
@@ -73,8 +78,11 @@ class LocationService {
   }
 
   /// Konum izni verildikten sonra kullanıcı hareket ettikçe yeni konumu yayar.
+  /// Kıbrıs dışındaki konumlar atlanır.
   Stream<LatLng> watch() => Geolocator.getPositionStream(locationSettings: _settings)
-      .map((p) => lastKnown.value = LatLng(p.latitude, p.longitude));
+      .map((p) => LatLng(p.latitude, p.longitude))
+      .where(isInCyprus)
+      .map((point) => lastKnown.value = point);
 
   /// Kalıcı olarak reddedilen izin veya kapalı konum servisi için ayarları açar.
   Future<void> openSettings(LocationStatus status) async {

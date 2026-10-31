@@ -11,6 +11,10 @@ class MockSharedRideRepository implements SharedRideRepository {
   final AuthRepository _auth;
   final List<SharedRide> _rides = MockData.sharedRides();
   final Map<String, List<ChatMessage>> _messages = {};
+  final Set<String> _blocked = {};
+
+  /// Testler için: gönderilen şikâyetler (grup, mesaj, neden).
+  final List<(String, ChatMessage, ReportReason)> reports = [];
   final StreamController<void> _changes = StreamController.broadcast();
   int _nextId = 0;
 
@@ -105,8 +109,31 @@ class MockSharedRideRepository implements SharedRideRepository {
     for (final ride in _rides.where((r) => r.hasMember(userId)).toList()) {
       await leave(ride.id);
     }
+    _blocked.clear();
     _changes.add(null);
   }
+
+  @override
+  Future<void> report(String rideId, ChatMessage message, ReportReason reason) async {
+    _userId;
+    reports.add((rideId, message, reason));
+  }
+
+  @override
+  Future<void> block(String userId) async {
+    if (userId == _userId) return;
+    _blocked.add(userId);
+    _changes.add(null);
+  }
+
+  @override
+  Future<void> unblock(String userId) async {
+    _blocked.remove(userId);
+    _changes.add(null);
+  }
+
+  @override
+  Stream<Set<String>> watchBlocked() => watchValue(_changes.stream, () => Set.of(_blocked));
 
   int _indexOf(String rideId) {
     final index = _rides.indexWhere((r) => r.id == rideId);
