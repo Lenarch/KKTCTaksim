@@ -16,6 +16,24 @@ bool isInCyprus(LatLng point) =>
     point.latitude >= cyprusSouth &&
     point.latitude <= cyprusNorth;
 
+/// [point]'in [path] üzerindeki yaklaşık yeri (0 = başlangıç, 1 = varış): en yakın köşe noktası.
+/// Gerçek şoför konumundan yolcu ekranındaki ilerlemeyi hesaplamak için.
+double fractionAlong(List<LatLng> path, LatLng point) {
+  if (path.length < 2) return 0;
+  var nearest = 0;
+  var best = double.infinity;
+  for (var i = 0; i < path.length; i++) {
+    final d = distanceMeters(path[i], point);
+    if (d < best) {
+      best = d;
+      nearest = i;
+    }
+  }
+  final total = pathLength(path);
+  if (total == 0) return 0;
+  return (pathLength(path.sublist(0, nearest + 1)) / total).clamp(0.0, 1.0);
+}
+
 /// İki nokta arasındaki kuş uçuşu mesafe (metre).
 double distanceMeters(LatLng a, LatLng b) {
   final dLat = _radians(b.latitude - a.latitude);

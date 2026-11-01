@@ -657,8 +657,3 @@ class _Step extends StatelessWidget {
     );
   }
 }
-
-/// Hatanın kısa kodu: Firebase hatalarında köşeli parantezdeki kod (ör. "cloud_firestore/permission-denied"),
-/// diğerlerinde hata türü.
-String errorCode(Object error) =>
-    RegExp(r'\[([^\]]+)\]').firstMatch('$error')?.group(1) ?? error.runtimeType.toString();

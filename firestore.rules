@@ -63,6 +63,141 @@ service cloud.firestore {
       }
     }
 
+    // Aşama 5: şoförler. Şimdilik herkes kendini şoför olarak kaydedebilir (belge kontrolü yok;
+    // docs/UYARILAR.md). Giriş yapan herkes okur: yolcu kendisine atanan şoförü görür.
+    match /drivers/{uid} {
+      function isPoint(p) {
+        return p is map && p.keys().hasAll(['lat', 'lng']) && p.keys().hasOnly(['lat', 'lng'])
+          && p.lat is number && p.lat >= -90 && p.lat <= 90
+          && p.lng is number && p.lng >= -180 && p.lng <= 180;
+      }
+
+      function isShortText(s, max) {
+        return s is string && s.size() > 0 && s.size() <= max;
+      }
+
+      function isValidDriver(data) {
+        return data.keys().hasAll(['name', 'plate', 'car', 'carColor', 'phone', 'online', 'updatedAt'])
+          && data.keys().hasOnly(['name', 'plate', 'car', 'carColor', 'phone', 'online', 'position', 'updatedAt'])
+          && isShortText(data.name, 80)
+          && isShortText(data.plate, 20)
+          && isShortText(data.car, 80)
+          && data.carColor in ['white', 'silver', 'black']
+          && data.phone == request.auth.token.phone_number
+          && data.online is bool
+          && (!('position' in data) || data.position == null || isPoint(data.position))
+          && data.updatedAt == request.time;
+      }
+
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && isValidDriver(request.resource.data);
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Aşama 5: çağrılar. Yolcu oluşturur; çevrimiçi şoförler bekleyen çağrıları görür, ilk kabul
+    // eden kendini atar (uygulama transaction kullanır). Durum geçişleri burada sınırlanır.
+    match /rides/{rideId} {
+      function signedIn() {
+        return request.auth != null;
+      }
+
+      function point(p) {
+        return p is map && p.keys().hasAll(['lat', 'lng']) && p.keys().hasOnly(['lat', 'lng'])
+          && p.lat is number && p.lat >= -90 && p.lat <= 90
+          && p.lng is number && p.lng >= -180 && p.lng <= 180;
+      }
+
+      function place(p) {
+        return p is map && p.keys().hasAll(['name', 'lat', 'lng']) && p.keys().hasOnly(['name', 'lat', 'lng'])
+          && p.name is string && p.name.size() > 0 && p.name.size() <= 200
+          && p.lat is number && p.lng is number;
+      }
+
+      function driverDoc() {
+        return get(/databases/$(database)/documents/drivers/$(request.auth.uid));
+      }
+
+      function isOnlineDriver() {
+        return signedIn()
+          && exists(/databases/$(database)/documents/drivers/$(request.auth.uid))
+          && driverDoc().data.online == true;
+      }
+
+      function isPassenger() {
+        return signedIn() && resource.data.passengerId == request.auth.uid;
+      }
+
+      function isAssignedDriver() {
+        return signedIn() && resource.data.get('driverId', null) == request.auth.uid;
+      }
+
+      function changes(keys) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      }
+
+      function next() {
+        return request.resource.data.status;
+      }
+
+      // Kimse almadan iptal edilen çağrıyı da çevrimiçi şoför okur: okuyamazsa Firestore şoförün açık
+      // listesindeki eski "searching" kopyasını güncelleyemiyor ve çağrı listede kalıyordu.
+      allow read: if isPassenger() || isAssignedDriver()
+        || (resource.data.status == 'searching' && isOnlineDriver())
+        || (resource.data.status == 'cancelled' && resource.data.get('driverId', null) == null
+            && isOnlineDriver());
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll(['passengerId', 'pickup', 'destination', 'distanceMeters',
+            'durationSeconds', 'taxiType', 'payment', 'fareLow', 'fareHigh', 'status', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['passengerId', 'pickup', 'destination', 'distanceMeters',
+            'durationSeconds', 'taxiType', 'payment', 'fareLow', 'fareHigh', 'status', 'createdAt', 'updatedAt'])
+        && request.resource.data.passengerId == request.auth.uid
+        && place(request.resource.data.pickup)
+        && place(request.resource.data.destination)
+        && request.resource.data.distanceMeters is number && request.resource.data.distanceMeters >= 0
+        && request.resource.data.durationSeconds is number && request.resource.data.durationSeconds >= 0
+        && request.resource.data.taxiType in ['economy', 'comfort', 'xl']
+        && request.resource.data.payment in ['cash', 'card']
+        && request.resource.data.fareLow is int && request.resource.data.fareHigh is int
+        && request.resource.data.status == 'searching'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if request.resource.data.updatedAt == request.time && (
+        // Yolcu: şoför yola çıkmadan / gelmeden iptal; bitince puan.
+        (isPassenger()
+          && resource.data.status in ['searching', 'driverAssigned', 'driverArrived']
+          && next() == 'cancelled' && changes(['status', 'updatedAt']))
+        || (isPassenger()
+          && resource.data.status == 'completed' && next() == 'completed'
+          && changes(['rating', 'updatedAt'])
+          && request.resource.data.rating is int
+          && request.resource.data.rating >= 1 && request.resource.data.rating <= 5)
+        // Çevrimiçi şoför: bekleyen çağrıyı kendine alır.
+        || (isOnlineDriver()
+          && resource.data.status == 'searching' && next() == 'driverAssigned'
+          && changes(['status', 'driverId', 'driver', 'driverPosition', 'updatedAt'])
+          && request.resource.data.driverId == request.auth.uid
+          && request.resource.data.driver is map
+          && point(request.resource.data.driverPosition))
+        // Atanan şoför: konum yeniler ve sırayla ilerletir ya da iptal eder.
+        || (isAssignedDriver()
+          && resource.data.status in ['driverAssigned', 'driverArrived', 'inProgress']
+          && next() == resource.data.status
+          && changes(['driverPosition', 'updatedAt'])
+          && point(request.resource.data.driverPosition))
+        || (isAssignedDriver()
+          && changes(['status', 'driverPosition', 'updatedAt'])
+          && ((resource.data.status == 'driverAssigned' && next() == 'driverArrived')
+              || (resource.data.status == 'driverArrived' && next() == 'inProgress')
+              || (resource.data.status == 'inProgress' && next() == 'completed')
+              || (resource.data.status in ['driverAssigned', 'driverArrived'] && next() == 'cancelled')))
+      );
+
+      allow delete: if false;
+    }
+
     // Sohbet şikâyetleri. Yalnızca kendi adına oluşturulur; kimse okuyamaz (Firebase konsolundan
     // incelenir). App Store / Google Play kullanıcı içeriği olan uygulamalarda şikâyet ister.
     match /reports/{reportId} {

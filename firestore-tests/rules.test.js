@@ -398,6 +398,144 @@ describe('reports ve users/{uid}/blocked şikâyet ve engelleme', () => {
   });
 });
 
+const driverProfile = (user, overrides = {}) => ({
+  name: 'Ahmet Yılmaz',
+  plate: 'TAB 123',
+  car: 'Toyota Corolla',
+  carColor: 'white',
+  phone: user.phone,
+  online: true,
+  position: { lat: 35.18, lng: 33.38 },
+  updatedAt: serverTimestamp(),
+  ...overrides,
+});
+
+const ride = (overrides = {}) => ({
+  passengerId: 'alice',
+  pickup: { name: 'Lefkoşa', lat: 35.18, lng: 33.38 },
+  destination: { name: 'Girne', lat: 35.34, lng: 33.32 },
+  distanceMeters: 25000,
+  durationSeconds: 1800,
+  taxiType: 'economy',
+  payment: 'cash',
+  fareLow: 990,
+  fareHigh: 1210,
+  status: 'searching',
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  ...overrides,
+});
+
+const seedRide = (id, overrides = {}) => seed(`rides/${id}`, { ...ride(overrides), createdAt: 1, updatedAt: 1 });
+const seedDriver = (user, overrides = {}) => seed(`drivers/${user.uid}`, { ...driverProfile(user, overrides), updatedAt: 1 });
+const driverSnapshot = { name: 'Bob', plate: 'TAB 123', car: 'Toyota Corolla', carColor: 'white', phone: BOB.phone };
+
+describe('drivers şoför kaydı', () => {
+  test('kullanıcı kendini şoför olarak kaydeder; giriş yapan herkes okur', async () => {
+    await assertSucceeds(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB)));
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'drivers/bob')));
+    await assertFails(getDoc(doc(anonymousDb(), 'drivers/bob')));
+  });
+
+  test('başkası adına, başka telefonla ya da geçersiz alanla kayıt olmaz', async () => {
+    await assertFails(setDoc(doc(dbAs(ALICE), 'drivers/bob'), driverProfile(BOB)));
+    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { phone: ALICE.phone })));
+    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { carColor: 'pembe' })));
+    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { approved: true })));
+    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { plate: '' })));
+  });
+});
+
+describe('rides çağrılar ve eşleştirme', () => {
+  test('yolcu kendi adına çağrı oluşturur; başkası adına, geçersiz ya da atanmış oluşturamaz', async () => {
+    const db = dbAs(ALICE);
+    await assertSucceeds(setDoc(doc(db, 'rides/r1'), ride()));
+    await assertFails(setDoc(doc(db, 'rides/r2'), ride({ passengerId: 'bob' })));
+    await assertFails(setDoc(doc(db, 'rides/r3'), ride({ status: 'driverAssigned' })));
+    await assertFails(setDoc(doc(db, 'rides/r4'), ride({ driverId: 'bob' })));
+    await assertFails(setDoc(doc(db, 'rides/r5'), ride({ taxiType: 'limuzin' })));
+  });
+
+  test('bekleyen çağrıyı yalnızca çevrimiçi şoförler görür', async () => {
+    await seedRide('r1');
+    await seedDriver(BOB);
+    await seedDriver(CAROL, { online: false });
+    await assertSucceeds(getDocs(query(collection(dbAs(BOB), 'rides'), where('status', '==', 'searching'))));
+    await assertFails(getDocs(query(collection(dbAs(CAROL), 'rides'), where('status', '==', 'searching'))));
+    await assertFails(getDoc(doc(dbAs(CAROL), 'rides/r1')));
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'rides/r1')));
+  });
+
+  test('kimse almadan iptal edilen çağrıyı çevrimiçi şoför okur; atanmış iptali okuyamaz', async () => {
+    await seedRide('r1', { status: 'cancelled' });
+    await seedRide('r2', { status: 'cancelled', driverId: 'dave', driver: driverSnapshot });
+    await seedDriver(BOB);
+    await seedDriver(CAROL, { online: false });
+    await assertSucceeds(getDoc(doc(dbAs(BOB), 'rides/r1')));
+    await assertFails(getDoc(doc(dbAs(CAROL), 'rides/r1')));
+    await assertFails(getDoc(doc(dbAs(BOB), 'rides/r2')));
+  });
+
+  test('çevrimiçi şoför çağrıyı kendine alır; ikinci şoför alamaz', async () => {
+    await seedRide('r1');
+    await seedDriver(BOB);
+    await seedDriver(CAROL);
+    const accept = (user) => updateDoc(doc(dbAs(user), 'rides/r1'), {
+      status: 'driverAssigned',
+      driverId: user.uid,
+      driver: driverSnapshot,
+      driverPosition: { lat: 35.18, lng: 33.38 },
+      updatedAt: serverTimestamp(),
+    });
+    await assertFails(updateDoc(doc(dbAs(BOB), 'rides/r1'), {
+      status: 'driverAssigned', driverId: 'carol', driver: driverSnapshot,
+      driverPosition: { lat: 35.18, lng: 33.38 }, updatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(accept(BOB));
+    await assertFails(accept(CAROL));
+    // Atandıktan sonra diğer şoför okuyamaz; atanan şoför ve yolcu okur.
+    await assertFails(getDoc(doc(dbAs(CAROL), 'rides/r1')));
+    await assertSucceeds(getDoc(doc(dbAs(BOB), 'rides/r1')));
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'rides/r1')));
+  });
+
+  test('atanan şoför konum yeniler ve sırayla vardı → başladı → bitti', async () => {
+    await seedRide('r1', { status: 'driverAssigned', driverId: 'bob', driver: driverSnapshot, driverPosition: { lat: 35.18, lng: 33.38 } });
+    const ref = doc(dbAs(BOB), 'rides/r1');
+    const move = { driverPosition: { lat: 35.19, lng: 33.38 }, updatedAt: serverTimestamp() };
+    await assertSucceeds(updateDoc(ref, move));
+    await assertFails(updateDoc(ref, { status: 'completed', ...move }));
+    await assertSucceeds(updateDoc(ref, { status: 'driverArrived', ...move }));
+    await assertSucceeds(updateDoc(ref, { status: 'inProgress', ...move }));
+    await assertFails(updateDoc(ref, { status: 'cancelled', ...move }));
+    await assertSucceeds(updateDoc(ref, { status: 'completed', ...move }));
+    await assertFails(updateDoc(ref, move));
+    await assertFails(updateDoc(doc(dbAs(CAROL), 'rides/r1'), move));
+  });
+
+  test('yolcu yalnızca yolculuk başlamadan iptal eder ve bitince puan verir', async () => {
+    await seedRide('r1', { status: 'driverAssigned', driverId: 'bob', driver: driverSnapshot });
+    const ref = doc(dbAs(ALICE), 'rides/r1');
+    await assertFails(updateDoc(ref, { status: 'inProgress', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { status: 'cancelled', fareLow: 1, updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(ref, { status: 'cancelled', updatedAt: serverTimestamp() }));
+
+    await seedRide('r2', { status: 'inProgress', driverId: 'bob', driver: driverSnapshot });
+    await assertFails(updateDoc(doc(dbAs(ALICE), 'rides/r2'), { status: 'cancelled', updatedAt: serverTimestamp() }));
+
+    await seedRide('r3', { status: 'completed', driverId: 'bob', driver: driverSnapshot });
+    const r3 = doc(dbAs(ALICE), 'rides/r3');
+    await assertFails(updateDoc(r3, { rating: 7, updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(r3, { rating: 5, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(dbAs(BOB), 'rides/r3'), { rating: 1, updatedAt: serverTimestamp() }));
+  });
+
+  test('çağrılar silinemez', async () => {
+    await seedRide('r1');
+    await assertFails(deleteDoc(doc(dbAs(ALICE), 'rides/r1')));
+  });
+});
+
 describe('diğer koleksiyonlar', () => {
   test('kurallarda açılmamış her yer kapalı', async () => {
     const db = dbAs(ALICE);

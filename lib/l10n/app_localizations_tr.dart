@@ -799,4 +799,97 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get notGroupMember => 'Bu grubun üyesi değilsin.';
+
+  @override
+  String get switchToPassenger => 'Yolcu moduna geç';
+
+  @override
+  String get switchToDriver => 'Şoför moduna geç';
+
+  @override
+  String get driverMode => 'Şoför';
+
+  @override
+  String get driverRegisterTitle => 'Şoför kaydı';
+
+  @override
+  String get driverRegisterSubtitle =>
+      'Yolcular adını, plakanı ve aracını görecek.';
+
+  @override
+  String get driverNameLabel => 'Adın soyadın';
+
+  @override
+  String get plateFieldLabel => 'Plaka';
+
+  @override
+  String get carModelLabel => 'Araç (marka, model)';
+
+  @override
+  String get carColorLabel => 'Araç rengi';
+
+  @override
+  String get saveDriver => 'Kaydı tamamla';
+
+  @override
+  String get driverOnline => 'Çevrimiçisin';
+
+  @override
+  String get driverOffline => 'Çevrimdışısın';
+
+  @override
+  String get driverOfflineHint =>
+      'Çağrı almak için çevrimiçi ol. Uygulama açık kaldığı sürece konumun paylaşılır.';
+
+  @override
+  String get noOpenRequests =>
+      'Şu an bekleyen çağrı yok. Yeni çağrılar burada görünecek.';
+
+  @override
+  String get openRequests => 'Bekleyen çağrılar';
+
+  @override
+  String get acceptRide => 'Kabul et';
+
+  @override
+  String get rideTaken => 'Bu çağrıyı başka bir şoför aldı.';
+
+  @override
+  String get driverNeedsLocation =>
+      'Çevrimiçi olmak ve çağrı almak için konum gerekli.';
+
+  @override
+  String get headToPickup => 'Yolcuya git';
+
+  @override
+  String get waitingPassenger => 'Yolcuyu al';
+
+  @override
+  String get tripInProgressDriver => 'Yolculuk sürüyor';
+
+  @override
+  String get iArrived => 'Vardım';
+
+  @override
+  String get startTrip => 'Yolculuğu başlat';
+
+  @override
+  String get finishTrip => 'Yolculuğu bitir';
+
+  @override
+  String get cancelRideDriver => 'Çağrıyı iptal et';
+
+  @override
+  String get cancelRideDriverMessage => 'Yolcunun çağrısı iptal edilecek.';
+
+  @override
+  String get navigate => 'Yol tarifi';
+
+  @override
+  String get rideFinishedDriver => 'Yolculuk tamamlandı.';
+
+  @override
+  String pickupDistance(String distance) {
+    return 'Yolcu $distance uzakta';
+  }
 }

@@ -37,3 +37,8 @@ Future<bool> confirm(
   );
   return confirmed ?? false;
 }
+
+/// Hatanın kısa kodu: Firebase hatalarında köşeli parantezdeki kod (ör. "cloud_firestore/permission-denied"),
+/// diğerlerinde hata türü. Testçiler cihaz kaydına bakamadığı için mesajda gösterilir.
+String errorCode(Object error) =>
+    RegExp(r'\[([^\]]+)\]').firstMatch('$error')?.group(1) ?? error.runtimeType.toString();

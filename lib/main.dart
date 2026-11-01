@@ -8,6 +8,7 @@ import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/firebase_options.dart';
+import 'package:kktc_taksim/screens/driver/driver_shell.dart';
 import 'package:kktc_taksim/screens/login_screen.dart';
 import 'package:kktc_taksim/screens/main_navigation_screen.dart';
 import 'package:kktc_taksim/screens/role_selection_screen.dart';
@@ -58,6 +59,7 @@ class TaxiApp extends StatelessWidget {
           AppRoutes.login: (context) => const LoginScreen(),
           AppRoutes.signup: (context) => const SignupScreen(),
           AppRoutes.main: (context) => MainNavigationScreen(showAds: showAds),
+          AppRoutes.driver: (context) => const DriverShell(),
         },
       ),
     );

@@ -58,6 +58,9 @@ GeoPlace? parsePhotonReverse(Map<String, dynamic> json, LatLng point) {
   final features = (json['features'] as List? ?? const []).cast<Map<String, dynamic>>();
   if (features.isEmpty) return null;
   final props = features.first['properties'] as Map<String, dynamic>? ?? const {};
+  // Lefkoşa'da ara bölgeye yakın noktalar güneydeki sokağın adını alıyordu ("Zappeiou").
+  final state = props['state'];
+  if (state is String && state != northCyprusState) return null;
 
   final street = [props['street'], props['housenumber']].whereType<String>().join(' ');
   final area = [props['district'], props['city']].whereType<String>().toSet().join(', ');

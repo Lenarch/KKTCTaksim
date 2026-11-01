@@ -834,4 +834,98 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notGroupMember => 'You\'re not a member of this group.';
+
+  @override
+  String get switchToPassenger => 'Switch to passenger';
+
+  @override
+  String get switchToDriver => 'Switch to driver mode';
+
+  @override
+  String get driverMode => 'Driver';
+
+  @override
+  String get driverRegisterTitle => 'Driver sign-up';
+
+  @override
+  String get driverRegisterSubtitle =>
+      'Passengers will see your name, plate and car.';
+
+  @override
+  String get driverNameLabel => 'Full name';
+
+  @override
+  String get plateFieldLabel => 'Plate';
+
+  @override
+  String get carModelLabel => 'Car (make, model)';
+
+  @override
+  String get carColorLabel => 'Car colour';
+
+  @override
+  String get saveDriver => 'Finish sign-up';
+
+  @override
+  String get driverOnline => 'You\'re online';
+
+  @override
+  String get driverOffline => 'You\'re offline';
+
+  @override
+  String get driverOfflineHint =>
+      'Go online to receive requests. Your location is shared while the app is open.';
+
+  @override
+  String get noOpenRequests =>
+      'No requests right now. New requests will appear here.';
+
+  @override
+  String get openRequests => 'Open requests';
+
+  @override
+  String get acceptRide => 'Accept';
+
+  @override
+  String get rideTaken => 'Another driver already took this request.';
+
+  @override
+  String get driverNeedsLocation =>
+      'Location is needed to go online and receive requests.';
+
+  @override
+  String get headToPickup => 'Go to the passenger';
+
+  @override
+  String get waitingPassenger => 'Pick up the passenger';
+
+  @override
+  String get tripInProgressDriver => 'Trip in progress';
+
+  @override
+  String get iArrived => 'I\'ve arrived';
+
+  @override
+  String get startTrip => 'Start trip';
+
+  @override
+  String get finishTrip => 'Finish trip';
+
+  @override
+  String get cancelRideDriver => 'Cancel request';
+
+  @override
+  String get cancelRideDriverMessage =>
+      'The passenger\'s request will be cancelled.';
+
+  @override
+  String get navigate => 'Directions';
+
+  @override
+  String get rideFinishedDriver => 'Trip completed.';
+
+  @override
+  String pickupDistance(String distance) {
+    return 'Passenger $distance away';
+  }
 }

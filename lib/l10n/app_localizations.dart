@@ -1509,6 +1509,180 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Bu grubun üyesi değilsin.'**
   String get notGroupMember;
+
+  /// No description provided for @switchToPassenger.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcu moduna geç'**
+  String get switchToPassenger;
+
+  /// No description provided for @switchToDriver.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şoför moduna geç'**
+  String get switchToDriver;
+
+  /// No description provided for @driverMode.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şoför'**
+  String get driverMode;
+
+  /// No description provided for @driverRegisterTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şoför kaydı'**
+  String get driverRegisterTitle;
+
+  /// No description provided for @driverRegisterSubtitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcular adını, plakanı ve aracını görecek.'**
+  String get driverRegisterSubtitle;
+
+  /// No description provided for @driverNameLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Adın soyadın'**
+  String get driverNameLabel;
+
+  /// No description provided for @plateFieldLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Plaka'**
+  String get plateFieldLabel;
+
+  /// No description provided for @carModelLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Araç (marka, model)'**
+  String get carModelLabel;
+
+  /// No description provided for @carColorLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Araç rengi'**
+  String get carColorLabel;
+
+  /// No description provided for @saveDriver.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaydı tamamla'**
+  String get saveDriver;
+
+  /// No description provided for @driverOnline.
+  ///
+  /// In tr, this message translates to:
+  /// **'Çevrimiçisin'**
+  String get driverOnline;
+
+  /// No description provided for @driverOffline.
+  ///
+  /// In tr, this message translates to:
+  /// **'Çevrimdışısın'**
+  String get driverOffline;
+
+  /// No description provided for @driverOfflineHint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Çağrı almak için çevrimiçi ol. Uygulama açık kaldığı sürece konumun paylaşılır.'**
+  String get driverOfflineHint;
+
+  /// No description provided for @noOpenRequests.
+  ///
+  /// In tr, this message translates to:
+  /// **'Şu an bekleyen çağrı yok. Yeni çağrılar burada görünecek.'**
+  String get noOpenRequests;
+
+  /// No description provided for @openRequests.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bekleyen çağrılar'**
+  String get openRequests;
+
+  /// No description provided for @acceptRide.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kabul et'**
+  String get acceptRide;
+
+  /// No description provided for @rideTaken.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu çağrıyı başka bir şoför aldı.'**
+  String get rideTaken;
+
+  /// No description provided for @driverNeedsLocation.
+  ///
+  /// In tr, this message translates to:
+  /// **'Çevrimiçi olmak ve çağrı almak için konum gerekli.'**
+  String get driverNeedsLocation;
+
+  /// No description provided for @headToPickup.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcuya git'**
+  String get headToPickup;
+
+  /// No description provided for @waitingPassenger.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcuyu al'**
+  String get waitingPassenger;
+
+  /// No description provided for @tripInProgressDriver.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolculuk sürüyor'**
+  String get tripInProgressDriver;
+
+  /// No description provided for @iArrived.
+  ///
+  /// In tr, this message translates to:
+  /// **'Vardım'**
+  String get iArrived;
+
+  /// No description provided for @startTrip.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolculuğu başlat'**
+  String get startTrip;
+
+  /// No description provided for @finishTrip.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolculuğu bitir'**
+  String get finishTrip;
+
+  /// No description provided for @cancelRideDriver.
+  ///
+  /// In tr, this message translates to:
+  /// **'Çağrıyı iptal et'**
+  String get cancelRideDriver;
+
+  /// No description provided for @cancelRideDriverMessage.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcunun çağrısı iptal edilecek.'**
+  String get cancelRideDriverMessage;
+
+  /// No description provided for @navigate.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yol tarifi'**
+  String get navigate;
+
+  /// No description provided for @rideFinishedDriver.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolculuk tamamlandı.'**
+  String get rideFinishedDriver;
+
+  /// No description provided for @pickupDistance.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcu {distance} uzakta'**
+  String pickupDistance(String distance);
 }
 
 class _AppLocalizationsDelegate

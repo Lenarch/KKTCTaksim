@@ -4,6 +4,7 @@ import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/data/backend.dart';
+import 'package:kktc_taksim/services/app_settings.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -43,7 +44,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
     // Daha önce giriş yapılmışsa doğrudan ana sayfa.
     final signedIn = Backend.instance.auth.currentUser != null;
-    Navigator.pushReplacementNamed(context, signedIn ? AppRoutes.main : AppRoutes.roleSelection);
+    Navigator.pushReplacementNamed(context, signedIn ? AppSettings.instance.homeRoute : AppRoutes.roleSelection);
   }
 
   @override

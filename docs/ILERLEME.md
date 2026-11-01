@@ -1,11 +1,62 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **30 Ekim 2026**. Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **1 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
 
-## Kaldığımız yer (30 Ekim 2026)
+## ÖNCE BUNU OKU (1 Kasım 2026)
+**Durum:**
+- `main` (GitHub): Aşama 0–4, grup sohbeti, Android düzeltmeleri, A1 hesap silme +
+  gizlilik/koşullar, A2 sohbette şikâyet/engelleme, A3 yalnızca KKTC adres/konum ve **B1 şoför modu
+  + gerçek eşleştirme** (1 Kasım'da tek commit olarak birleştirildi ve gönderildi). Kurallar yüklü.
+  Testler: kurallar 44/44, Flutter 52/52, analyze temiz.
+- Yeni APK `apk/KKTCTaksim-test.apk` (B1'li): **demo taksi yok**, taksi çağırmak için çevrimiçi
+  bir şoför gerekir (arkadaşa söylenmeli).
+- **1 Kasım, B1 uçtan uca denendi** (emülatör = şoför, web `localhost:8090` = yolcu, aynı test
+  hesabı; kurallar şoförün kendi çağrısını almasını engellemiyor): çağrı → kabul → vardım → başlat →
+  şoför konumu yolcu ekranında ilerliyor → bitir → puan → Geçmiş'te "Tamamlandı ₺1.415". Çalışıyor.
+  Canlı takip linki denenmedi (tarayıcı panelinde paylaşım penceresi açılmadı).
+- Denemede bulunan ve **düzeltilen** (emülatörde doğrulandı):
+  1. Şoför çevrimiçi olunca çağrılar gelmiyordu (dinleme `online: true` sunucuya ulaşmadan açılıp
+     "izin yok"la kapanıyordu; uygulama yeniden açılınca geliyordu). `watchOpenRequests` artık
+     `retryWhilePermissionDenied`; çevrimdışı olunca akış sıfırlanıyor; hata olursa "Tekrar dene".
+  2. Alış yeri adı "Zappeiou" (Güney Lefkoşa) çıkıyordu: ters arama KKTC dışı sonucu eliyor
+     (`parsePhotonReverse`), yoksa "Mevcut konumun".
+  3. Yolcu iptal edince çağrı **açık şoför listesinde kalıyordu** (belge `searching`'den çıkınca
+     kurallar okumayı kapatıyor, Firestore yerel kopyayı güncelleyemiyordu). Kural: çevrimiçi şoför
+     **şoförü atanmamış `cancelled`** çağrıyı da okur (kural testi eklendi, 44/44; **1 Kasım'da
+     yüklendi**). İstemci 3 dk'dan eski `searching` çağrıları göstermez (`isRequestExpired`; yolcu
+     arama sırasında uygulamayı kapatırsa çağrı `searching`'de kalıyor). Emülatörde doğrulandı:
+     iptal 5–10 sn'de listeden düştü. Kalan küçük durum: **başka şoförün aldığı** çağrı diğer
+     şoförlerin listesinde kalabilir (okuma izni verilmedi, şoför bilgisi sızmasın); kabul edince
+     "alınmış" deyip düzeliyor. İki gerçek şoförle denenmedi.
+- Küçük not: alış yeri adı yolcunun dilinde kaydediliyor ("Mevcut konumun"); İngilizce şoför de
+  Türkçe görüyor. Yayından önce: şoför kendi çağrısını alamasın (kural: `passengerId != auth.uid`).
+- Web'de girişte reCAPTCHA resim sorusu çıkabiliyor (uygulama içi tarayıcıda çıktı); Claude çözemez,
+  kullanıcı çözer. Web sunucusu: kök klasördeki `.claude/launch.json` ("web", port 8090).
+- Arkadaşın telefonundaki eski APK demo taksiyle çalışıyor (`rides`'ı kullanmıyor; yeni kurallardan
+  etkilenmemeli, denenmedi). Yeni APK'yı kurana kadar öyle kalır.
+- Plan: `C:\Users\MONSTER\.claude\plans\sprightly-sauteeing-sloth.md` (A1–A3 bitti, B1 denendi, B2 kaldı).
+
+**Yapılacaklar (sırayla):**
+1. Yeni APK'yı arkadaşa gönder (kullanıcı); iki telefonla şoför + yolcu denemesi (ikinci gerçek
+   numara ya da ikinci test numarası gerekir). Canlı takip linkini B1 ile telefonda dene.
+2. Yayından önce B1: şoför kendi çağrısını alamasın (kural); alış yeri adı dile bağlı kaydediliyor.
+3. **Arkadaşın grup açma hatası:** yeni APK hata kodunu ya da "giriş yapmalısın" mesajını
+   gösteriyor; gelen ekran görüntüsüne göre düzelt.
+4. **A2'yi iki hesapla dene** (kullanıcı konsoldan ikinci test numarası ekler: `+90 533 000 00 01`
+   / `123456`; Claude'un eklemesi otomatik denetime takılıyor).
+5. **B2 bildirimler:** Cloud Functions + FCM (sohbet mesajı, yeni çağrı, şoför atandı). Functions
+   API'lerini açmak hesapta kalıcı değişiklik: önce kullanıcıdan açık onay.
+6. Yayından önce: `docs/UYARILAR.md` "Yayından önce mutlaka" (iletişim adresi yer tutucusu,
+   şoför belge kontrolü, test numarası, App Check, yedekleme, AdMob, hukukçu kontrolü).
+
+**Token tasarrufu (kullanıcı uyardı, 1 Kasım):** bu oturum çok uzadı. Her büyük iş için **yeni
+oturum** aç; ekran görüntüsünü az ve küçük al (log/metinle doğrula); derleme/test çıktısının yalnızca
+sonucunu oku; onayları topla.
+
+## Kaldığımız yer (30–31 Ekim 2026)
 - **Backend Aşama 0, 1 ve 2 bitti; Aşama 3'ün kodu ve kuralları hazır** (dal
   `backend/asama-3-paylasimli-gruplar`, 30 Ekim'de `main`'e birleştirildi ve gönderildi: `4b42b83`). Kurallar 30 Ekim'de
   **Firebase'e yüklendi**.
@@ -72,7 +123,18 @@ gerekenler ve yayından önce yapılacaklar).
 - **A3 bitti (31 Ekim):** Photon sonuçlarında `state != "Kuzey Kıbrıs Türk Cumhuriyeti"` olanlar
   elenir (`parsePhotonFeatures`); Kıbrıs dışındaki konum `LocationStatus.outsideServiceArea` olur,
   harita Lefkoşa'da açılır (`isInCyprus`, `lib/core/geo.dart`). Emülatörde doğrulandı.
-- **Sıradaki iş: B1** (şoför uygulaması + eşleştirme), sonra B2 (bildirimler; Functions'ı açmak için onay).
+- **B1 yazıldı (31 Ekim, dal `backend/asama-5-sofor`):** şoför modu ve gerçek eşleştirme.
+  Kurallar `drivers/{uid}` ve `rides/{rideId}` (durum geçişleri kurallarda; kural testleri 43/43).
+  Yolcu tarafı artık `FirebaseRideRepository`: çağrı `rides`'a yazılır, 3 dk içinde şoför almazsa
+  iptal ("uygun taksi bulunamadı"); "(DEMO)" düğmeleri yok. Şoför tarafı `FirebaseDriverRepository`
+  ve `lib/screens/driver/` (kayıt formu, çevrimiçi anahtarı, bekleyen çağrılar, Vardım / Başlat /
+  Bitir / İptal, Google Haritalar'da yol tarifi). Rol `AppSettings.role` (rol seçimi, Profil'de
+  "Şoför moduna geç", şoför menüsünde "Yolcu moduna geç"). Yolcu ekranındaki ilerleme şoförün
+  gerçek konumundan (`progressFor`, `fractionAlong`). Flutter testleri 51/51.
+  Denemede bulunan iki hata da düzeltildi: Profil başlığı kaydırınca "Stream has already been
+  listened to" ile çöküyordu; şoför çevrimiçi ama konumsuzsa sonsuz yükleniyordu.
+- **Sıradaki iş:** B1 kurallarını yükle (onay), emülatör = şoför (konumu `adb emu geo fix 33.3823
+  35.1856` ile Lefkoşa'ya al) + web = yolcu ile uçtan uca dene; sonra B2 (bildirimler).
 - Tuzak: widget testinde akışı `await ….first` ile beklemek testi kilitler (31 Ekim'de yine oldu);
   gerekirse `tester.runAsync`. `flutter test --timeout 120s` ile çalıştır ki kilitlenince düşsün.
 - Tuzak: `flutter build apk` OneDrive kilidi yüzünden "Unable to delete directory … buildpp\…"
@@ -81,12 +143,10 @@ gerekenler ve yayından önce yapılacaklar).
 - **Web'de gerçek numarayla giriş `localhost`'ta çalışmıyor:** `invalid-app-credential` (Firebase
   localhost'tan gelen reCAPTCHA'yı reddediyor). Test numarası çalışır. Web gerçek bir adreste
   yayınlanınca denenmeli.
-- **Sıradaki iş:** Aşama 5 (şoför uygulaması ve eşleştirme).
-- Taksi çağırma hâlâ örnek veri.
 - Bugünkü işin tamamı commit edilip GitHub'a gönderildi (`c8e4074`, gizli depo
   `Lenarch/KKTCTaksim`). `CLAUDE.md` artık **yalnızca yerelde**: kullanıcı GitHub'dan sildi,
   `.gitignore`'da. Git kimliği bu depoda `Berkay <43513762+Lenarch@users.noreply.github.com>`.
-- Durum (30 Ekim): `flutter analyze` temiz, `flutter test` 39/39, Firestore kural testleri 31/31.
+- Durum (31 Ekim, B1 dalı): `flutter analyze` temiz, `flutter test` 51/51, Firestore kural testleri 43/43.
 
 ## Uygulamanın amacı
 KKTC'ye özel taksi çağırma platformu. Üç rol var: **yolcu**, **şoför**, **taksi durağı** (şoför ve
@@ -231,7 +291,4 @@ Bu bilgisayarın gerçek konumu Kıbrıs dışında; mesafeler yüzlerce km çı
    Firestore yedekleme, gizlilik metni, hesap silme (`docs/UYARILAR.md`).
 
 ## Sıradaki adım
-1. İsteğe bağlı: iki hesapla katılma denemesi (ikinci test numarasını kullanıcı ekler).
-   Firestore boş başlar; örnek gruplar artık görünmez.
-2. Sonra **Aşama 4: canlı konum paylaşımı** (`docs/BACKEND_PLANI.md`).
-3. İsteğe bağlı: iPhone testi için IP'yi yetkili alan adlarına eklemek (kullanıcı onayıyla).
+En üstteki "ÖNCE BUNU OKU" bölümündeki **Yapılacaklar** listesine bak.

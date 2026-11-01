@@ -8,6 +8,7 @@ import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
 import 'package:kktc_taksim/services/account_deletion.dart';
+import 'package:kktc_taksim/services/app_settings.dart';
 import 'package:kktc_taksim/widgets/auth_header.dart';
 import 'package:kktc_taksim/widgets/loading_button.dart';
 
@@ -89,7 +90,7 @@ class _OtpScreenState extends State<OtpScreen> {
       messenger.showSnackBar(SnackBar(content: Text(l10n.accountDeleted)));
       return;
     }
-    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.main, (route) => false);
+    Navigator.pushNamedAndRemoveUntil(context, AppSettings.instance.homeRoute, (route) => false);
     messenger.showSnackBar(SnackBar(content: Text(l10n.verificationSuccess)));
   }
 

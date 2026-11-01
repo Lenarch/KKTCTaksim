@@ -42,6 +42,13 @@ class AppDurations {
   static const Duration tripDemo = Duration(seconds: 30);
   static const Duration simulationTick = Duration(milliseconds: 250);
 
+  /// Gerçek çağrıda bu süre içinde şoför kabul etmezse çağrı iptal edilir.
+  static const Duration driverSearchTimeout = Duration(minutes: 3);
+
+  /// Şoför konumu: yolculuk sırasında ve çevrimiçi beklerken en fazla bu aralıklarla yazılır.
+  static const Duration driverRidePositionInterval = Duration(seconds: 5);
+  static const Duration driverIdlePositionInterval = Duration(seconds: 30);
+
   /// Canlı konum paylaşımında konum en fazla bu aralıkla yazılır (Firestore yazma kotası).
   static const Duration liveShareInterval = Duration(seconds: 10);
 

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +8,7 @@ import 'package:kktc_taksim/core/fare_calculator.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/validators.dart';
+import 'package:kktc_taksim/data/firebase/ride_documents.dart';
 import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
 import 'package:kktc_taksim/services/map_style_service.dart';
@@ -147,6 +149,24 @@ void main() {
     expect(place.address, 'Dereboyu, Lefkoşa');
     expect(place.position, point);
     expect(parsePhotonReverse({'features': []}, point), isNull);
+    expect(
+      parsePhotonReverse({
+        'features': [
+          {
+            'properties': {'street': 'Zappeiou', 'city': 'Λευκωσία', 'state': 'Κύπρος'},
+          },
+        ],
+      }, point),
+      isNull,
+    );
+  });
+
+  test('Şoför listesinde yolcunun zaman aşımı dolmuş çağrısı gösterilmez', () {
+    final cutoff = DateTime(2026, 11, 1, 12);
+    expect(isRequestExpired(Timestamp.fromDate(DateTime(2026, 11, 1, 11, 59)), cutoff), isTrue);
+    expect(isRequestExpired(Timestamp.fromDate(DateTime(2026, 11, 1, 12, 1)), cutoff), isFalse);
+    // Sunucu zamanı henüz yazılmamış yeni çağrı.
+    expect(isRequestExpired(null, cutoff), isFalse);
   });
 
   test('Telefon doğrulayıcı', () {

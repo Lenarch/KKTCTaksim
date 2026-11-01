@@ -485,5 +485,41 @@
   "sendMessage": "Gönder",
   "unnamedPassenger": "Yolcu",
   "newMessages": "Yeni mesaj var",
-  "notGroupMember": "Bu grubun üyesi değilsin."
+  "notGroupMember": "Bu grubun üyesi değilsin.",
+  "switchToPassenger": "Yolcu moduna geç",
+  "switchToDriver": "Şoför moduna geç",
+  "driverMode": "Şoför",
+  "driverRegisterTitle": "Şoför kaydı",
+  "driverRegisterSubtitle": "Yolcular adını, plakanı ve aracını görecek.",
+  "driverNameLabel": "Adın soyadın",
+  "plateFieldLabel": "Plaka",
+  "carModelLabel": "Araç (marka, model)",
+  "carColorLabel": "Araç rengi",
+  "saveDriver": "Kaydı tamamla",
+  "driverOnline": "Çevrimiçisin",
+  "driverOffline": "Çevrimdışısın",
+  "driverOfflineHint": "Çağrı almak için çevrimiçi ol. Uygulama açık kaldığı sürece konumun paylaşılır.",
+  "noOpenRequests": "Şu an bekleyen çağrı yok. Yeni çağrılar burada görünecek.",
+  "openRequests": "Bekleyen çağrılar",
+  "acceptRide": "Kabul et",
+  "rideTaken": "Bu çağrıyı başka bir şoför aldı.",
+  "driverNeedsLocation": "Çevrimiçi olmak ve çağrı almak için konum gerekli.",
+  "headToPickup": "Yolcuya git",
+  "waitingPassenger": "Yolcuyu al",
+  "tripInProgressDriver": "Yolculuk sürüyor",
+  "iArrived": "Vardım",
+  "startTrip": "Yolculuğu başlat",
+  "finishTrip": "Yolculuğu bitir",
+  "cancelRideDriver": "Çağrıyı iptal et",
+  "cancelRideDriverMessage": "Yolcunun çağrısı iptal edilecek.",
+  "navigate": "Yol tarifi",
+  "rideFinishedDriver": "Yolculuk tamamlandı.",
+  "pickupDistance": "Yolcu {distance} uzakta",
+  "@pickupDistance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  }
 }

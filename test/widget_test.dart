@@ -5,11 +5,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/screens/driver/driver_shell.dart';
+import 'package:kktc_taksim/data/mock/mock_driver_repository.dart';
+import 'package:kktc_taksim/models/ride_offer.dart';
+import 'package:kktc_taksim/models/ride_session.dart';
 import 'package:kktc_taksim/main.dart';
 import 'package:kktc_taksim/models/payment_method.dart';
 import 'package:kktc_taksim/models/ride_request.dart';
@@ -345,6 +350,57 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Engeli kaldır'));
     await tester.pumpAndSettle();
     expect(find.text('Kaba bir mesaj'), findsOneWidget);
+  });
+
+  testWidgets('Şoför modu: kayıt formu, ardından kabul edilen yolculuk sırayla ilerletilir', (tester) async {
+    await signIn(name: 'Ahmet Yılmaz');
+    final drivers = Backend.instance.drivers as MockDriverRepository;
+    await tester.pumpWidget(localized(const DriverShell()));
+    await tester.pumpAndSettle();
+
+    // İlk giriş: kayıt formu (ad girişten gelir).
+    expect(find.text('Şoför kaydı'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Plaka'), 'abc 123');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Araç (marka, model)'), 'Toyota Corolla');
+    await tester.tap(find.text('Kaydı tamamla'));
+    await tester.pumpAndSettle();
+    expect(find.text('Çevrimdışısın'), findsOneWidget);
+    expect(find.text('Ahmet Yılmaz • ABC 123'), findsOneWidget);
+
+    // Konum eklentisi testte çalışmadığı için çevrimiçi olma ve kabul repository üzerinden.
+    const here = LatLng(35.1856, 33.3823);
+    await drivers.setOnline(true, here);
+    const offer = RideOffer(
+      id: 'r1',
+      passengerId: 'yolcu',
+      pickup: GeoPlace(name: 'Lefkoşa Surlariçi', position: here),
+      destination: GeoPlace(name: 'Girne Limanı', position: LatLng(35.3412, 33.3196)),
+      distanceMeters: 25000,
+      durationSeconds: 1800,
+      taxiType: TaxiType.economy,
+      payment: PaymentMethod.cash,
+      fareLow: 990,
+      fareHigh: 1210,
+      status: RideStatus.searching,
+    );
+    drivers.addRequest(offer);
+    await drivers.accept(offer, here);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Yolcuya git'), findsOneWidget);
+    expect(find.text('Lefkoşa Surlariçi'), findsOneWidget);
+    await tester.tap(find.text('Vardım'));
+    await tester.pumpAndSettle();
+    expect(find.text('Yolcuyu al'), findsOneWidget);
+    await tester.tap(find.text('Yolculuğu başlat'));
+    await tester.pumpAndSettle();
+    expect(find.text('Yolculuk sürüyor'), findsOneWidget);
+    expect(find.text('Çağrıyı iptal et'), findsNothing);
+    await tester.tap(find.text('Yolculuğu bitir'));
+    await tester.pumpAndSettle();
+    expect(find.text('Yolculuk tamamlandı.'), findsOneWidget);
+    expect(drivers.rideById('r1')!.status, RideStatus.completed);
+    expect(find.text('Şu an bekleyen çağrı yok. Yeni çağrılar burada görünecek.'), findsNothing);
   });
 
   testWidgets('Taksi seçiminde tahmini fiyat, ödeme yöntemi ve zaman seçilir', (tester) async {

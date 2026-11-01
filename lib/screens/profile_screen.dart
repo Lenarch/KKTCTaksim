@@ -97,7 +97,6 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
 
     final comingSoonItems = [
       (Icons.person_outline, l10n.personalInfo),
@@ -112,32 +111,17 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(title: Text(l10n.profile)),
       body: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.xxxl),
+          const Padding(
+            padding: EdgeInsets.all(AppSpacing.xxxl),
             child: Column(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 60,
                   backgroundColor: AppTheme.primaryYellow,
                   child: Icon(Icons.person, size: 70, color: AppTheme.primaryBlack),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                StreamBuilder<AppUser?>(
-                  stream: Backend.instance.auth.authState,
-                  initialData: Backend.instance.auth.currentUser,
-                  builder: (context, snapshot) {
-                    final user = snapshot.data;
-                    final name = user?.name;
-                    return Column(
-                      children: [
-                        if (name != null && name.isNotEmpty)
-                          Text(name, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                        if (user != null)
-                          Text(user.phone, style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
-                      ],
-                    );
-                  },
-                ),
+                SizedBox(height: AppSpacing.xl),
+                _UserHeader(),
               ],
             ),
           ),
@@ -155,6 +139,16 @@ class ProfileScreen extends StatelessWidget {
               },
               onTap: () => _chooseLanguage(context),
             ),
+          ),
+          _MenuItem(
+            icon: Icons.drive_eta_outlined,
+            title: l10n.switchToDriver,
+            onTap: () async {
+              await AppSettings.instance.setRole(AppRole.driver);
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, AppRoutes.driver, (route) => false);
+              }
+            },
           ),
           _MenuItem(
             icon: Icons.privacy_tip_outlined,
@@ -233,6 +227,39 @@ class _MenuItem extends StatelessWidget {
         ],
       ),
       onTap: onTap,
+    );
+  }
+}
+
+/// Ad ve telefon. Akış State'te tutulur: liste kaydırılıp başlık yeniden oluşturulunca aynı
+/// (tek dinleyicili) akışa ikinci kez abone olunup "Stream has already been listened to" oluyordu.
+class _UserHeader extends StatefulWidget {
+  const _UserHeader();
+
+  @override
+  State<_UserHeader> createState() => _UserHeaderState();
+}
+
+class _UserHeaderState extends State<_UserHeader> {
+  late final Stream<AppUser?> _user = Backend.instance.auth.authState;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return StreamBuilder<AppUser?>(
+      stream: _user,
+      initialData: Backend.instance.auth.currentUser,
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        final name = user?.name;
+        return Column(
+          children: [
+            if (name != null && name.isNotEmpty)
+              Text(name, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+            if (user != null) Text(user.phone, style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        );
+      },
     );
   }
 }

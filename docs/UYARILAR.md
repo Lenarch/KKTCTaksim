@@ -78,6 +78,16 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - Aynı cihazdan çok sayıda kod isteyince Firebase cihazı birkaç saat engelliyor
   (`too-many-requests`); denemelerde test numarasını kullan.
 
+## Şoför modu (31 Ekim)
+- **Demo taksi artık yok:** yolcu çağrısı gerçek bir şoförün kabul etmesini bekler; 3 dakika içinde
+  çevrimiçi şoför yoksa "uygun taksi bulunamadı" der. Test için bir telefonu şoför moduna almak gerekir.
+- Şoför konumu yalnızca **uygulama açıkken** yazılır (arka plan konumu ve bildirim yok, B2'de
+  bildirim gelecek). Şoför uygulamayı kapatırsa yolcu taksiyi hareketsiz görür.
+- Şoför kendi çağrısını kabul edebiliyor (tek test numarasıyla deneme için); yayından önce
+  kurallarda `driverId != passengerId` şartı eklenmeli.
+- Ücret tahminidir; şoför bitirince yolcunun geçmişine aralığın ortası yazılır. Gerçek ücret/taksimetre yok.
+- Puanlar `rides` belgesinde duruyor ama şoför ortalaması hesaplanmıyor (her şoför 5.0 görünür).
+
 ## Yayından önce mutlaka
 - Backend: Firebase seçildi; plan ve senin yapacakların `docs/BACKEND_PLANI.md` içinde
   (Blaze planı + kart, Firestore bölgesi sonradan değiştirilemez)

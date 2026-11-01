@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
+import 'package:kktc_taksim/services/app_settings.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/l10n.dart';
@@ -53,14 +54,20 @@ class RoleSelectionScreen extends StatelessWidget {
                       subtitle: l10n.rolePassengerHint,
                       icon: Icons.person_outline_rounded,
                       highlighted: true,
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.login),
+                      onTap: () async {
+                        await AppSettings.instance.setRole(AppRole.passenger);
+                        if (context.mounted) Navigator.pushNamed(context, AppRoutes.login);
+                      },
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _RoleButton(
                       title: l10n.roleDriver,
                       subtitle: l10n.roleDriverHint,
                       icon: Icons.drive_eta_rounded,
-                      onTap: () => showComingSoon(context, l10n.driverLogin),
+                      onTap: () async {
+                        await AppSettings.instance.setRole(AppRole.driver);
+                        if (context.mounted) Navigator.pushNamed(context, AppRoutes.login);
+                      },
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _RoleButton(

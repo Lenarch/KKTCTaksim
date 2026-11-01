@@ -10,6 +10,11 @@ import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/mock/mock_auth_repository.dart';
+import 'package:kktc_taksim/models/driver.dart';
+import 'package:kktc_taksim/models/ride_offer.dart';
+import 'package:kktc_taksim/data/firebase/firebase_ride_repository.dart';
+import 'package:kktc_taksim/data/repositories/driver_repository.dart';
+import 'package:kktc_taksim/data/mock/mock_driver_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_live_share_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_ride_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
@@ -520,5 +525,80 @@ void main() {
     await shared.join('demo-group-1');
     final messages = await shared.watchMessages('demo-group-1').first;
     expect(messages.where((m) => m.senderId == user.id), isEmpty);
+  });
+
+  group('DriverRepository (şoför)', () {
+    late MockAuthRepository auth;
+    late MockDriverRepository drivers;
+    const here = LatLng(35.1856, 33.3823);
+    const profile = DriverProfile(name: 'Ahmet Yılmaz', plate: 'tab 123', car: 'Toyota Corolla', carColor: CarColor.white);
+
+    RideOffer offer(String id) => RideOffer(
+          id: id,
+          passengerId: 'yolcu',
+          pickup: const GeoPlace(name: 'Lefkoşa', position: here),
+          destination: const GeoPlace(name: 'Girne', position: LatLng(35.3412, 33.3196)),
+          distanceMeters: 25000,
+          durationSeconds: 1800,
+          taxiType: TaxiType.economy,
+          payment: PaymentMethod.cash,
+          fareLow: 990,
+          fareHigh: 1210,
+          status: RideStatus.searching,
+        );
+
+    setUp(() {
+      auth = MockAuthRepository();
+      drivers = MockDriverRepository(auth);
+    });
+
+    test('kayıt, çevrimiçi olma (konum şart), çağrıyı kabul ve sırayla ilerletme', () async {
+      await _signIn(auth);
+      expect(await drivers.watchProfile().first, isNull);
+      await expectLater(drivers.setOnline(true, here), throwsA(isA<DriverException>()));
+
+      await drivers.register(profile);
+      final saved = (await drivers.watchProfile().first)!;
+      expect(saved.plate, 'TAB 123');
+      expect(saved.online, isFalse);
+      await expectLater(
+        drivers.setOnline(true, null),
+        throwsA(isA<DriverException>().having((e) => e.error, 'error', DriverError.noLocation)),
+      );
+      await drivers.setOnline(true, here);
+
+      drivers.addRequest(offer('r1'));
+      expect((await drivers.watchOpenRequests(here).first).single.id, 'r1');
+
+      await drivers.accept(offer('r1'), here);
+      expect(await drivers.watchOpenRequests(here).first, isEmpty);
+      final active = (await drivers.watchActiveRide().first)!;
+      expect(active.status, RideStatus.driverAssigned);
+      expect(active.driver!.plate, 'TAB 123');
+      await expectLater(
+        drivers.accept(offer('r1'), here),
+        throwsA(isA<DriverException>().having((e) => e.error, 'error', DriverError.rideTaken)),
+      );
+
+      for (final next in [RideStatus.driverArrived, RideStatus.inProgress]) {
+        await drivers.advance('r1', next, here);
+        expect((await drivers.watchActiveRide().first)!.status, next);
+      }
+      await drivers.advance('r1', RideStatus.completed, here);
+      expect(await drivers.watchActiveRide().first, isNull);
+    });
+  });
+
+  test('gerçek şoför konumundan yolcunun gördüğü ilerleme hesaplanır', () {
+    final request = _request();
+    // Yolcuya gelirken: kuş uçuşu 5 km → ~10 dk.
+    final approach = progressFor(RideStatus.driverAssigned, const LatLng(35.2306, 33.3823), request)!;
+    expect(approach.fraction, 0);
+    expect(approach.minutesLeft, inInclusiveRange(9, 11));
+    // Yolculukta: varış noktasında → bitti sayılır.
+    final atEnd = progressFor(RideStatus.inProgress, request.route.points.last, request)!;
+    expect(atEnd.fraction, 1);
+    expect(atEnd.minutesLeft, 0);
+    expect(progressFor(RideStatus.driverAssigned, null, request), isNull);
   });
 }
