@@ -247,6 +247,8 @@
   "saveDriver": "Finish sign-up",
   "driverOnline": "You're online",
   "driverOffline": "You're offline",
+  "driverPendingTitle": "Your application is being reviewed",
+  "driverPendingHint": "Once your plate and car details are checked you can receive requests. This screen updates by itself when you are approved.",
   "driverOfflineHint": "Go online to receive requests. Your location is shared while the app is open.",
   "noOpenRequests": "No requests right now. New requests will appear here.",
   "openRequests": "Open requests",

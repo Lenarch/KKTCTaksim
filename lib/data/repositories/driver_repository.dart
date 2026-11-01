@@ -11,16 +11,20 @@ class DriverProfile {
   final CarColor carColor;
   final bool online;
 
+  /// Yönetici onayı (Firebase konsolundan verilir); onaysız şoför çevrimiçi olamaz.
+  final bool approved;
+
   const DriverProfile({
     required this.name,
     required this.plate,
     required this.car,
     required this.carColor,
     this.online = false,
+    this.approved = false,
   });
 }
 
-enum DriverError { notRegistered, rideTaken, noLocation }
+enum DriverError { notRegistered, notApproved, rideTaken, noLocation }
 
 class DriverException implements Exception {
   final DriverError error;
@@ -32,7 +36,7 @@ class DriverException implements Exception {
 }
 
 /// Şoför tarafı: kayıt, çevrimiçi olma, çağrıları görme ve kabul etme, yolculuğu ilerletme.
-/// Şoför kaydı şimdilik onaysız (bkz. docs/UYARILAR.md).
+/// Şoför kaydı başvurudur: yönetici `approved` verene kadar çevrimiçi olunamaz.
 abstract class DriverRepository {
   /// Giriş yapan kullanıcının şoför kaydı; kayıtlı değilse null.
   Stream<DriverProfile?> watchProfile();

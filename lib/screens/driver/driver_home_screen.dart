@@ -95,6 +95,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           DriverError.rideTaken => l10n.rideTaken,
           DriverError.noLocation => l10n.driverNeedsLocation,
           DriverError.notRegistered => l10n.actionFailed,
+          DriverError.notApproved => l10n.driverPendingTitle,
         });
       }
     } catch (e) {
@@ -203,18 +204,28 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.xl),
             children: [
-              Card(
-                child: SwitchListTile(
-                  key: const ValueKey('online'),
-                  value: online,
-                  onChanged: _busy || active != null ? null : _setOnline,
-                  title: Text(online ? l10n.driverOnline : l10n.driverOffline,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('${widget.profile.name} • ${widget.profile.plate}'),
-                  activeThumbColor: AppTheme.primaryBlack,
-                  activeTrackColor: AppTheme.primaryYellow,
+              if (!widget.profile.approved)
+                Card(
+                  key: const ValueKey('pending'),
+                  child: ListTile(
+                    leading: const Icon(Icons.hourglass_top),
+                    title: Text(l10n.driverPendingTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${widget.profile.name} • ${widget.profile.plate}\n${l10n.driverPendingHint}'),
+                  ),
+                )
+              else
+                Card(
+                  child: SwitchListTile(
+                    key: const ValueKey('online'),
+                    value: online,
+                    onChanged: _busy || active != null ? null : _setOnline,
+                    title: Text(online ? l10n.driverOnline : l10n.driverOffline,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${widget.profile.name} • ${widget.profile.plate}'),
+                    activeThumbColor: AppTheme.primaryBlack,
+                    activeTrackColor: AppTheme.primaryYellow,
+                  ),
                 ),
-              ),
               const SizedBox(height: AppSpacing.xl),
               if (active != null)
                 _ActiveRideCard(
@@ -224,6 +235,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   onCancel: () => _cancel(active),
                   onNavigate: _navigate,
                 )
+              else if (!widget.profile.approved)
+                const SizedBox.shrink()
               else if (!online)
                 _Hint(text: l10n.driverOfflineHint)
               else if (_openRequests == null)

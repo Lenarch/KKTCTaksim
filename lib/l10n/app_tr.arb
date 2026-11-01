@@ -498,6 +498,8 @@
   "saveDriver": "Kaydı tamamla",
   "driverOnline": "Çevrimiçisin",
   "driverOffline": "Çevrimdışısın",
+  "driverPendingTitle": "Başvurun inceleniyor",
+  "driverPendingHint": "Plaka ve araç bilgilerin kontrol edilince çağrı alabileceksin. Onaylanınca bu ekran kendiliğinden açılır.",
   "driverOfflineHint": "Çağrı almak için çevrimiçi ol. Uygulama açık kaldığı sürece konumun paylaşılır.",
   "noOpenRequests": "Şu an bekleyen çağrı yok. Yeni çağrılar burada görünecek.",
   "openRequests": "Bekleyen çağrılar",

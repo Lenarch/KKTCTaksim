@@ -552,6 +552,17 @@ void main() {
       drivers = MockDriverRepository(auth);
     });
 
+    test('onay bekleyen şoför çevrimiçi olamaz', () async {
+      final pending = MockDriverRepository(auth, autoApprove: false);
+      await _signIn(auth);
+      await pending.register(profile);
+      expect((await pending.watchProfile().first)!.approved, isFalse);
+      await expectLater(
+        pending.setOnline(true, here),
+        throwsA(isA<DriverException>().having((e) => e.error, 'error', DriverError.notApproved)),
+      );
+    });
+
     test('kayıt, çevrimiçi olma (konum şart), çağrıyı kabul ve sırayla ilerletme', () async {
       await _signIn(auth);
       expect(await drivers.watchProfile().first, isNull);

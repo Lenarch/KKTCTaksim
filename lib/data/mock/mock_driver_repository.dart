@@ -16,7 +16,11 @@ class MockDriverRepository implements DriverRepository {
   final List<RideOffer> _rides = [];
   LatLng? lastPosition;
 
-  MockDriverRepository(this._auth);
+  /// Gerçekte yönetici onaylar; testlerde yeni kayıt kendiliğinden onaylı sayılır, onay bekleyen
+  /// şoförü denemek için false verilir.
+  final bool autoApprove;
+
+  MockDriverRepository(this._auth, {this.autoApprove = true});
 
   String get _userId {
     final user = _auth.currentUser;
@@ -47,6 +51,7 @@ class MockDriverRepository implements DriverRepository {
       car: profile.car.trim(),
       carColor: profile.carColor,
       online: current?.online ?? false,
+      approved: current?.approved ?? autoApprove,
     );
     _changes.add(null);
   }
@@ -56,12 +61,14 @@ class MockDriverRepository implements DriverRepository {
     if (online && position == null) throw const DriverException(DriverError.noLocation);
     final profile = _profiles[_userId];
     if (profile == null) throw const DriverException(DriverError.notRegistered);
+    if (online && !profile.approved) throw const DriverException(DriverError.notApproved);
     _profiles[_userId] = DriverProfile(
       name: profile.name,
       plate: profile.plate,
       car: profile.car,
       carColor: profile.carColor,
       online: online,
+      approved: profile.approved,
     );
     lastPosition = position ?? lastPosition;
     _changes.add(null);

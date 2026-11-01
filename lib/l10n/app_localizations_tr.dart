@@ -838,6 +838,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get driverOffline => 'Çevrimdışısın';
 
   @override
+  String get driverPendingTitle => 'Başvurun inceleniyor';
+
+  @override
+  String get driverPendingHint =>
+      'Plaka ve araç bilgilerin kontrol edilince çağrı alabileceksin. Onaylanınca bu ekran kendiliğinden açılır.';
+
+  @override
   String get driverOfflineHint =>
       'Çağrı almak için çevrimiçi ol. Uygulama açık kaldığı sürece konumun paylaşılır.';
 

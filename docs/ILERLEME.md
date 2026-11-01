@@ -31,8 +31,13 @@ gerekenler ve yayından önce yapılacaklar).
      iptal 5–10 sn'de listeden düştü. Kalan küçük durum: **başka şoförün aldığı** çağrı diğer
      şoförlerin listesinde kalabilir (okuma izni verilmedi, şoför bilgisi sızmasın); kabul edince
      "alınmış" deyip düzeliyor. İki gerçek şoförle denenmedi.
-- Küçük not: alış yeri adı yolcunun dilinde kaydediliyor ("Mevcut konumun"); İngilizce şoför de
-  Türkçe görüyor. Yayından önce: şoför kendi çağrısını alamasın (kural: `passengerId != auth.uid`).
+- **Şoför onayı (1 Kasım, commit edilmedi):** her kullanıcı şoför olabiliyordu (yolcu konumları ve
+  sahte plaka riski). Artık kayıt = başvuru; `drivers/{uid}.approved` yalnızca konsoldan verilir
+  (kurallar + 47 kural testi), onaysız şoför çevrimiçi olamaz/çağrı göremez, şoför kendi çağrısını
+  alamaz. Uygulama "Başvurun inceleniyor" gösterir (TR/EN). **Kurallar yüklendi**, yeni APK emülatörde
+  denendi (onay bekleme ekranı çıkıyor). **Test şoförü Mehmet Test onaylanmadı:** konsoldan onaylanana
+  kadar çağrı alamaz. Tek test numarasıyla kabul akışı artık denenemez (kendi çağrısı); ikinci
+  hesap şart. Alış yeri adı hâlâ yolcunun dilinde kaydediliyor.
 - Web'de girişte reCAPTCHA resim sorusu çıkabiliyor (uygulama içi tarayıcıda çıktı); Claude çözemez,
   kullanıcı çözer. Web sunucusu: kök klasördeki `.claude/launch.json` ("web", port 8090).
 - Arkadaşın telefonundaki eski APK demo taksiyle çalışıyor (`rides`'ı kullanmıyor; yeni kurallardan
@@ -42,7 +47,8 @@ gerekenler ve yayından önce yapılacaklar).
 **Yapılacaklar (sırayla):**
 1. Yeni APK'yı arkadaşa gönder (kullanıcı); iki telefonla şoför + yolcu denemesi (ikinci gerçek
    numara ya da ikinci test numarası gerekir). Canlı takip linkini B1 ile telefonda dene.
-2. Yayından önce B1: şoför kendi çağrısını alamasın (kural); alış yeri adı dile bağlı kaydediliyor.
+2. Şoför onayını commit et (kullanıcı onayıyla); `apk/KKTCTaksim-test.apk`'yı yeni APK ile güncelle.
+   Arkadaşa söyle: şoför olmak için kayıt + senin konsoldan onayın gerekir.
 3. **Arkadaşın grup açma hatası:** yeni APK hata kodunu ya da "giriş yapmalısın" mesajını
    gösteriyor; gelen ekran görüntüsüne göre düzelt.
 4. **A2'yi iki hesapla dene** (kullanıcı konsoldan ikinci test numarası ekler: `+90 533 000 00 01`

@@ -44,6 +44,7 @@ class FirebaseDriverRepository implements DriverRepository {
             car: data['car'] as String,
             carColor: CarColor.values.byName(data['carColor'] as String),
             online: data['online'] as bool? ?? false,
+            approved: data['approved'] as bool? ?? false,
           );
         });
       });
@@ -66,7 +67,9 @@ class FirebaseDriverRepository implements DriverRepository {
   Future<void> setOnline(bool online, LatLng? position) async {
     if (online && position == null) throw const DriverException(DriverError.noLocation);
     final ref = _drivers.doc(_user.uid);
-    if (!(await ref.get()).exists) throw const DriverException(DriverError.notRegistered);
+    final doc = await ref.get();
+    if (!doc.exists) throw const DriverException(DriverError.notRegistered);
+    if (online && doc.data()?['approved'] != true) throw const DriverException(DriverError.notApproved);
     await ref.update({
       'online': online,
       if (position != null) 'position': pointToJson(position),
@@ -92,6 +95,8 @@ class FirebaseDriverRepository implements DriverRepository {
         final cutoff = DateTime.now().subtract(AppDurations.driverSearchTimeout);
         final offers = snapshot.docs
             .where((doc) => !isRequestExpired(doc.data()['createdAt'], cutoff))
+            // Şoför kendi çağrısını alamaz (kurallar da reddeder); listede gösterme.
+            .where((doc) => doc.data()['passengerId'] != _auth.currentUser?.uid)
             .map(rideOfferFromDocument)
             .toList();
         if (near != null) {

@@ -98,10 +98,13 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
   eksik kalırsa uygulama **reddedilir**, ayrıca kişisel veri mevzuatı (KVKK / KKTC Kişisel Verilerin
   Korunması Yasası) açısından **hukuki risk** doğar. Kontrol: `grep -r "İLETİŞİM E-POSTASI" hosting/`.
 - Gizlilik politikası ve kullanım koşulları **taslak**: yayından önce bir hukukçuya okutulmalı.
-- ⚠️ **ŞOFÖR BELGE KONTROLÜ YOK:** şoförler şimdilik kendileri kaydoluyor ve hemen çağrı alabiliyor
-  (test kolaylığı için, kullanıcı kararı 31 Ekim 2026). Yayından önce ehliyet, ruhsat, taksi plakası
-  ve sigorta belgelerinin yüklenip **onaylanması** ve onaylanmayan şoförün çağrı alamaması
-  (Firestore kurallarında `approved` alanı) eklenmeli. Aksi halde herkes şoför olarak yolcu alabilir.
+- **Şoför onayı (1 Kasım 2026):** şoför kaydı artık başvuru; `drivers/{uid}.approved: true` alanını
+  yalnızca yönetici Firebase konsolundan verir (kurallar istemcinin yazmasını engeller). Onaysız şoför
+  çevrimiçi olamaz, çağrı göremez, kabul edemez; uygulama "Başvurun inceleniyor" der. Şoför kendi
+  çağrısını da alamaz. Onay verme adımı: Firebase konsolu → Firestore → `drivers` → şoförün belgesi →
+  alan ekle `approved` (boolean) `true`.
+- ⚠️ **Yayından önce hâlâ eksik:** ehliyet, ruhsat, taksi plakası ve sigorta belgelerinin yüklenip
+  kontrol edilmesi ve onay için bir yönetici paneli (şimdilik onay elle, konsoldan verilir).
 - Sohbet şikâyetlerini inceleyecek bir süreç: şikâyetler şimdilik yalnızca Firebase konsolunda
   (`reports` koleksiyonu) görülüyor.
 - Şoför uygulaması (rol seçiminde hâlâ "yakında")

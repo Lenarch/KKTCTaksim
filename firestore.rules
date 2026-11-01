@@ -63,8 +63,10 @@ service cloud.firestore {
       }
     }
 
-    // Aşama 5: şoförler. Şimdilik herkes kendini şoför olarak kaydedebilir (belge kontrolü yok;
-    // docs/UYARILAR.md). Giriş yapan herkes okur: yolcu kendisine atanan şoförü görür.
+    // Aşama 5: şoförler. Herkes şoför olmak için başvurabilir, ama `approved: true` alanını yalnızca
+    // yönetici (Firebase konsolu / Admin SDK) yazar; kurallar istemcinin bu alanı koymasına ya da
+    // değiştirmesine izin vermez. Onaysız şoför çevrimiçi olamaz ve çağrı göremez (rides kuralları).
+    // Giriş yapan herkes okur: yolcu kendisine atanan şoförü görür.
     match /drivers/{uid} {
       function isPoint(p) {
         return p is map && p.keys().hasAll(['lat', 'lng']) && p.keys().hasOnly(['lat', 'lng'])
@@ -78,19 +80,25 @@ service cloud.firestore {
 
       function isValidDriver(data) {
         return data.keys().hasAll(['name', 'plate', 'car', 'carColor', 'phone', 'online', 'updatedAt'])
-          && data.keys().hasOnly(['name', 'plate', 'car', 'carColor', 'phone', 'online', 'position', 'updatedAt'])
+          && data.keys().hasOnly(['name', 'plate', 'car', 'carColor', 'phone', 'online', 'position', 'updatedAt',
+              'approved'])
           && isShortText(data.name, 80)
           && isShortText(data.plate, 20)
           && isShortText(data.car, 80)
           && data.carColor in ['white', 'silver', 'black']
           && data.phone == request.auth.token.phone_number
           && data.online is bool
+          && (data.online == false || data.get('approved', false) == true)
           && (!('position' in data) || data.position == null || isPoint(data.position))
           && data.updatedAt == request.time;
       }
 
       allow read: if request.auth != null;
-      allow create, update: if request.auth != null && request.auth.uid == uid
+      allow create: if request.auth != null && request.auth.uid == uid
+        && !('approved' in request.resource.data)
+        && isValidDriver(request.resource.data);
+      allow update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.get('approved', false) == resource.data.get('approved', false)
         && isValidDriver(request.resource.data);
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
@@ -121,7 +129,8 @@ service cloud.firestore {
       function isOnlineDriver() {
         return signedIn()
           && exists(/databases/$(database)/documents/drivers/$(request.auth.uid))
-          && driverDoc().data.online == true;
+          && driverDoc().data.online == true
+          && driverDoc().data.get('approved', false) == true;
       }
 
       function isPassenger() {
@@ -176,6 +185,7 @@ service cloud.firestore {
           && request.resource.data.rating >= 1 && request.resource.data.rating <= 5)
         // Çevrimiçi şoför: bekleyen çağrıyı kendine alır.
         || (isOnlineDriver()
+          && resource.data.passengerId != request.auth.uid
           && resource.data.status == 'searching' && next() == 'driverAssigned'
           && changes(['status', 'driverId', 'driver', 'driverPosition', 'updatedAt'])
           && request.resource.data.driverId == request.auth.uid

@@ -139,6 +139,7 @@ describe('users/{uid}/trips yolculuk geçmişi', () => {
 });
 
 const CAROL = { uid: 'carol', phone: '+905330000003' };
+const DAVE = { uid: 'dave', phone: '+905330000004' };
 const FUTURE = Date.now() + 24 * 60 * 60 * 1000;
 
 const sharedRide = (overrides = {}) => ({
@@ -427,22 +428,42 @@ const ride = (overrides = {}) => ({
 });
 
 const seedRide = (id, overrides = {}) => seed(`rides/${id}`, { ...ride(overrides), createdAt: 1, updatedAt: 1 });
-const seedDriver = (user, overrides = {}) => seed(`drivers/${user.uid}`, { ...driverProfile(user, overrides), updatedAt: 1 });
+// Yönetici (konsol) onaylı şoför; seed kurallardan geçmez.
+const seedDriver = (user, overrides = {}) => seed(`drivers/${user.uid}`, { ...driverProfile(user, overrides), approved: true, updatedAt: 1 });
 const driverSnapshot = { name: 'Bob', plate: 'TAB 123', car: 'Toyota Corolla', carColor: 'white', phone: BOB.phone };
 
 describe('drivers şoför kaydı', () => {
-  test('kullanıcı kendini şoför olarak kaydeder; giriş yapan herkes okur', async () => {
-    await assertSucceeds(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB)));
+  test('kullanıcı kendini şoför olarak kaydeder (onaysız, çevrimdışı); giriş yapan herkes okur', async () => {
+    await assertSucceeds(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { online: false })));
     await assertSucceeds(getDoc(doc(dbAs(ALICE), 'drivers/bob')));
     await assertFails(getDoc(doc(anonymousDb(), 'drivers/bob')));
   });
 
   test('başkası adına, başka telefonla ya da geçersiz alanla kayıt olmaz', async () => {
-    await assertFails(setDoc(doc(dbAs(ALICE), 'drivers/bob'), driverProfile(BOB)));
-    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { phone: ALICE.phone })));
-    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { carColor: 'pembe' })));
-    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { approved: true })));
-    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { plate: '' })));
+    const offline = { online: false };
+    await assertFails(setDoc(doc(dbAs(ALICE), 'drivers/bob'), driverProfile(BOB, offline)));
+    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { ...offline, phone: ALICE.phone })));
+    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { ...offline, carColor: 'pembe' })));
+    await assertFails(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { ...offline, plate: '' })));
+  });
+
+  test('şoför kendini onaylayamaz; onaysız çevrimiçi olamaz', async () => {
+    const ref = doc(dbAs(BOB), 'drivers/bob');
+    await assertFails(setDoc(ref, driverProfile(BOB, { online: false, approved: true })));
+    await assertFails(setDoc(ref, driverProfile(BOB, { online: true })));
+    await assertSucceeds(setDoc(ref, driverProfile(BOB, { online: false })));
+    await assertFails(updateDoc(ref, { online: true, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { approved: true, updatedAt: serverTimestamp() }));
+  });
+
+  test('onaylı şoför çevrimiçi olur ama onayı değiştiremez; silip yeniden kaydolunca onay gider', async () => {
+    await seedDriver(BOB, { online: false });
+    const ref = doc(dbAs(BOB), 'drivers/bob');
+    await assertSucceeds(updateDoc(ref, { online: true, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref, { approved: false, updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(ref, { plate: 'ABC 999', updatedAt: serverTimestamp() }));
+    await assertSucceeds(deleteDoc(ref));
+    await assertFails(setDoc(ref, driverProfile(BOB, { online: true })));
   });
 });
 
@@ -456,10 +477,13 @@ describe('rides çağrılar ve eşleştirme', () => {
     await assertFails(setDoc(doc(db, 'rides/r5'), ride({ taxiType: 'limuzin' })));
   });
 
-  test('bekleyen çağrıyı yalnızca çevrimiçi şoförler görür', async () => {
+  test('bekleyen çağrıyı yalnızca onaylı, çevrimiçi şoförler görür', async () => {
     await seedRide('r1');
     await seedDriver(BOB);
     await seedDriver(CAROL, { online: false });
+    await seed('drivers/dave', { ...driverProfile(DAVE), updatedAt: 1 }); // çevrimiçi ama onaysız
+    await assertFails(getDoc(doc(dbAs(DAVE), 'rides/r1')));
+    await assertFails(getDocs(query(collection(dbAs(DAVE), 'rides'), where('status', '==', 'searching'))));
     await assertSucceeds(getDocs(query(collection(dbAs(BOB), 'rides'), where('status', '==', 'searching'))));
     await assertFails(getDocs(query(collection(dbAs(CAROL), 'rides'), where('status', '==', 'searching'))));
     await assertFails(getDoc(doc(dbAs(CAROL), 'rides/r1')));
@@ -497,6 +521,20 @@ describe('rides çağrılar ve eşleştirme', () => {
     await assertFails(getDoc(doc(dbAs(CAROL), 'rides/r1')));
     await assertSucceeds(getDoc(doc(dbAs(BOB), 'rides/r1')));
     await assertSucceeds(getDoc(doc(dbAs(ALICE), 'rides/r1')));
+  });
+
+  test('şoför kendi çağrısını alamaz; onaysız şoför de alamaz', async () => {
+    await seedRide('r1', { passengerId: 'bob' });
+    await seedRide('r2');
+    await seedDriver(BOB);
+    await seed('drivers/dave', { ...driverProfile(DAVE), updatedAt: 1 });
+    const accept = (user, id) => updateDoc(doc(dbAs(user), `rides/${id}`), {
+      status: 'driverAssigned', driverId: user.uid, driver: driverSnapshot,
+      driverPosition: { lat: 35.18, lng: 33.38 }, updatedAt: serverTimestamp(),
+    });
+    await assertFails(accept(BOB, 'r1'));
+    await assertFails(accept(DAVE, 'r2'));
+    await assertSucceeds(accept(BOB, 'r2'));
   });
 
   test('atanan şoför konum yeniler ve sırayla vardı → başladı → bitti', async () => {

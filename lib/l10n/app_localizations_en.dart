@@ -873,6 +873,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get driverOffline => 'You\'re offline';
 
   @override
+  String get driverPendingTitle => 'Your application is being reviewed';
+
+  @override
+  String get driverPendingHint =>
+      'Once your plate and car details are checked you can receive requests. This screen updates by itself when you are approved.';
+
+  @override
   String get driverOfflineHint =>
       'Go online to receive requests. Your location is shared while the app is open.';
 

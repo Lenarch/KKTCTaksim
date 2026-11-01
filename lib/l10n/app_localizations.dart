@@ -1582,6 +1582,18 @@ abstract class AppLocalizations {
   /// **'Çevrimdışısın'**
   String get driverOffline;
 
+  /// No description provided for @driverPendingTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Başvurun inceleniyor'**
+  String get driverPendingTitle;
+
+  /// No description provided for @driverPendingHint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Plaka ve araç bilgilerin kontrol edilince çağrı alabileceksin. Onaylanınca bu ekran kendiliğinden açılır.'**
+  String get driverPendingHint;
+
   /// No description provided for @driverOfflineHint.
   ///
   /// In tr, this message translates to:
