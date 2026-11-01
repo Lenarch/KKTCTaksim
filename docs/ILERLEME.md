@@ -31,13 +31,15 @@ gerekenler ve yayından önce yapılacaklar).
      iptal 5–10 sn'de listeden düştü. Kalan küçük durum: **başka şoförün aldığı** çağrı diğer
      şoförlerin listesinde kalabilir (okuma izni verilmedi, şoför bilgisi sızmasın); kabul edince
      "alınmış" deyip düzeliyor. İki gerçek şoförle denenmedi.
-- **Şoför onayı (1 Kasım, commit edilmedi):** her kullanıcı şoför olabiliyordu (yolcu konumları ve
+- **Şoför onayı (1 Kasım, dal `ozellik/sofor-onayi`, `a5ddffe`, gönderilmedi):** her kullanıcı şoför olabiliyordu (yolcu konumları ve
   sahte plaka riski). Artık kayıt = başvuru; `drivers/{uid}.approved` yalnızca konsoldan verilir
   (kurallar + 47 kural testi), onaysız şoför çevrimiçi olamaz/çağrı göremez, şoför kendi çağrısını
   alamaz. Uygulama "Başvurun inceleniyor" gösterir (TR/EN). **Kurallar yüklendi**, yeni APK emülatörde
-  denendi (onay bekleme ekranı çıkıyor). **Test şoförü Mehmet Test onaylanmadı:** konsoldan onaylanana
-  kadar çağrı alamaz. Tek test numarasıyla kabul akışı artık denenemez (kendi çağrısı); ikinci
-  hesap şart. Alış yeri adı hâlâ yolcunun dilinde kaydediliyor.
+  denendi (onay bekleme ekranı çıkıyor). Kullanıcı Mehmet Test'i konsoldan onayladı (`approved: true`);
+  ekran kendiliğinden açıldı. **İki farklı hesapla uçtan uca denendi:** şoför `+90 533 000 00 00`
+  (emülatör), yolcu `+90 533 000 00 01` (web; **test kodu 654321**, `123456` değil): çağrı → kabul →
+  vardım → başlat → bitir → puan → Geçmiş "Tamamlandı ₺1.355". Tek hesapla kabul artık denenemez
+  (kendi çağrısı). Alış yeri adı hâlâ yolcunun dilinde kaydediliyor.
 - Web'de girişte reCAPTCHA resim sorusu çıkabiliyor (uygulama içi tarayıcıda çıktı); Claude çözemez,
   kullanıcı çözer. Web sunucusu: kök klasördeki `.claude/launch.json` ("web", port 8090).
 - Arkadaşın telefonundaki eski APK demo taksiyle çalışıyor (`rides`'ı kullanmıyor; yeni kurallardan
