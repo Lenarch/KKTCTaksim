@@ -40,7 +40,7 @@ gerekenler ve yayından önce yapılacaklar).
   (emülatör), yolcu `+90 533 000 00 01` (web; **test kodu 654321**, `123456` değil): çağrı → kabul →
   vardım → başlat → bitir → puan → Geçmiş "Tamamlandı ₺1.355". Tek hesapla kabul artık denenemez
   (kendi çağrısı). Alış yeri adı hâlâ yolcunun dilinde kaydediliyor.
-- **Şoför haritası (1 Kasım, dal `ozellik/sofor-haritasi`, gönderilmedi):** şoför ekranı artık tam ekran
+- **Şoför haritası (1 Kasım, `main`'de, `b7d3866`, gönderildi):** şoför ekranı artık tam ekran
   harita + alt panel (plan `C:\Users\MONSTER\.claude\plans\tidy-napping-harbor.md`). Haritada şoförün
   taksi ikonu, bekleyen çağrıların alış noktaları (karta dokununca harita oraya gider); yolculukta
   OSRM rotası şoför → alış, sonra şoför → varış çizilir, kartta "Yolcuya 7,3 km • 17 dk" /
@@ -59,8 +59,10 @@ gerekenler ve yayından önce yapılacaklar).
 **Yapılacaklar (sırayla):**
 1. Yeni APK'yı arkadaşa gönder (kullanıcı); iki telefonla şoför + yolcu denemesi (ikinci gerçek
    numara ya da ikinci test numarası gerekir). Canlı takip linkini B1 ile telefonda dene.
-2. Şoför haritasını kullanıcı onayıyla `main`'e birleştir ve gönder; `apk/KKTCTaksim-test.apk`'yı
-   yeni APK ile güncelle (kullanıcı onayıyla). Arkadaşa söyle: şoför olmak için kayıt + konsoldan onay.
+2. `apk/KKTCTaksim-test.apk`'yı yeni APK ile güncelle (kullanıcı onayıyla; yeni derleme
+   `buildpp\outputslutter-apkpp-release.apk`). Arkadaşa söyle: şoför olmak için kayıt + konsoldan onay.
+   **Kullanıcı şoför tarafında birkaç değişiklik daha isteyecek** (1 Kasım'da düşünüyor, mola verdik): onları
+   dinle, büyükse önce plan modu.
 3. **Arkadaşın grup açma hatası:** yeni APK hata kodunu ya da "giriş yapmalısın" mesajını
    gösteriyor; gelen ekran görüntüsüne göre düzelt.
 4. **A2'yi iki hesapla dene** (kullanıcı konsoldan ikinci test numarası ekler: `+90 533 000 00 01`
