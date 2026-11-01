@@ -31,7 +31,7 @@ gerekenler ve yayından önce yapılacaklar).
      iptal 5–10 sn'de listeden düştü. Kalan küçük durum: **başka şoförün aldığı** çağrı diğer
      şoförlerin listesinde kalabilir (okuma izni verilmedi, şoför bilgisi sızmasın); kabul edince
      "alınmış" deyip düzeliyor. İki gerçek şoförle denenmedi.
-- **Şoför onayı (1 Kasım, dal `ozellik/sofor-onayi`, `a5ddffe`, gönderilmedi):** her kullanıcı şoför olabiliyordu (yolcu konumları ve
+- **Şoför onayı (1 Kasım, `main`'de, `c2dd662`, gönderildi):** her kullanıcı şoför olabiliyordu (yolcu konumları ve
   sahte plaka riski). Artık kayıt = başvuru; `drivers/{uid}.approved` yalnızca konsoldan verilir
   (kurallar + 47 kural testi), onaysız şoför çevrimiçi olamaz/çağrı göremez, şoför kendi çağrısını
   alamaz. Uygulama "Başvurun inceleniyor" gösterir (TR/EN). **Kurallar yüklendi**, yeni APK emülatörde
@@ -40,6 +40,16 @@ gerekenler ve yayından önce yapılacaklar).
   (emülatör), yolcu `+90 533 000 00 01` (web; **test kodu 654321**, `123456` değil): çağrı → kabul →
   vardım → başlat → bitir → puan → Geçmiş "Tamamlandı ₺1.355". Tek hesapla kabul artık denenemez
   (kendi çağrısı). Alış yeri adı hâlâ yolcunun dilinde kaydediliyor.
+- **Şoför haritası (1 Kasım, dal `ozellik/sofor-haritasi`, gönderilmedi):** şoför ekranı artık tam ekran
+  harita + alt panel (plan `C:\Users\MONSTER\.claude\plans\tidy-napping-harbor.md`). Haritada şoförün
+  taksi ikonu, bekleyen çağrıların alış noktaları (karta dokununca harita oraya gider); yolculukta
+  OSRM rotası şoför → alış, sonra şoför → varış çizilir, kartta "Yolcuya 7,3 km • 17 dk" /
+  "Varışa …" (konum geldikçe azalır), kamera şoförü izler (haritaya dokununca durur, "Konumuma git"
+  açar). Şoför rotadan 60 m saparsa en fazla 15 sn'de bir yeni rota istenir (`driver_navigation.dart`).
+  Sesli/adım adım tarif yok; "Google Haritalar'da aç" yedek. Emülatör (şoför) + web (yolcu `…01`) ile
+  uçtan uca denendi: rota çizildi, kalan 7,3 km → 6,3 → 1,2 km → 371 m, varışa geçiş, bitirince panel
+  çağrı listesine döndü. Testler 57/57. Rota sığdırmada üst kart payı sonradan eklendi (emülatörde
+  ayrıca bakılmadı). OSRM demo bazen dolambaçlı rota veriyor (2 km'lik yol 7,3 km çıktı).
 - Web'de girişte reCAPTCHA resim sorusu çıkabiliyor (uygulama içi tarayıcıda çıktı); Claude çözemez,
   kullanıcı çözer. Web sunucusu: kök klasördeki `.claude/launch.json` ("web", port 8090).
 - Arkadaşın telefonundaki eski APK demo taksiyle çalışıyor (`rides`'ı kullanmıyor; yeni kurallardan
@@ -49,8 +59,8 @@ gerekenler ve yayından önce yapılacaklar).
 **Yapılacaklar (sırayla):**
 1. Yeni APK'yı arkadaşa gönder (kullanıcı); iki telefonla şoför + yolcu denemesi (ikinci gerçek
    numara ya da ikinci test numarası gerekir). Canlı takip linkini B1 ile telefonda dene.
-2. Şoför onayını commit et (kullanıcı onayıyla); `apk/KKTCTaksim-test.apk`'yı yeni APK ile güncelle.
-   Arkadaşa söyle: şoför olmak için kayıt + senin konsoldan onayın gerekir.
+2. Şoför haritasını kullanıcı onayıyla `main`'e birleştir ve gönder; `apk/KKTCTaksim-test.apk`'yı
+   yeni APK ile güncelle (kullanıcı onayıyla). Arkadaşa söyle: şoför olmak için kayıt + konsoldan onay.
 3. **Arkadaşın grup açma hatası:** yeni APK hata kodunu ya da "giriş yapmalısın" mesajını
    gösteriyor; gelen ekran görüntüsüne göre düzelt.
 4. **A2'yi iki hesapla dene** (kullanıcı konsoldan ikinci test numarası ekler: `+90 533 000 00 01`

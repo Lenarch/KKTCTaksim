@@ -515,6 +515,29 @@
   "cancelRideDriver": "Çağrıyı iptal et",
   "cancelRideDriverMessage": "Yolcunun çağrısı iptal edilecek.",
   "navigate": "Yol tarifi",
+  "openInGoogleMaps": "Google Haritalar'da aç",
+  "remainingToPickup": "Yolcuya {distance} • {duration}",
+  "@remainingToPickup": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "remainingToDestination": "Varışa {distance} • {duration}",
+  "@remainingToDestination": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
   "rideFinishedDriver": "Yolculuk tamamlandı.",
   "pickupDistance": "Yolcu {distance} uzakta",
   "@pickupDistance": {

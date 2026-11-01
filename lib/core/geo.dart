@@ -74,6 +74,29 @@ LatLng pointAlong(List<LatLng> path, double fraction) {
   return path.last;
 }
 
+/// [point]'in [path] çizgisine en kısa uzaklığı (metre). Kısa mesafelerde düzlem varsayımı yeterli;
+/// şoförün rotadan sapıp sapmadığını anlamak için.
+double distanceToPath(List<LatLng> path, LatLng point) {
+  if (path.isEmpty) return double.infinity;
+  if (path.length == 1) return distanceMeters(path.first, point);
+  const metersPerDegreeLat = _earthRadiusMeters * math.pi / 180;
+  final metersPerDegreeLng = metersPerDegreeLat * math.cos(_radians(point.latitude));
+  var best = double.infinity;
+  for (var i = 1; i < path.length; i++) {
+    // Noktaya göre metre cinsinden düzlem koordinatları.
+    final ax = (path[i - 1].longitude - point.longitude) * metersPerDegreeLng;
+    final ay = (path[i - 1].latitude - point.latitude) * metersPerDegreeLat;
+    final bx = (path[i].longitude - point.longitude) * metersPerDegreeLng;
+    final by = (path[i].latitude - point.latitude) * metersPerDegreeLat;
+    final dx = bx - ax, dy = by - ay;
+    final lengthSquared = dx * dx + dy * dy;
+    final t = lengthSquared == 0 ? 0.0 : (-(ax * dx + ay * dy) / lengthSquared).clamp(0.0, 1.0);
+    final x = ax + dx * t, y = ay + dy * t;
+    best = math.min(best, math.sqrt(x * x + y * y));
+  }
+  return best;
+}
+
 /// Noktaların hepsini içine alan en küçük dikdörtgen.
 LatLngBounds boundsOf(List<LatLng> points) {
   var south = points.first.latitude, north = south;

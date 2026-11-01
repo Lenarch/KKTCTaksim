@@ -10,6 +10,9 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
   İlgili dosyalar: `lib/services/geocoding_service.dart`, `lib/services/routing_service.dart`.
 - OSRM bazı rotaları olduğundan uzun çiziyor. Örnek: Lefkoşa → Bellapais 35,7 km çıktı; karayoluyla
   yaklaşık 22 km olmalı. Fiyat tahmini bu mesafeye göre hesaplandığı için fiyat da yüksek çıkar.
+- Şoför haritasındaki rota da OSRM demo sunucusundan gelir: şoför saptıkça en fazla 15 sn'de bir yeni
+  rota istenir. Çok şoförle demo sunucusu sınıra takılabilir; yayından önce kendi OSRM sunucumuz şart.
+  Sesli ya da adım adım tarif yok; şoför isterse "Google Haritalar'da aç" ile dış uygulamaya geçer.
 - Rota servisine ulaşılamazsa mesafe kuş uçuşunun 1,3 katı olarak tahmin edilir ve ekranda
   "Yaklaşık" yazar.
 

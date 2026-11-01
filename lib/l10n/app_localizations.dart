@@ -1684,6 +1684,24 @@ abstract class AppLocalizations {
   /// **'Yol tarifi'**
   String get navigate;
 
+  /// No description provided for @openInGoogleMaps.
+  ///
+  /// In tr, this message translates to:
+  /// **'Google Haritalar\'da aç'**
+  String get openInGoogleMaps;
+
+  /// No description provided for @remainingToPickup.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yolcuya {distance} • {duration}'**
+  String remainingToPickup(String distance, String duration);
+
+  /// No description provided for @remainingToDestination.
+  ///
+  /// In tr, this message translates to:
+  /// **'Varışa {distance} • {duration}'**
+  String remainingToDestination(String distance, String duration);
+
   /// No description provided for @rideFinishedDriver.
   ///
   /// In tr, this message translates to:

@@ -49,6 +49,9 @@ class AppDurations {
   static const Duration driverRidePositionInterval = Duration(seconds: 5);
   static const Duration driverIdlePositionInterval = Duration(seconds: 30);
 
+  /// Şoför rotadan saparsa rota en fazla bu aralıkla yeniden istenir (OSRM demo sunucusu).
+  static const Duration driverRerouteInterval = Duration(seconds: 15);
+
   /// Canlı konum paylaşımında konum en fazla bu aralıkla yazılır (Firestore yazma kotası).
   static const Duration liveShareInterval = Duration(seconds: 10);
 

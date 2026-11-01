@@ -21,6 +21,10 @@ class RideMap extends StatefulWidget {
   final List<LatLng> route;
   final LatLng? destination;
 
+  /// Şoför haritası: atanan yolculuğun alış noktası ve bekleyen çağrıların alış noktaları.
+  final LatLng? pickup;
+  final List<LatLng> requestPins;
+
   const RideMap({
     super.key,
     required this.initialCenter,
@@ -29,6 +33,8 @@ class RideMap extends StatefulWidget {
     this.assignedTaxi,
     this.route = const [],
     this.destination,
+    this.pickup,
+    this.requestPins = const [],
   });
 
   @override
@@ -88,15 +94,16 @@ class RideMapState extends State<RideMap> {
     await _controller?.animateCamera(CameraUpdate.newLatLngZoom(target, zoom));
   }
 
-  /// Noktaların hepsini gösterir; [bottomInset] kadar alt kısım (açık sheet) boş bırakılır.
-  Future<void> fitPoints(List<LatLng> points, {double bottomInset = 0}) async {
+  /// Noktaların hepsini gösterir; [bottomInset] kadar alt kısım (açık sheet) ve [topInset] kadar üst
+  /// kısım (haritanın üstündeki kart) boş bırakılır.
+  Future<void> fitPoints(List<LatLng> points, {double bottomInset = 0, double topInset = 0}) async {
     if (points.isEmpty) return;
     if (points.length == 1) return moveTo(points.first);
     const margin = AppSpacing.huge;
     await _controller?.animateCamera(CameraUpdate.newLatLngBounds(
       boundsOf(points),
       left: margin,
-      top: margin * 2,
+      top: margin * 2 + topInset,
       right: margin,
       bottom: margin + bottomInset,
     ));
@@ -132,7 +139,9 @@ class RideMapState extends State<RideMap> {
         _needsResync = false;
         final user = widget.userLocation;
         final destination = widget.destination;
-        final key = Object.hashAll([user, destination, ...widget.taxis, ...widget.route]);
+        final pickup = widget.pickup;
+        final key =
+            Object.hashAll([user, destination, pickup, ...widget.taxis, ...widget.route, ...widget.requestPins]);
 
         if (key != _drawnKey) {
           await controller.clearLines();
@@ -157,6 +166,27 @@ class RideMapState extends State<RideMap> {
               circleColor: _hex(AppTheme.locationBlue),
               circleStrokeWidth: 3,
               circleStrokeColor: _hex(AppTheme.white),
+            ));
+          }
+          if (widget.requestPins.isNotEmpty) {
+            await controller.addCircles([
+              for (final pin in widget.requestPins)
+                CircleOptions(
+                  geometry: pin,
+                  circleRadius: 7,
+                  circleColor: _hex(AppTheme.primaryYellow),
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: _hex(AppTheme.primaryBlack),
+                ),
+            ]);
+          }
+          if (pickup != null) {
+            await controller.addCircle(CircleOptions(
+              geometry: pickup,
+              circleRadius: 9,
+              circleColor: _hex(AppTheme.primaryYellow),
+              circleStrokeWidth: 3,
+              circleStrokeColor: _hex(AppTheme.primaryBlack),
             ));
           }
           if (destination != null) {

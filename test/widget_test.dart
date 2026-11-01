@@ -389,6 +389,8 @@ void main() {
 
     expect(find.text('Yolcuya git'), findsOneWidget);
     expect(find.text('Lefkoşa Surlariçi'), findsOneWidget);
+    // Uygulama içi rota haritada; sesli tarif isteyen için Google Haritalar yedek.
+    expect(find.text("Google Haritalar'da aç"), findsOneWidget);
     await tester.tap(find.text('Vardım'));
     await tester.pumpAndSettle();
     expect(find.text('Yolcuyu al'), findsOneWidget);

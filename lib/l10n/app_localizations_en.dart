@@ -929,6 +929,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navigate => 'Directions';
 
   @override
+  String get openInGoogleMaps => 'Open in Google Maps';
+
+  @override
+  String remainingToPickup(String distance, String duration) {
+    return 'To passenger $distance • $duration';
+  }
+
+  @override
+  String remainingToDestination(String distance, String duration) {
+    return 'To destination $distance • $duration';
+  }
+
+  @override
   String get rideFinishedDriver => 'Trip completed.';
 
   @override

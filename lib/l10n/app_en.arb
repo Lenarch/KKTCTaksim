@@ -264,6 +264,9 @@
   "cancelRideDriver": "Cancel request",
   "cancelRideDriverMessage": "The passenger's request will be cancelled.",
   "navigate": "Directions",
+  "openInGoogleMaps": "Open in Google Maps",
+  "remainingToPickup": "To passenger {distance} • {duration}",
+  "remainingToDestination": "To destination {distance} • {duration}",
   "rideFinishedDriver": "Trip completed.",
   "pickupDistance": "Passenger {distance} away"
 }

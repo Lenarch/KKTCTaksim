@@ -893,6 +893,19 @@ class AppLocalizationsTr extends AppLocalizations {
   String get navigate => 'Yol tarifi';
 
   @override
+  String get openInGoogleMaps => 'Google Haritalar\'da aç';
+
+  @override
+  String remainingToPickup(String distance, String duration) {
+    return 'Yolcuya $distance • $duration';
+  }
+
+  @override
+  String remainingToDestination(String distance, String duration) {
+    return 'Varışa $distance • $duration';
+  }
+
+  @override
   String get rideFinishedDriver => 'Yolculuk tamamlandı.';
 
   @override
