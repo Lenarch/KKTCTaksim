@@ -98,3 +98,38 @@ List<GeoPlace> parsePhotonFeatures(Map<String, dynamic> json) {
   }
   return places;
 }
+
+/// Aranan adı adres sonuçlarıyla karşılaştırır, en iyi eşleşmeyi döner; ad tutmuyorsa null.
+/// Yakındaki sonuç öne çıktığı için ilk sonuç başka bir şube ya da alakasız bir yer olabiliyor
+/// ("Niazi's Restaurant Girne" aramasında önce Lefkoşa şubesi geliyordu).
+GeoPlace? bestPlaceMatch(String name, List<GeoPlace> candidates) {
+  final words = _placeWords(name);
+  final distinctive = words.difference(_placeTypeWords).difference(_cityWords);
+  final required = distinctive.isEmpty ? words : distinctive;
+  // Şehir puana girer (doğru şube seçilsin); "restaurant" gibi tür sözcükleri girmez.
+  final scored = words.difference(_placeTypeWords);
+  GeoPlace? best;
+  var bestScore = 0;
+  for (final place in candidates) {
+    final nameWords = _placeWords(place.name);
+    if (nameWords.intersection(required).isEmpty) continue;
+    final score = nameWords.union(_placeWords(place.address ?? '')).intersection(scored).length;
+    if (score > bestScore) {
+      best = place;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+/// Tek başına aynı yer olduğunu göstermeyen sözcükler.
+const Set<String> _placeTypeWords = {'restaurant', 'restoran', 'restaurants', 'cafe', 'kafe', 'bar', 'otel', 'hotel', 'plaj', 'beach'};
+const Set<String> _cityWords = {'girne', 'lefkosa', 'gazimagusa', 'iskele', 'guzelyurt', 'lefke'};
+
+/// Küçük harfe çevirir, Türkçe harfleri sadeleştirir ve noktalamayı atar ("Eziç" ile "Ezic" aynı sayılsın).
+Set<String> _placeWords(String text) {
+  const letters = {'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'â': 'a', 'î': 'i', 'û': 'u'};
+  final lower = text.replaceAll('İ', 'i').replaceAll('I', 'i').toLowerCase();
+  final plain = lower.split('').map((c) => letters[c] ?? c).join().replaceAll(RegExp(r"['’`]"), '');
+  return plain.split(RegExp(r'[^a-z0-9]+')).where((w) => w.length >= 3).toSet();
+}

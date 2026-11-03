@@ -948,4 +948,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String pickupDistance(String distance) {
     return 'Passenger $distance away';
   }
+
+  @override
+  String get assistantTitle => 'AI assistant';
+
+  @override
+  String get assistantTooltip => 'Where should I go?';
+
+  @override
+  String get assistantIntro =>
+      'Suggests places to go based on where you are and the time of day.';
+
+  @override
+  String get assistantHint => 'E.g. a quiet coffee place';
+
+  @override
+  String get assistantChipNearby => 'What to do nearby?';
+
+  @override
+  String get assistantChipDinner => 'Dinner';
+
+  @override
+  String get assistantChipNature => 'Nature and sea';
+
+  @override
+  String get assistantThinking => 'Thinking…';
+
+  @override
+  String get assistantNoResults =>
+      'I couldn\'t find a suitable place for that. Try asking differently.';
+
+  @override
+  String get assistantFailed =>
+      'The assistant is unavailable right now. Please try again shortly.';
+
+  @override
+  String get assistantLimit =>
+      'You\'ve used today\'s questions. You can ask again tomorrow.';
+
+  @override
+  String get assistantDisclaimer =>
+      'Suggestions come from AI and may be wrong. Check opening hours.';
+
+  @override
+  String get assistantConsentTitle => 'Sharing with AI';
+
+  @override
+  String get assistantConsentBody =>
+      'Your questions and your approximate area (not your exact location) are sent to an AI service to generate suggestions. Continue?';
+
+  @override
+  String get assistantConsentAccept => 'Continue';
+
+  @override
+  String get assistantCallTaxi => 'Call a taxi';
 }

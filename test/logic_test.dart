@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kktc_taksim/data/firebase/firebase_assistant_repository.dart';
+import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kktc_taksim/core/http_headers.dart';
@@ -203,5 +205,41 @@ void main() {
       ['get', 'name'],
     ]);
     expect(layers[1]['layout']['text-field'], '{ref}');
+  });
+
+  test('Asistan yanıtı ayrıştırılır; bozuk ya da boş yanıt boş liste verir', () {
+    final list = parseSuggestions('[{"name":" Escape Beach ","reason":"Sakin plaj"},{"name":""},{"x":1}]');
+    expect(list.map((s) => s.name), ['Escape Beach']);
+    expect(list.single.reason, 'Sakin plaj');
+    expect(parseSuggestions('bozuk'), isEmpty);
+    expect(parseSuggestions(null), isEmpty);
+    expect(parseSuggestions('{}'), isEmpty);
+  });
+
+  group('Önerilen yerin adres eşleşmesi', () {
+    const point = LatLng(35.2, 33.3);
+    const lefkosa = GeoPlace(name: "Niazi's Cafe & Restaurant", address: 'Osmanpaşa Caddesi, Lefkoşa', position: point);
+    const girne = GeoPlace(name: "Niazi's Take Away", address: 'Ziya Rızkı Caddesi, Girne', position: point);
+    const other = GeoPlace(name: "Remzi's Restaurant", address: 'Akasa, Esentepe', position: point);
+
+    test('şehri tutan şube seçilir, ilk sonuç değil', () {
+      expect(bestPlaceMatch("Niazi's Restaurant Girne", [lefkosa, girne, other]), girne);
+    });
+
+    test('Türkçe harf farkı eşleşmeyi bozmaz', () {
+      const place = GeoPlace(name: 'Ezic Peanuts', position: point);
+      expect(bestPlaceMatch('Eziç Peanuts', [place]), place);
+    });
+
+    test('yalnızca genel sözcük tutuyorsa yer reddedilir', () {
+      expect(bestPlaceMatch('Bellapais Restaurant', [other]), isNull);
+      const kebab = GeoPlace(name: 'Girne Kebab', position: point);
+      expect(bestPlaceMatch("Niazi's Girne", [kebab]), isNull);
+    });
+
+    test('ad yalnızca şehirden oluşuyorsa şehir eşleşir', () {
+      const city = GeoPlace(name: 'Girne', position: point);
+      expect(bestPlaceMatch('Girne', [other, city]), city);
+    });
   });
 }

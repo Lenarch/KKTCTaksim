@@ -25,6 +25,7 @@ import 'package:kktc_taksim/services/live_share_controller.dart';
 import 'package:kktc_taksim/services/location_service.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:kktc_taksim/widgets/home/active_trip_sheet.dart';
+import 'package:kktc_taksim/widgets/home/assistant_sheet.dart';
 import 'package:kktc_taksim/widgets/home/destination_sheet.dart';
 import 'package:kktc_taksim/widgets/home/driver_found_sheet.dart';
 import 'package:kktc_taksim/widgets/home/ride_map.dart';
@@ -165,6 +166,16 @@ class HomeScreenState extends State<HomeScreen> {
       case PickOnMapChosen():
         setState(() => _state = RideState.pickingOnMap);
     }
+  }
+
+  Future<void> _openAssistant() async {
+    final place = await showModalBottomSheet<GeoPlace>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => AssistantSheet(geocoding: _geocoding, near: _origin),
+    );
+    if (!mounted || place == null || _state != RideState.idle) return;
+    await _planRide(place);
   }
 
   Future<void> _confirmMapPick() async {
@@ -441,6 +452,15 @@ class HomeScreenState extends State<HomeScreen> {
                   child: const Icon(Icons.gps_fixed),
                 ),
                 if (_state == RideState.idle) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  FloatingActionButton.extended(
+                    heroTag: null,
+                    onPressed: _openAssistant,
+                    backgroundColor: AppTheme.primaryYellow,
+                    foregroundColor: AppTheme.primaryBlack,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: Text(l10n.assistantTooltip),
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                   _SearchCard(onTap: _chooseDestination),
                 ],

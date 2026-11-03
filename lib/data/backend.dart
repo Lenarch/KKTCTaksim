@@ -1,15 +1,18 @@
+import 'package:kktc_taksim/data/firebase/firebase_assistant_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_driver_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_live_share_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_ride_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
+import 'package:kktc_taksim/data/mock/mock_assistant_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_auth_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_driver_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_live_share_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_ride_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_trip_repository.dart';
+import 'package:kktc_taksim/data/repositories/assistant_repository.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
 import 'package:kktc_taksim/data/repositories/driver_repository.dart';
 import 'package:kktc_taksim/data/repositories/live_share_repository.dart';
@@ -26,6 +29,7 @@ class Backend {
   final RideRepository rides;
   final LiveShareRepository liveShares;
   final DriverRepository drivers;
+  final AssistantRepository assistant;
 
   Backend({
     required this.auth,
@@ -34,6 +38,7 @@ class Backend {
     required this.rides,
     required this.liveShares,
     required this.drivers,
+    required this.assistant,
   });
 
   factory Backend.mock() {
@@ -46,6 +51,7 @@ class Backend {
       rides: MockRideRepository(trips: trips),
       liveShares: MockLiveShareRepository(),
       drivers: MockDriverRepository(auth),
+      assistant: MockAssistantRepository(),
     );
   }
 
@@ -60,6 +66,7 @@ class Backend {
       rides: FirebaseRideRepository(trips: trips),
       liveShares: FirebaseLiveShareRepository(),
       drivers: FirebaseDriverRepository(),
+      assistant: FirebaseAssistantRepository(),
     );
   }
 

@@ -8,6 +8,7 @@ import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/firebase_options.dart';
+import 'package:kktc_taksim/services/app_check.dart';
 import 'package:kktc_taksim/screens/driver/driver_shell.dart';
 import 'package:kktc_taksim/screens/login_screen.dart';
 import 'package:kktc_taksim/screens/main_navigation_screen.dart';
@@ -20,6 +21,7 @@ import 'package:kktc_taksim/services/chat_read_state.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await initAssistantFirebase();
   await AppSettings.instance.load();
   await ChatReadState.instance.load();
   Backend.instance = Backend.firebase();

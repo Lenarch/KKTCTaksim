@@ -57,3 +57,6 @@ firestore-tests/node_modules/
 # Claude Code: yerel çalışma notları ve ayarları GitHub'a gitmez
 CLAUDE.md
 .claude/
+
+# App Check debug token (gizli, repoya girmez)
+.appcheck_debug_token

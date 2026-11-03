@@ -114,3 +114,19 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - Firebase test numarası (`+90 533 000 00 00`) silinmeli: bu numara + kodla herkes giriş yapabilir
 - Firestore otomatik yedeklemeyi aç; App Check'i etkinleştir
 - AdMob test kimlikleri gerçek kimliklerle değişmeli
+
+
+## YZ asistanı (yayından önce)
+- Ücretsiz Gemini katmanında gönderilen veri Google tarafından ürün geliştirmede kullanılabilir. Gerçek kullanıcıdan
+  önce ücretli katman (veri kullanılmaz) + bütçe uyarısı + sunucu tarafı kullanıcı başı limit (şimdiki 15/gün limiti yalnızca cihazda).
+- Gizlilik sayfasına (`hosting/public/gizlilik.html`) "yaklaşık bölge ve sorular YZ servisine gönderilir" yazılmalı; hukuk kontrolü.
+- **Şu anki düzen:** Ana proje Blaze olduğu için Gemini orada en az 5 USD ön ödeme istiyor; bu yüzden YZ istekleri faturasız `kktc-taksim-ai` projesine gidiyor. Çıkıştan önce bu projeyi ücretli katmana geçir ya da ana projede ön ödeme yap (veri gizliliği için şart). Bakiye bitince istekler durur, fatura çıkmaz.
+- Ana projede de (`kktctaksim-1ea24`) Gemini API açık ve Android App Check'e kayıtlı duruyor; kullanılmıyor.
+- Ücretsiz kota tahmini: günde yaklaşık yüzlerce–1000 istek, dakikada ~15–30. Google sık değiştirir; çıkıştan önce güncel sayfaya bak.
+- YZ yanlış/kapalı yer önerebilir; arayüzde uyarı var ama çalışma saatlerini doğrulayan bir şey yok.
+
+## App Check (yayından önce)
+- Android, App Check'e Play Integrity ile kayıtlı; test derlemeleri `--dart-define=APPCHECK_DEBUG_TOKEN=...` ile debug token kullanır.
+- Debug token App Check'i aşar: gizli tutulur (`.appcheck_debug_token`, repoya girmez). Token gömülü APK başkasına verilirse token konsoldan iptal edilmeli. **Yayın derlemesi token'sız yapılmalı.**
+- Elden kurulan (Play dışı) APK Play Integrity'den geçemez; asistan bu derlemelerde ancak debug token ile çalışır.
+- Asistan projesinde yalnızca Android kayıtlı; web ve iOS için ayrı uygulama kaydı, App Check ve `app_check.dart` güncellemesi gerekir. O zamana kadar asistan orada hata mesajı gösterir.

@@ -912,4 +912,58 @@ class AppLocalizationsTr extends AppLocalizations {
   String pickupDistance(String distance) {
     return 'Yolcu $distance uzakta';
   }
+
+  @override
+  String get assistantTitle => 'Yapay zekâ asistanı';
+
+  @override
+  String get assistantTooltip => 'Nereye gideyim?';
+
+  @override
+  String get assistantIntro =>
+      'Bulunduğun yere ve saate göre gidebileceğin yerleri önerir.';
+
+  @override
+  String get assistantHint => 'Örn. sakin bir kahve yeri';
+
+  @override
+  String get assistantChipNearby => 'Yakında ne yapılır?';
+
+  @override
+  String get assistantChipDinner => 'Akşam yemeği';
+
+  @override
+  String get assistantChipNature => 'Doğa ve deniz';
+
+  @override
+  String get assistantThinking => 'Düşünüyorum…';
+
+  @override
+  String get assistantNoResults =>
+      'Bu istek için uygun bir yer bulamadım. Başka türlü sormayı dene.';
+
+  @override
+  String get assistantFailed =>
+      'Asistana şu an ulaşılamıyor. Biraz sonra tekrar dene.';
+
+  @override
+  String get assistantLimit =>
+      'Bugünlük soru hakkın doldu. Yarın tekrar sorabilirsin.';
+
+  @override
+  String get assistantDisclaimer =>
+      'Öneriler yapay zekâdan gelir, hatalı olabilir. Çalışma saatlerini kontrol et.';
+
+  @override
+  String get assistantConsentTitle => 'Yapay zekâ ile paylaşım';
+
+  @override
+  String get assistantConsentBody =>
+      'Soruların ve yaklaşık bölgen (tam konumun değil) öneri üretmek için bir yapay zekâ servisine gönderilir. Devam edelim mi?';
+
+  @override
+  String get assistantConsentAccept => 'Devam et';
+
+  @override
+  String get assistantCallTaxi => 'Taksi çağır';
 }

@@ -268,5 +268,21 @@
   "remainingToPickup": "To passenger {distance} • {duration}",
   "remainingToDestination": "To destination {distance} • {duration}",
   "rideFinishedDriver": "Trip completed.",
-  "pickupDistance": "Passenger {distance} away"
+  "pickupDistance": "Passenger {distance} away",
+  "assistantTitle": "AI assistant",
+  "assistantTooltip": "Where should I go?",
+  "assistantIntro": "Suggests places to go based on where you are and the time of day.",
+  "assistantHint": "E.g. a quiet coffee place",
+  "assistantChipNearby": "What to do nearby?",
+  "assistantChipDinner": "Dinner",
+  "assistantChipNature": "Nature and sea",
+  "assistantThinking": "Thinking…",
+  "assistantNoResults": "I couldn't find a suitable place for that. Try asking differently.",
+  "assistantFailed": "The assistant is unavailable right now. Please try again shortly.",
+  "assistantLimit": "You've used today's questions. You can ask again tomorrow.",
+  "assistantDisclaimer": "Suggestions come from AI and may be wrong. Check opening hours.",
+  "assistantConsentTitle": "Sharing with AI",
+  "assistantConsentBody": "Your questions and your approximate area (not your exact location) are sent to an AI service to generate suggestions. Continue?",
+  "assistantConsentAccept": "Continue",
+  "assistantCallTaxi": "Call a taxi"
 }

@@ -5,6 +5,16 @@ oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sor
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
 
+## YZ asistanı (3 Kasım 2026, dal `feature/yz-asistan`, commit edilmedi)
+- **Çalışıyor (yalnızca Android, emülatörde denendi):** haritada "Nereye gideyim?" → popup (`lib/widgets/home/assistant_sheet.dart`) → gerçek Gemini önerileri → "Taksi çağır" → mevcut fiyat/onay ekranı. Çağrı düğmesine basılarak sonuna kadar denenmedi; arkadaşın telefonunda denenmedi.
+- **Ayrı proje:** Ana proje Blaze olduğu için Gemini ön ödeme istedi. YZ istekleri faturasız `kktc-taksim-ai` (Spark) projesine gider (`lib/services/app_check.dart`); Firestore ve giriş ana projede. Model `gemini-3.1-flash-lite`.
+- **Yer doğrulama:** YZ adı Photon'da aranır, `bestPlaceMatch` en iyi eşleşmeyi seçer, tutmayan elenir; kartta bulunan yerin gerçek adı/adresi görünür.
+- **Test derlemesi:** `flutter build apk --release --dart-define=APPCHECK_DEBUG_TOKEN=<.appcheck_debug_token içeriği>`. Token yeni projede kayıtlı. Token'lı APK'yı arkadaşa vermeden önce oku: UYARILAR "App Check".
+- Emülatör `-no-snapshot-save` ile açılırsa kurulan APK kaybolur; yeniden kur.
+- Gemini'nin gerekçe metinleri yanlış olabilir (ör. fıstık dükkânı adlı yeri restoran gibi anlattı); uyarı metni var, doğrulama yok.
+- Küçük bulgu: ana ekranda reklam yüklenince alt kartlar yer değiştiriyor; dokunuş yanlış yere denk gelebilir. Bakılmadı.
+- Testler 65/65, analyze temiz.
+
 ## ÖNCE BUNU OKU (1 Kasım 2026)
 **Durum:**
 - `main` (GitHub): Aşama 0–4, grup sohbeti, Android düzeltmeleri, A1 hesap silme +
@@ -50,6 +60,12 @@ gerekenler ve yayından önce yapılacaklar).
   uçtan uca denendi: rota çizildi, kalan 7,3 km → 6,3 → 1,2 km → 371 m, varışa geçiş, bitirince panel
   çağrı listesine döndü. Testler 57/57. Rota sığdırmada üst kart payı sonradan eklendi (emülatörde
   ayrıca bakılmadı). OSRM demo bazen dolambaçlı rota veriyor (2 km'lik yol 7,3 km çıktı).
+- **Test hesapları (1 Kasım):** Firebase'de test numaraları: `+90 533 000 00 00` kod 123456 (şoför Mehmet Test,
+  onaylı), `…01` kod 654321 (yolcu), `…02` 147258, `…03` 258369, `…04` 147369, `…05` 963852, `…06` 114311.
+  `…02`–`…05` ile emülatörde 4 şoför kaydedildi (Test Sofor 2–5: TST 202 Toyota Corolla beyaz, TST 303
+  Hyundai Elantra gümüş, TST 404 Honda Civic siyah, TST 505 Kia Ceed beyaz). **Dördü de onaylandı** (kullanıcı konsoldan
+  `approved: true` verdi; emülatörde girişle doğrulandı, hepsi şoför ekranını görüyor). Android girişinde reCAPTCHA test
+  numaralarında kendiliğinden geçiyor.
 - Web'de girişte reCAPTCHA resim sorusu çıkabiliyor (uygulama içi tarayıcıda çıktı); Claude çözemez,
   kullanıcı çözer. Web sunucusu: kök klasördeki `.claude/launch.json` ("web", port 8090).
 - Arkadaşın telefonundaki eski APK demo taksiyle çalışıyor (`rides`'ı kullanmıyor; yeni kurallardan

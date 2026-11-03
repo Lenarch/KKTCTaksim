@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,6 +9,10 @@ import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
+import 'package:kktc_taksim/data/repositories/assistant_repository.dart';
+import 'package:kktc_taksim/data/mock/mock_assistant_repository.dart';
+import 'package:kktc_taksim/services/geocoding_service.dart';
+import 'package:kktc_taksim/widgets/home/assistant_sheet.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
@@ -478,5 +484,91 @@ void main() {
     await tester.tap(find.text('İptal Edilen'));
     await tester.pumpAndSettle();
     expect(find.text('Ercan Havalimanı'), findsOneWidget);
+  });
+
+  group('YZ asistanı', () {
+    const photon = '{"features":[{"properties":{"name":"Girne Antik Limanı","state":"Kuzey Kıbrıs Türk Cumhuriyeti"},'
+        '"geometry":{"coordinates":[33.32,35.34]}}]}';
+
+    Future<GeoPlace?> openAssistant(WidgetTester tester, {Future<void> Function()? afterAsk}) async {
+      GeoPlace? chosen;
+      await tester.pumpWidget(localized(Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () async {
+              chosen = await showModalBottomSheet<GeoPlace>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => AssistantSheet(
+                  geocoding: GeocodingService(client: MockClient((_) async => http.Response(photon, 200, headers: {'content-type': 'application/json; charset=utf-8'}))),
+                  near: const LatLng(35.18, 33.38),
+                ),
+              );
+            },
+            child: const Text('aç'),
+          ),
+        ),
+      )));
+      await tester.tap(find.text('aç'));
+      await tester.pumpAndSettle();
+      await afterAsk?.call();
+      return chosen;
+    }
+
+    testWidgets('ilk kullanımda onay ister, öneri gelir, Taksi çağır yeri döndürür', (tester) async {
+      Backend.instance = Backend.mock();
+      GeoPlace? chosen;
+      await tester.pumpWidget(localized(Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () async {
+              chosen = await showModalBottomSheet<GeoPlace>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => AssistantSheet(
+                  geocoding: GeocodingService(client: MockClient((_) async => http.Response(photon, 200, headers: {'content-type': 'application/json; charset=utf-8'}))),
+                  near: const LatLng(35.18, 33.38),
+                ),
+              );
+            },
+            child: const Text('aç'),
+          ),
+        ),
+      )));
+      await tester.tap(find.text('aç'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Akşam yemeği'));
+      await tester.pumpAndSettle();
+      expect(find.text('Yapay zekâ ile paylaşım'), findsOneWidget);
+      await tester.tap(find.text('Devam et'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Girne Antik Limanı'), findsWidgets);
+      await tester.ensureVisible(find.text('Taksi çağır').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Taksi çağır').first);
+      await tester.pumpAndSettle();
+      expect(chosen?.name, 'Girne Antik Limanı');
+      expect(await AppSettings.instance.assistantConsented(), isTrue);
+    });
+
+    testWidgets('servis hata verirse anlaşılır mesaj gösterilir', (tester) async {
+      (Backend.instance.assistant as MockAssistantRepository).failWith = AssistantError.failed;
+      SharedPreferences.setMockInitialValues({'assistantConsent': true});
+      await openAssistant(tester);
+      await tester.tap(find.text('Doğa ve deniz'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ulaşılamıyor'), findsOneWidget);
+    });
+
+    test('günlük soru hakkı dolunca durur, ertesi gün yenilenir', () async {
+      final day = DateTime(2026, 11, 2);
+      for (var i = 0; i < AppSettings.assistantDailyLimit; i++) {
+        expect(await AppSettings.instance.takeAssistantQuota(day), isTrue);
+      }
+      expect(await AppSettings.instance.takeAssistantQuota(day), isFalse);
+      expect(await AppSettings.instance.takeAssistantQuota(day.add(const Duration(days: 1))), isTrue);
+    });
   });
 }

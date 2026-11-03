@@ -1713,6 +1713,102 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Yolcu {distance} uzakta'**
   String pickupDistance(String distance);
+
+  /// No description provided for @assistantTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yapay zekâ asistanı'**
+  String get assistantTitle;
+
+  /// No description provided for @assistantTooltip.
+  ///
+  /// In tr, this message translates to:
+  /// **'Nereye gideyim?'**
+  String get assistantTooltip;
+
+  /// No description provided for @assistantIntro.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bulunduğun yere ve saate göre gidebileceğin yerleri önerir.'**
+  String get assistantIntro;
+
+  /// No description provided for @assistantHint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Örn. sakin bir kahve yeri'**
+  String get assistantHint;
+
+  /// No description provided for @assistantChipNearby.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yakında ne yapılır?'**
+  String get assistantChipNearby;
+
+  /// No description provided for @assistantChipDinner.
+  ///
+  /// In tr, this message translates to:
+  /// **'Akşam yemeği'**
+  String get assistantChipDinner;
+
+  /// No description provided for @assistantChipNature.
+  ///
+  /// In tr, this message translates to:
+  /// **'Doğa ve deniz'**
+  String get assistantChipNature;
+
+  /// No description provided for @assistantThinking.
+  ///
+  /// In tr, this message translates to:
+  /// **'Düşünüyorum…'**
+  String get assistantThinking;
+
+  /// No description provided for @assistantNoResults.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu istek için uygun bir yer bulamadım. Başka türlü sormayı dene.'**
+  String get assistantNoResults;
+
+  /// No description provided for @assistantFailed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Asistana şu an ulaşılamıyor. Biraz sonra tekrar dene.'**
+  String get assistantFailed;
+
+  /// No description provided for @assistantLimit.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bugünlük soru hakkın doldu. Yarın tekrar sorabilirsin.'**
+  String get assistantLimit;
+
+  /// No description provided for @assistantDisclaimer.
+  ///
+  /// In tr, this message translates to:
+  /// **'Öneriler yapay zekâdan gelir, hatalı olabilir. Çalışma saatlerini kontrol et.'**
+  String get assistantDisclaimer;
+
+  /// No description provided for @assistantConsentTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yapay zekâ ile paylaşım'**
+  String get assistantConsentTitle;
+
+  /// No description provided for @assistantConsentBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Soruların ve yaklaşık bölgen (tam konumun değil) öneri üretmek için bir yapay zekâ servisine gönderilir. Devam edelim mi?'**
+  String get assistantConsentBody;
+
+  /// No description provided for @assistantConsentAccept.
+  ///
+  /// In tr, this message translates to:
+  /// **'Devam et'**
+  String get assistantConsentAccept;
+
+  /// No description provided for @assistantCallTaxi.
+  ///
+  /// In tr, this message translates to:
+  /// **'Taksi çağır'**
+  String get assistantCallTaxi;
 }
 
 class _AppLocalizationsDelegate

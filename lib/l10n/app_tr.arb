@@ -546,5 +546,21 @@
         "type": "String"
       }
     }
-  }
+  },
+  "assistantTitle": "Yapay zekâ asistanı",
+  "assistantTooltip": "Nereye gideyim?",
+  "assistantIntro": "Bulunduğun yere ve saate göre gidebileceğin yerleri önerir.",
+  "assistantHint": "Örn. sakin bir kahve yeri",
+  "assistantChipNearby": "Yakında ne yapılır?",
+  "assistantChipDinner": "Akşam yemeği",
+  "assistantChipNature": "Doğa ve deniz",
+  "assistantThinking": "Düşünüyorum…",
+  "assistantNoResults": "Bu istek için uygun bir yer bulamadım. Başka türlü sormayı dene.",
+  "assistantFailed": "Asistana şu an ulaşılamıyor. Biraz sonra tekrar dene.",
+  "assistantLimit": "Bugünlük soru hakkın doldu. Yarın tekrar sorabilirsin.",
+  "assistantDisclaimer": "Öneriler yapay zekâdan gelir, hatalı olabilir. Çalışma saatlerini kontrol et.",
+  "assistantConsentTitle": "Yapay zekâ ile paylaşım",
+  "assistantConsentBody": "Soruların ve yaklaşık bölgen (tam konumun değil) öneri üretmek için bir yapay zekâ servisine gönderilir. Devam edelim mi?",
+  "assistantConsentAccept": "Devam et",
+  "assistantCallTaxi": "Taksi çağır"
 }
