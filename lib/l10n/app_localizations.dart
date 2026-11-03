@@ -1723,7 +1723,7 @@ abstract class AppLocalizations {
   /// No description provided for @assistantTooltip.
   ///
   /// In tr, this message translates to:
-  /// **'Nereye gideyim?'**
+  /// **'Nereye gitmeliyim?'**
   String get assistantTooltip;
 
   /// No description provided for @assistantIntro.

@@ -917,7 +917,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get assistantTitle => 'Yapay zekâ asistanı';
 
   @override
-  String get assistantTooltip => 'Nereye gideyim?';
+  String get assistantTooltip => 'Nereye gitmeliyim?';
 
   @override
   String get assistantIntro =>

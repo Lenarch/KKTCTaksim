@@ -6,7 +6,7 @@ oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sor
 gerekenler ve yayından önce yapılacaklar).
 
 ## YZ asistanı (3 Kasım 2026, dal `feature/yz-asistan`, commit edilmedi)
-- **Çalışıyor (yalnızca Android, emülatörde denendi):** haritada "Nereye gideyim?" → popup (`lib/widgets/home/assistant_sheet.dart`) → gerçek Gemini önerileri → "Taksi çağır" → mevcut fiyat/onay ekranı. Çağrı düğmesine basılarak sonuna kadar denenmedi; arkadaşın telefonunda denenmedi.
+- **Çalışıyor (yalnızca Android, emülatörde denendi):** haritada "Nereye gitmeliyim?" → popup (`lib/widgets/home/assistant_sheet.dart`) → gerçek Gemini önerileri → "Taksi çağır" → mevcut fiyat/onay ekranı. Çağrı düğmesine basılarak sonuna kadar denenmedi; arkadaşın telefonunda denenmedi.
 - **Ayrı proje:** Ana proje Blaze olduğu için Gemini ön ödeme istedi. YZ istekleri faturasız `kktc-taksim-ai` (Spark) projesine gider (`lib/services/app_check.dart`); Firestore ve giriş ana projede. Model `gemini-3.1-flash-lite`.
 - **Yer doğrulama:** YZ adı Photon'da aranır, `bestPlaceMatch` en iyi eşleşmeyi seçer, tutmayan elenir; kartta bulunan yerin gerçek adı/adresi görünür.
 - **Test derlemesi:** `flutter build apk --release --dart-define=APPCHECK_DEBUG_TOKEN=<.appcheck_debug_token içeriği>`. Token yeni projede kayıtlı. Token'lı APK'yı arkadaşa vermeden önce oku: UYARILAR "App Check".

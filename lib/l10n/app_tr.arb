@@ -548,7 +548,7 @@
     }
   },
   "assistantTitle": "Yapay zekâ asistanı",
-  "assistantTooltip": "Nereye gideyim?",
+  "assistantTooltip": "Nereye gitmeliyim?",
   "assistantIntro": "Bulunduğun yere ve saate göre gidebileceğin yerleri önerir.",
   "assistantHint": "Örn. sakin bir kahve yeri",
   "assistantChipNearby": "Yakında ne yapılır?",
