@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kktc_taksim/data/firebase/firebase_assistant_repository.dart';
-import 'package:kktc_taksim/data/firebase/firebase_shared_ride_repository.dart' show parseHttpDate;
+import 'package:kktc_taksim/core/service_time.dart';
+import 'package:kktc_taksim/services/trusted_clock.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:http/http.dart' as http;
@@ -311,10 +312,57 @@ void main() {
       expect(report, contains('uid: abc123'));
     });
 
-    test('sunucu saati başlığı okunur, bozuksa null döner', () {
-      expect(parseHttpDate('Thu, 05 Nov 2026 12:00:00 GMT'), server);
+  });
+
+  group('Güvenilir saat ve Kıbrıs saati', () {
+    tearDown(TrustedClock.instance.reset);
+
+    test('telefon saati geride de olsa sunucuya göre düzeltilir', () async {
+      final clock = TrustedClock.instance;
+      clock.serverTimeSource = () async => DateTime.now().add(const Duration(seconds: 3657));
+      await clock.sync();
+      final difference = clock.now.difference(DateTime.now());
+      expect(difference.inSeconds, inInclusiveRange(3650, 3657));
+    });
+
+    test('sunucuya ulaşılamazsa son bilinen fark kalır, hiç ölçülmediyse telefon saati kullanılır', () async {
+      final clock = TrustedClock.instance;
+      clock.serverTimeSource = () async => null;
+      await clock.sync();
+      expect(clock.now.difference(DateTime.now()).inSeconds.abs(), lessThan(2));
+
+      clock.serverTimeSource = () async => DateTime.now().add(const Duration(hours: 1));
+      await clock.sync();
+      clock.serverTimeSource = () async => null;
+      await clock.sync();
+      expect(clock.now.difference(DateTime.now()).inMinutes, inInclusiveRange(59, 60));
+    });
+
+    test('sunucu saati ağ hatasında null döner, başlıktan okunur', () async {
+      final ok = MockClient((_) async => http.Response('', 404, headers: {'date': 'Thu, 05 Nov 2026 13:02:24 GMT'}));
+      expect(await fetchServerTime(client: ok), DateTime.utc(2026, 11, 5, 13, 2, 24));
+      final down = MockClient((_) async => throw Exception('ağ yok'));
+      expect(await fetchServerTime(client: down), isNull);
       expect(parseHttpDate('bozuk'), isNull);
-      expect(parseHttpDate(null), isNull);
+    });
+
+    test('Kıbrıs kışın UTC+2, yazın UTC+3', () {
+      final winter = toServiceTime(DateTime.utc(2026, 11, 5, 15));
+      expect((winter.hour, winter.minute), (17, 0));
+      final summer = toServiceTime(DateTime.utc(2026, 7, 5, 15));
+      expect(summer.hour, 18);
+    });
+
+    test('seçilen Kıbrıs saati aynı mutlak zamana çevrilir, telefonun dilimi önemsizdir', () {
+      final picked = serviceDateTime(2026, 11, 5, 17);
+      expect(picked.toUtc(), DateTime.utc(2026, 11, 5, 15));
+      final viewed = toServiceTime(DateTime.fromMillisecondsSinceEpoch(picked.millisecondsSinceEpoch));
+      expect((viewed.hour, viewed.day), (17, 5));
+    });
+
+    test('gece yarısını geçen saat sonraki güne taşar', () {
+      final next = serviceDateTime(2026, 11, 5, 24);
+      expect((next.day, next.hour), (6, 0));
     });
   });
 }

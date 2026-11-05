@@ -296,5 +296,13 @@
   "groupSuspectClock": "Your phone's clock differs from the server. The departure you chose is in the past for the server. Turn on \"Automatic date and time\" in Settings and try again.",
   "groupSuspectNetwork": "There seems to be an internet problem. Check your connection and try again.",
   "groupSuspectRules": "The clock and session look fine, but the server refused the write. The problem may be on the server side.",
-  "groupSuspectUnknown": "The cause couldn't be determined."
+  "groupSuspectUnknown": "The cause couldn't be determined.",
+  "serviceTimeLabel": "{time} Cyprus time",
+  "@serviceTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

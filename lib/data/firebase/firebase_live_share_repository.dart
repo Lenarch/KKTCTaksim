@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kktc_taksim/data/repositories/live_share_repository.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:kktc_taksim/services/trusted_clock.dart';
 
 /// Canlı paylaşımlar Firestore'da `liveShares/{shareId}` altında. Kimlik tahmin edilemez;
 /// takip sayfası belgeyi bu kimlikle, giriş yapmadan okur (bkz. firestore.rules).
@@ -31,7 +32,8 @@ class FirebaseLiveShareRepository implements LiveShareRepository {
       'status': 'active',
       'position': pointToJson(position),
       'updatedAt': FieldValue.serverTimestamp(),
-      'expiresAt': DateTime.now().add(LiveShareRepository.maxDuration).millisecondsSinceEpoch,
+      // Kurallar bitişi sunucu saatiyle denetler.
+      'expiresAt': TrustedClock.instance.now.add(LiveShareRepository.maxDuration).millisecondsSinceEpoch,
     });
     return ref.id;
   }

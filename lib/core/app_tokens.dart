@@ -34,6 +34,10 @@ class AppDurations {
   AppDurations._();
 
   static const Duration splashAnimation = Duration(milliseconds: 1500);
+
+  /// Sunucu saati ölçümü en fazla bu kadar bekletir; yanıt gelmezse son bilinen fark kullanılır.
+  static const Duration clockCheckTimeout = Duration(seconds: 3);
+
   static const Duration splashHold = Duration(seconds: 3);
   static const Duration driverSearch = Duration(seconds: 4);
 

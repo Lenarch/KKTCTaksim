@@ -4,6 +4,7 @@ import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/formatters.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/service_time.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/assistant_repository.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
@@ -93,7 +94,7 @@ class _AssistantSheetState extends State<AssistantSheet> {
       final suggestions = await Backend.instance.assistant.suggest(AssistantQuery(
         prompt: prompt,
         areaName: area,
-        localTime: DateTime.now(),
+        localTime: serviceNow(),
         languageCode: language,
       ));
       final resolved = await Future.wait(suggestions.take(_maxSuggestions).map(_resolve));

@@ -5,6 +5,12 @@ oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sor
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
 
+## Grup saatleri (5 Kasım 2026, dal `fix/grup-hata-teshisi`)
+- Arkadaşın `permission-denied` hatasının nedeni ölçüldü: telefon saati 1 saat geride (`clockSkewSec: -3657`), kalkış sunucuya göre geçmişte kalıyordu. Olası senaryo: telefon Türkiye diliminde (UTC+3), saat elle Kıbrıs'a (kışın UTC+2) ayarlı; bu doğrulanmadı.
+- `lib/services/trusted_clock.dart` telefon saatini sunucuya göre düzeltir; `lib/core/service_time.dart` Kıbrıs saatini verir. Grup kalkışı artık telefonun değil kalkış yerinin saatiyle seçilir ve "Kıbrıs saati" etiketiyle görünür. Kullanıcı engellenmez.
+- Grup açılamayınca `GroupFailureDialog` nedeni ölçüp gösterir.
+- Kapsam dışı: ileri tarihli taksi rezervasyonu hâlâ telefon saatini kullanıyor. Başka ülkede hizmet açılınca saat dilimi grupla saklanmalı ve "Nereden" adres aramasından seçilmeli.
+
 ## YZ asistanı (3 Kasım 2026, dal `feature/yz-asistan`, commit edilmedi)
 - **Çalışıyor (yalnızca Android, emülatörde denendi):** haritada "Nereye gitmeliyim?" → popup (`lib/widgets/home/assistant_sheet.dart`) → gerçek Gemini önerileri → "Taksi çağır" → mevcut fiyat/onay ekranı. Çağrı düğmesine basılarak sonuna kadar denenmedi; arkadaşın telefonunda denenmedi.
 - **Ayrı proje:** Ana proje Blaze olduğu için Gemini ön ödeme istedi. YZ istekleri faturasız `kktc-taksim-ai` (Spark) projesine gider (`lib/services/app_check.dart`); Firestore ve giriş ana projede. Model `gemini-3.1-flash-lite`.

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/service_time.dart';
 import 'package:kktc_taksim/models/fare_estimate.dart';
 
 /// Para, tarih ve mesafeyi uygulamanın o anki diline göre biçimlendirir.
@@ -19,6 +20,12 @@ extension Formatters on BuildContext {
   String weekdayDate(DateTime value) => DateFormat.MMMEd(_locale).format(value);
 
   String time(DateTime value) => DateFormat.Hm(_locale).format(value);
+
+  /// `Prş, 29 Eki`, Kıbrıs saatiyle: grup kalkışı telefonun değil, kalkış yerinin saatidir.
+  String serviceWeekdayDate(DateTime value) => weekdayDate(toServiceTime(value));
+
+  /// `17:00 Kıbrıs saati`
+  String serviceTimeLabel(DateTime value) => l10n.serviceTimeLabel(time(toServiceTime(value)));
 
   String dateTime(DateTime value) => '${shortDate(value)} • ${time(value)}';
 

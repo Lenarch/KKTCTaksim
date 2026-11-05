@@ -6,6 +6,7 @@ import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/focus_after_transition.dart';
 import 'package:kktc_taksim/core/formatters.dart';
 import 'package:kktc_taksim/core/l10n.dart';
+import 'package:kktc_taksim/core/service_time.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
@@ -13,6 +14,7 @@ import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
+import 'package:kktc_taksim/services/trusted_clock.dart';
 import 'package:kktc_taksim/widgets/async_view.dart';
 import 'package:kktc_taksim/widgets/group_failure_dialog.dart';
 import 'package:kktc_taksim/widgets/home/sheet_container.dart';
@@ -27,6 +29,9 @@ class SharedRideScreen extends StatefulWidget {
 class _SharedRideScreenState extends State<SharedRideScreen> {
   SharedRideRepository get _repository => Backend.instance.sharedRides;
   late Stream<List<SharedRide>> _rides = _repository.watchActive();
+
+  /// Saat ölçülürken düğmeye yeniden basılırsa form iki kez açılmasın.
+  bool _openingCreateSheet = false;
 
   /// Repository çağrısını yapar; hata olursa kullanıcıya anlaşılır bir mesaj gösterir.
   /// [onFailed] verilirse beklenmeyen hatada mesaj yerine o çağrılır.
@@ -67,7 +72,12 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   }
 
   Future<void> _showCreateRideSheet() async {
-    if (!_ensureSignedIn()) return;
+    if (_openingCreateSheet || !_ensureSignedIn()) return;
+    _openingCreateSheet = true;
+    // Varsayılan kalkış ve "geçmişte" kontrolü telefon saati yanlış olsa da doğru çalışsın.
+    await TrustedClock.instance.sync();
+    _openingCreateSheet = false;
+    if (!mounted) return;
     final ride = await showModalBottomSheet<SharedRide>(
       context: context,
       isScrollControlled: true,
@@ -299,11 +309,11 @@ class _RideCard extends StatelessWidget {
               children: [
                 Icon(Icons.calendar_today, size: 16, color: mutedColor),
                 const SizedBox(width: AppSpacing.sm),
-                Text(context.weekdayDate(ride.departure), style: mutedStyle),
+                Text(context.serviceWeekdayDate(ride.departure), style: mutedStyle),
                 const SizedBox(width: AppSpacing.xl),
                 Icon(Icons.access_time, size: 16, color: mutedColor),
                 const SizedBox(width: AppSpacing.sm),
-                Text(context.time(ride.departure), style: mutedStyle),
+                Text(context.serviceTimeLabel(ride.departure), style: mutedStyle),
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -446,13 +456,13 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
   String _from = '';
   String _to = '';
   double _capacity = 4;
-  late DateTime _departure = _defaultDeparture();
+  late ServiceDateTime _departure = _defaultDeparture();
   String _price = '$_defaultPrice';
 
-  /// Bir sonraki tam saat.
-  static DateTime _defaultDeparture() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day, now.hour + 1);
+  /// Kıbrıs saatiyle bir sonraki tam saat.
+  static ServiceDateTime _defaultDeparture() {
+    final now = serviceNow();
+    return serviceDateTime(now.year, now.month, now.day, now.hour + 1);
   }
 
   /// Firestore kuralları 1 – [SharedRide.maxPricePerPerson] dışını reddeder; burada yakalanmazsa
@@ -465,7 +475,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
   bool get _canContinue => switch (_currentStep) {
         0 => _from.trim().isNotEmpty,
         1 => _to.trim().isNotEmpty,
-        _ => _pricePerPerson != null && _departure.isAfter(DateTime.now()),
+        _ => _pricePerPerson != null && _departure.isAfter(serviceNow()),
       };
 
   @override
@@ -497,7 +507,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
         id: '',
         from: _from.trim(),
         to: _to.trim(),
-        departure: _departure,
+        departure: DateTime.fromMillisecondsSinceEpoch(_departure.millisecondsSinceEpoch),
         capacity: _capacity.toInt(),
         memberIds: const [],
         pricePerPerson: _pricePerPerson!,
@@ -506,24 +516,26 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    // Takvim Kıbrıs'taki günleri gösterir; telefon başka bir günde olabilir.
+    final now = serviceNow();
+    final today = DateTime(now.year, now.month, now.day);
     final selected = await showDatePicker(
       context: context,
-      initialDate: _departure.isBefore(now) ? now : _departure,
-      firstDate: DateUtils.dateOnly(now),
-      lastDate: now.add(_maximumLeadTime),
+      initialDate: _departure.isBefore(now) ? today : DateTime(_departure.year, _departure.month, _departure.day),
+      firstDate: today,
+      lastDate: DateTime(now.year, now.month, now.day + _maximumLeadTime.inDays),
     );
     if (selected == null || !mounted) return;
     setState(() {
-      _departure = DateTime(selected.year, selected.month, selected.day, _departure.hour, _departure.minute);
+      _departure = serviceDateTime(selected.year, selected.month, selected.day, _departure.hour, _departure.minute);
     });
   }
 
   Future<void> _pickTime() async {
-    final selected = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_departure));
+    final selected = await showTimePicker(context: context, initialTime: TimeOfDay(hour: _departure.hour, minute: _departure.minute));
     if (selected == null || !mounted) return;
     setState(() {
-      _departure = DateTime(_departure.year, _departure.month, _departure.day, selected.hour, selected.minute);
+      _departure = serviceDateTime(_departure.year, _departure.month, _departure.day, selected.hour, selected.minute);
     });
   }
 
@@ -532,7 +544,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     const valueStyle = TextStyle(fontWeight: FontWeight.bold);
-    final departureInPast = !_departure.isAfter(DateTime.now());
+    final departureInPast = !_departure.isAfter(serviceNow());
 
     return SheetContainer(
       heightFactor: 0.8,
@@ -589,7 +601,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.access_time),
                           title: Text(l10n.rideTime),
-                          trailing: Text(context.time(_departure), style: valueStyle),
+                          trailing: Text(context.serviceTimeLabel(_departure), style: valueStyle),
                           onTap: _pickTime,
                         ),
                         if (departureInPast)
