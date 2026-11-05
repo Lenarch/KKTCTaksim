@@ -5,9 +5,12 @@ oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sor
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
 
-## 5 Kasım 2026: hata düzeltmeleri (`main`, GitHub'a gönderilmedi)
+## 5 Kasım 2026: hata düzeltmeleri (`main`)
 - **Yolculukta menü:** Şoför ve yolculuk panelleri modal değil, ana sekmenin içinde (`HomeScreenState._buildRidePanel`). Çağrı açıkken çıkış, hesap silme ve şoför moduna geçiş engelli. Web yolcu + emülatör şoförle uçtan uca denendi; yolcu tarafı Android'de denenmedi.
-- **Grup açma izin hatası (arkadaş, Android):** Neden bilinmiyor. Yayındaki kurallarla web'de grup açılıyor; App Check'siz Firestore yazımı çalışıyor, yani Firestore'da zorlama yok. En güçlü aday telefon saatinin geride olması (varsayım). Teşhis penceresi eklendi (`lib/widgets/group_failure_dialog.dart`, yalnızca grup oluşturma hatasında açılır). **Sıradaki:** yeni APK'yı arkadaşa verip penceredeki raporu almak; sonuca göre gerçek düzeltme.
+- **Grup açma izin hatası (çözüldü, arkadaş deneyip onayladı):** Telefon saati 1 saat gerideydi (`clockSkewSec: -3657`), kalkış sunucuya göre geçmişte kaldığı için kural `permission-denied` veriyordu. Olası senaryo: telefon Türkiye diliminde (UTC+3), saat elle Kıbrıs'a (kışın UTC+2) ayarlı; bu doğrulanmadı.
+- **Grup saatleri:** `lib/services/trusted_clock.dart` telefon saatini sunucuya göre düzeltir; `lib/core/service_time.dart` Kıbrıs saatini verir. Grup kalkışı artık telefonun değil kalkış yerinin saatiyle seçilir ve "Kıbrıs saati" etiketiyle görünür. Kullanıcı engellenmez.
+- **Teşhis penceresi:** Grup yine de açılamazsa `lib/widgets/group_failure_dialog.dart` nedeni ölçüp gösterir.
+- **Kapsam dışı:** İleri tarihli taksi rezervasyonu hâlâ telefon saatini kullanıyor. Başka ülkede hizmet açılınca saat dilimi grupla saklanmalı ve "Nereden" adres aramasından seçilmeli. Yanlış saatle yalnızca grup açma denendi; canlı paylaşım, şoför süzgeci ve asistan denenmedi.
 
 ## YZ asistanı (3 Kasım 2026, `main`'de)
 - **Çalışıyor (yalnızca Android, emülatörde denendi):** haritada "Nereye gitmeliyim?" → popup (`lib/widgets/home/assistant_sheet.dart`) → gerçek Gemini önerileri → "Taksi çağır" → mevcut fiyat/onay ekranı. Çağrı düğmesine basılarak sonuna kadar denenmedi; arkadaşın telefonunda denenmedi.

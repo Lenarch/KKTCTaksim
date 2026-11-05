@@ -1049,4 +1049,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupSuspectUnknown => 'The cause couldn\'t be determined.';
+
+  @override
+  String serviceTimeLabel(String time) {
+    return '$time Cyprus time';
+  }
 }

@@ -1,13 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
+import 'package:kktc_taksim/services/trusted_clock.dart';
 
 /// Paylaşımlı gruplar Firestore'da `sharedRides/{rideId}` altında; giriş yapan herkes görür,
 /// üyeliğe yalnızca kendini ekleyip çıkarabilir (bkz. firestore.rules).
@@ -37,10 +35,10 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
     // Kurallar giriş yapmayanın okumasına izin vermez; çıkışta liste boşalır.
     return switchMap(_auth.authStateChanges(), (User? user) {
       if (user == null) return Stream.value(const <SharedRide>[]);
-      final now = DateTime.now().millisecondsSinceEpoch;
+      final now = TrustedClock.instance.now.millisecondsSinceEpoch;
       return _rides.where('departure', isGreaterThan: now).orderBy('departure').snapshots().map((snapshot) {
         // Akış açık kaldıkça kalkışı geçen gruplar da düşsün.
-        final current = DateTime.now();
+        final current = TrustedClock.instance.now;
         return snapshot.docs.map(sharedRideFromDocument).where((r) => r.departure.isAfter(current)).toList();
       });
     });
@@ -76,16 +74,8 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       readError = e.runtimeType.toString();
     }
 
-    DateTime? serverTime;
-    var localTime = DateTime.now();
-    try {
-      // Firestore sunucu saatini vermiyor; aynı alan adının yanıt başlığından okunur (saniye hassasiyetinde).
-      final response = await http.head(Uri.parse('https://firestore.googleapis.com/')).timeout(timeout);
-      localTime = DateTime.now();
-      serverTime = parseHttpDate(response.headers['date']);
-    } catch (e) {
-      debugPrint('Sunucu saati ölçülemedi: $e');
-    }
+    final serverTime = await fetchServerTime();
+    final localTime = DateTime.now();
 
     return GroupDiagnostics(
       signedIn: true,
@@ -275,15 +265,4 @@ ChatMessage chatMessageFromDocument(DocumentSnapshot<Map<String, dynamic>> doc) 
     text: data['text'] as String,
     sentAt: sentAt is Timestamp ? sentAt.toDate() : DateTime.now(),
   );
-}
-
-/// HTTP `Date` başlığı ("Thu, 05 Nov 2026 13:02:24 GMT"); okunamazsa null.
-@visibleForTesting
-DateTime? parseHttpDate(String? value) {
-  if (value == null) return null;
-  try {
-    return DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US').parseUtc(value.replaceAll(' GMT', ''));
-  } on FormatException {
-    return null;
-  }
 }

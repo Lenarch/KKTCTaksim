@@ -169,8 +169,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           children: [
             Text(l10n.groupChat),
             Text(
-              '${l10n.groupChatTitle(widget.ride.from, widget.ride.to)} • ${context.weekdayDate(widget.ride.departure)} '
-              '${context.time(widget.ride.departure)}',
+              '${l10n.groupChatTitle(widget.ride.from, widget.ride.to)} • ${context.serviceWeekdayDate(widget.ride.departure)} '
+              '${context.serviceTimeLabel(widget.ride.departure)}',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               overflow: TextOverflow.ellipsis,
             ),

@@ -10,6 +10,7 @@ import 'package:kktc_taksim/data/repositories/driver_repository.dart';
 import 'package:kktc_taksim/models/driver.dart';
 import 'package:kktc_taksim/models/ride_offer.dart';
 import 'package:kktc_taksim/models/ride_session.dart';
+import 'package:kktc_taksim/services/trusted_clock.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 /// Şoför tarafı: `drivers/{uid}` ve `rides/{rideId}` (bkz. firestore.rules).
@@ -92,7 +93,7 @@ class FirebaseDriverRepository implements DriverRepository {
       .map((snapshot) {
         // Yolcu arama sırasında uygulamayı kapatırsa çağrı `searching`'de kalır; yolcunun zaman aşımı
         // dolmuş çağrılar gösterilmez.
-        final cutoff = DateTime.now().subtract(AppDurations.driverSearchTimeout);
+        final cutoff = TrustedClock.instance.now.subtract(AppDurations.driverSearchTimeout);
         final offers = snapshot.docs
             .where((doc) => !isRequestExpired(doc.data()['createdAt'], cutoff))
             // Şoför kendi çağrısını alamaz (kurallar da reddeder); listede gösterme.

@@ -1887,6 +1887,12 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Neden kesin olarak belirlenemedi.'**
   String get groupSuspectUnknown;
+
+  /// No description provided for @serviceTimeLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'{time} Kıbrıs saati'**
+  String serviceTimeLabel(String time);
 }
 
 class _AppLocalizationsDelegate

@@ -297,5 +297,13 @@
   "groupSuspectStaleDeparture": "The departure time you picked has passed. Pick a later time and try again.",
   "groupSuspectNetwork": "There seems to be an internet problem. Check your connection and try again.",
   "groupSuspectRules": "The clock and session look fine, but the server refused the write. The problem may be on the server side.",
-  "groupSuspectUnknown": "The cause couldn't be determined."
+  "groupSuspectUnknown": "The cause couldn't be determined.",
+  "serviceTimeLabel": "{time} Cyprus time",
+  "@serviceTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

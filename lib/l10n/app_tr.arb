@@ -575,5 +575,13 @@
   "groupSuspectStaleDeparture": "Seçtiğin kalkış saati geçmiş. Daha ileri bir saat seçip tekrar dene.",
   "groupSuspectNetwork": "İnternet bağlantısında sorun var gibi görünüyor. Bağlantını kontrol edip tekrar dene.",
   "groupSuspectRules": "Saat ve oturum sağlam görünüyor ama sunucu kaydı reddetti. Sorun sunucu tarafında olabilir.",
-  "groupSuspectUnknown": "Neden kesin olarak belirlenemedi."
+  "groupSuspectUnknown": "Neden kesin olarak belirlenemedi.",
+  "serviceTimeLabel": "{time} Kıbrıs saati",
+  "@serviceTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -40,6 +40,7 @@ import 'package:kktc_taksim/screens/profile_screen.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
+import 'package:kktc_taksim/services/trusted_clock.dart';
 import 'package:kktc_taksim/widgets/home/taxi_selection_sheet.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,6 +80,9 @@ void main() {
     AppSettings.instance.locale.value = const Locale('tr');
     Backend.instance = Backend.mock();
     ChatReadState.instance.lastRead.value = const {};
+    // Testler ağa çıkmasın.
+    TrustedClock.instance.reset();
+    TrustedClock.instance.serverTimeSource = () async => null;
   });
 
   testWidgets('Splash ekranı açılır ve rol seçimine geçer', (tester) async {
@@ -656,5 +660,38 @@ void main() {
     expect(find.textContaining('Daha ileri bir saat'), findsOneWidget);
     expect(find.textContaining('error: cloud_firestore/permission-denied'), findsOneWidget);
     expect(find.text('Kopyala'), findsOneWidget);
+  });
+
+  testWidgets('Telefon saati geride olsa da form sunucuya göre gelecek bir kalkış seçer', (tester) async {
+    await signIn();
+    // Arkadaşın telefonu: sunucu 1 saat ileride.
+    TrustedClock.instance.serverTimeSource = () async => DateTime.now().add(const Duration(seconds: 3657));
+    await tester.pumpWidget(localized(const SharedRideScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Grup Oluştur'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nereden?'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).first, 'Lefkoşa');
+    await tester.pump();
+    await tester.tap(find.text('Devam Et'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'Girne');
+    await tester.pump();
+    await tester.tap(find.text('Devam Et'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Kıbrıs saati'), findsWidgets);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed, isNotNull);
+
+    await tester.ensureVisible(find.text('Yolculuğu Oluştur'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yolculuğu Oluştur'));
+    await tester.pumpAndSettle();
+    // `first` testWidgets'in sahte zamanında takılır; gerçek zamanda okunur.
+    final rides = await tester.runAsync(() => Backend.instance.sharedRides.watchActive().first);
+    final mine = rides!.where((r) => r.from == 'Lefkoşa' && r.to == 'Girne');
+    expect(mine.single.departure.isAfter(TrustedClock.instance.now), isTrue);
+    expect(find.textContaining('Kıbrıs saati'), findsWidgets);
   });
 }

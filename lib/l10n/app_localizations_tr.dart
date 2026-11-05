@@ -1012,4 +1012,9 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get groupSuspectUnknown => 'Neden kesin olarak belirlenemedi.';
+
+  @override
+  String serviceTimeLabel(String time) {
+    return '$time Kıbrıs saati';
+  }
 }

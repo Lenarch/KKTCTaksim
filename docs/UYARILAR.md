@@ -132,4 +132,9 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - Asistan projesinde yalnızca Android kayıtlı; web ve iOS için ayrı uygulama kaydı, App Check ve `app_check.dart` güncellemesi gerekir. O zamana kadar asistan orada hata mesajı gösterir.
 
 ## Grup hatası teşhis penceresi (yayından önce)
-- `lib/widgets/group_failure_dialog.dart` "geliştiriciye gönder" diyor ve teknik özet gösteriyor; normal kullanıcıya uygun değil. Neden bulunup düzeltilince kaldırılmalı ya da sadeleştirilmeli.
+- `lib/widgets/group_failure_dialog.dart` "geliştiriciye gönder" diyor ve teknik özet gösteriyor; normal kullanıcıya uygun değil. Yayından önce kaldırılmalı ya da sadeleştirilmeli.
+
+## Saat ve saat dilimi
+- Grup saatleri `Asia/Nicosia` kurallarıyla hesaplanır (`timezone` paketi). KKTC yaz saati kararı bundan ayrılırsa paket veya kod güncellenmeli.
+- Sunucu saatine ulaşılamazsa telefon saati kullanılır; saat yanlışsa grup yine reddedilir ve teşhis penceresi çıkar.
+- İleri tarihli taksi rezervasyonu telefon saatini kullanıyor; yanlış saatli telefonda kayabilir.
