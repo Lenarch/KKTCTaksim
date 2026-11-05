@@ -652,7 +652,8 @@ void main() {
     )));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Otomatik tarih ve saat'), findsOneWidget);
+    // Sahte ortamda telefon saati doğru: kalkış form açıkken geçmiş sayılır.
+    expect(find.textContaining('Daha ileri bir saat'), findsOneWidget);
     expect(find.textContaining('error: cloud_firestore/permission-denied'), findsOneWidget);
     expect(find.text('Kopyala'), findsOneWidget);
   });

@@ -1,11 +1,15 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **1 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **5 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
 
-## YZ asistanı (3 Kasım 2026, dal `feature/yz-asistan`, commit edilmedi)
+## 5 Kasım 2026: hata düzeltmeleri (`main`, GitHub'a gönderilmedi)
+- **Yolculukta menü:** Şoför ve yolculuk panelleri modal değil, ana sekmenin içinde (`HomeScreenState._buildRidePanel`). Çağrı açıkken çıkış, hesap silme ve şoför moduna geçiş engelli. Web yolcu + emülatör şoförle uçtan uca denendi; yolcu tarafı Android'de denenmedi.
+- **Grup açma izin hatası (arkadaş, Android):** Neden bilinmiyor. Yayındaki kurallarla web'de grup açılıyor; App Check'siz Firestore yazımı çalışıyor, yani Firestore'da zorlama yok. En güçlü aday telefon saatinin geride olması (varsayım). Teşhis penceresi eklendi (`lib/widgets/group_failure_dialog.dart`, yalnızca grup oluşturma hatasında açılır). **Sıradaki:** yeni APK'yı arkadaşa verip penceredeki raporu almak; sonuca göre gerçek düzeltme.
+
+## YZ asistanı (3 Kasım 2026, `main`'de)
 - **Çalışıyor (yalnızca Android, emülatörde denendi):** haritada "Nereye gitmeliyim?" → popup (`lib/widgets/home/assistant_sheet.dart`) → gerçek Gemini önerileri → "Taksi çağır" → mevcut fiyat/onay ekranı. Çağrı düğmesine basılarak sonuna kadar denenmedi; arkadaşın telefonunda denenmedi.
 - **Ayrı proje:** Ana proje Blaze olduğu için Gemini ön ödeme istedi. YZ istekleri faturasız `kktc-taksim-ai` (Spark) projesine gider (`lib/services/app_check.dart`); Firestore ve giriş ana projede. Model `gemini-3.1-flash-lite`.
 - **Yer doğrulama:** YZ adı Photon'da aranır, `bestPlaceMatch` en iyi eşleşmeyi seçer, tutmayan elenir; kartta bulunan yerin gerçek adı/adresi görünür.

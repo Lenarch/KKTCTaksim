@@ -130,3 +130,6 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 - Debug token App Check'i aşar: gizli tutulur (`.appcheck_debug_token`, repoya girmez). Token gömülü APK başkasına verilirse token konsoldan iptal edilmeli. **Yayın derlemesi token'sız yapılmalı.**
 - Elden kurulan (Play dışı) APK Play Integrity'den geçemez; asistan bu derlemelerde ancak debug token ile çalışır.
 - Asistan projesinde yalnızca Android kayıtlı; web ve iOS için ayrı uygulama kaydı, App Check ve `app_check.dart` güncellemesi gerekir. O zamana kadar asistan orada hata mesajı gösterir.
+
+## Grup hatası teşhis penceresi (yayından önce)
+- `lib/widgets/group_failure_dialog.dart` "geliştiriciye gönder" diyor ve teknik özet gösteriyor; normal kullanıcıya uygun değil. Neden bulunup düzeltilince kaldırılmalı ya da sadeleştirilmeli.

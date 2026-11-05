@@ -999,6 +999,10 @@ class AppLocalizationsTr extends AppLocalizations {
       'Telefonunun saati sunucudan farklı görünüyor. Seçtiğin kalkış sunucuya göre geçmişte kalıyor. Ayarlar\'dan \"Otomatik tarih ve saat\"i açıp tekrar dene.';
 
   @override
+  String get groupSuspectStaleDeparture =>
+      'Seçtiğin kalkış saati geçmiş. Daha ileri bir saat seçip tekrar dene.';
+
+  @override
   String get groupSuspectNetwork =>
       'İnternet bağlantısında sorun var gibi görünüyor. Bağlantını kontrol edip tekrar dene.';
 

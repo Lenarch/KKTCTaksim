@@ -1864,6 +1864,12 @@ abstract class AppLocalizations {
   /// **'Telefonunun saati sunucudan farklı görünüyor. Seçtiğin kalkış sunucuya göre geçmişte kalıyor. Ayarlar\'dan \"Otomatik tarih ve saat\"i açıp tekrar dene.'**
   String get groupSuspectClock;
 
+  /// No description provided for @groupSuspectStaleDeparture.
+  ///
+  /// In tr, this message translates to:
+  /// **'Seçtiğin kalkış saati geçmiş. Daha ileri bir saat seçip tekrar dene.'**
+  String get groupSuspectStaleDeparture;
+
   /// No description provided for @groupSuspectNetwork.
   ///
   /// In tr, this message translates to:

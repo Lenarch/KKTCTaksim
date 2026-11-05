@@ -28,9 +28,12 @@ class GroupDiagnostics {
   Duration? get clockSkew => serverTime == null ? null : localTime.difference(serverTime!);
 }
 
-enum GroupFailureSuspect { signedOut, session, readDenied, clock, network, rules, unknown }
+enum GroupFailureSuspect { signedOut, session, readDenied, clock, staleDeparture, network, rules, unknown }
 
 const String _permissionDenied = 'permission-denied';
+
+/// Bundan küçük geride kalma ölçüm payıdır (başlık saniye hassasiyetinde, ağ gecikmesi var).
+const Duration _clockTolerance = Duration(minutes: 1);
 
 /// En olası neden. Sırası önemli: oturum ya da okuma bozuksa saat sonucu tek başına açıklamaz.
 GroupFailureSuspect groupFailureSuspect({
@@ -43,7 +46,9 @@ GroupFailureSuspect groupFailureSuspect({
 
   final tokenError = diagnostics.tokenError;
   if (tokenError != null) {
-    return tokenError.contains('network') ? GroupFailureSuspect.network : GroupFailureSuspect.session;
+    // Zaman aşımı oturumun bozuk olduğunu göstermez; bağlantı yavaştır.
+    final network = tokenError.contains('network') || tokenError.contains('Timeout');
+    return network ? GroupFailureSuspect.network : GroupFailureSuspect.session;
   }
   if (!errorCode.contains(_permissionDenied)) return GroupFailureSuspect.unknown;
   if (diagnostics.readError?.contains(_permissionDenied) ?? false) return GroupFailureSuspect.readDenied;
@@ -51,7 +56,10 @@ GroupFailureSuspect groupFailureSuspect({
   // Kural kalkışı sunucu saatiyle karşılaştırır.
   final serverTime = diagnostics.serverTime;
   if (serverTime == null) return GroupFailureSuspect.unknown;
-  return departure.isAfter(serverTime) ? GroupFailureSuspect.rules : GroupFailureSuspect.clock;
+  if (departure.isAfter(serverTime)) return GroupFailureSuspect.rules;
+  // Kalkış geçmişte: telefon gerideyse saat, değilse form açıkken zaman geçmiş.
+  final behind = diagnostics.localTime.isBefore(serverTime.subtract(_clockTolerance));
+  return behind ? GroupFailureSuspect.clock : GroupFailureSuspect.staleDeparture;
 }
 
 /// Ekran görüntüsünde okunacak teknik özet; geliştirici için olduğundan çevrilmez.

@@ -572,6 +572,7 @@
   "groupSuspectSession": "Oturumun geçersiz görünüyor. Çıkış yapıp yeniden giriş yap.",
   "groupSuspectReadDenied": "Sunucu bu hesabın veri okumasına da izin vermiyor. Sorun oturumda ya da uygulama doğrulamasında olabilir.",
   "groupSuspectClock": "Telefonunun saati sunucudan farklı görünüyor. Seçtiğin kalkış sunucuya göre geçmişte kalıyor. Ayarlar'dan \"Otomatik tarih ve saat\"i açıp tekrar dene.",
+  "groupSuspectStaleDeparture": "Seçtiğin kalkış saati geçmiş. Daha ileri bir saat seçip tekrar dene.",
   "groupSuspectNetwork": "İnternet bağlantısında sorun var gibi görünüyor. Bağlantını kontrol edip tekrar dene.",
   "groupSuspectRules": "Saat ve oturum sağlam görünüyor ama sunucu kaydı reddetti. Sorun sunucu tarafında olabilir.",
   "groupSuspectUnknown": "Neden kesin olarak belirlenemedi."

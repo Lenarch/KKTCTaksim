@@ -32,6 +32,7 @@ class _GroupFailureDialogState extends State<GroupFailureDialog> {
       GroupFailureSuspect.session => l10n.groupSuspectSession,
       GroupFailureSuspect.readDenied => l10n.groupSuspectReadDenied,
       GroupFailureSuspect.clock => l10n.groupSuspectClock,
+      GroupFailureSuspect.staleDeparture => l10n.groupSuspectStaleDeparture,
       GroupFailureSuspect.network => l10n.groupSuspectNetwork,
       GroupFailureSuspect.rules => l10n.groupSuspectRules,
       GroupFailureSuspect.unknown => l10n.groupSuspectUnknown,

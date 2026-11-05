@@ -257,6 +257,7 @@ void main() {
       DateTime? serverTime,
       bool knownServerTime = true,
       Duration ahead = const Duration(minutes: 30),
+      Duration phoneBehind = Duration.zero,
     }) =>
         groupFailureSuspect(
           errorCode: code,
@@ -265,13 +266,23 @@ void main() {
             signedIn: signedIn,
             tokenError: token,
             readError: read,
-            localTime: server,
+            localTime: server.subtract(phoneBehind),
             serverTime: knownServerTime ? server : null,
           ),
         );
 
-    test('kalkış sunucuya göre geçmişteyse şüpheli saattir', () {
-      expect(suspect(ahead: const Duration(minutes: -30)), GroupFailureSuspect.clock);
+    test('kalkış geçmişte ve telefon gerideyse şüpheli saattir', () {
+      expect(
+        suspect(ahead: const Duration(minutes: -30), phoneBehind: const Duration(hours: 2)),
+        GroupFailureSuspect.clock,
+      );
+    });
+
+    test('kalkış geçmişte ama telefon saati doğruysa form uzun açık kalmıştır', () {
+      const past = Duration(minutes: -5);
+      expect(suspect(ahead: past), GroupFailureSuspect.staleDeparture);
+      // Saniyelik fark ölçüm payıdır.
+      expect(suspect(ahead: past, phoneBehind: const Duration(seconds: 10)), GroupFailureSuspect.staleDeparture);
     });
 
     test('saat ve okuma sağlamsa şüpheli sunucu kurallarıdır', () {
@@ -287,6 +298,7 @@ void main() {
 
     test('ağ sorunu oturum sorunu sayılmaz', () {
       expect(suspect(token: 'network-request-failed'), GroupFailureSuspect.network);
+      expect(suspect(token: 'TimeoutException'), GroupFailureSuspect.network);
       expect(suspect(code: 'cloud_firestore/unavailable'), GroupFailureSuspect.network);
     });
 

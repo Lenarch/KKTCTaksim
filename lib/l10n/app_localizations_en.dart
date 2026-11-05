@@ -1036,6 +1036,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your phone\'s clock differs from the server. The departure you chose is in the past for the server. Turn on \"Automatic date and time\" in Settings and try again.';
 
   @override
+  String get groupSuspectStaleDeparture =>
+      'The departure time you picked has passed. Pick a later time and try again.';
+
+  @override
   String get groupSuspectNetwork =>
       'There seems to be an internet problem. Check your connection and try again.';
 
