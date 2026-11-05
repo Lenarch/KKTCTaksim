@@ -1002,4 +1002,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantCallTaxi => 'Call a taxi';
+
+  @override
+  String get groupFailureTitle => 'Couldn\'t create the group';
+
+  @override
+  String get groupFailureChecking => 'Checking why…';
+
+  @override
+  String get groupFailureHint =>
+      'Send a screenshot of this screen to the developer.';
+
+  @override
+  String get groupFailureCopy => 'Copy';
+
+  @override
+  String get groupFailureCopied => 'Copied.';
+
+  @override
+  String get groupSuspectSignedOut =>
+      'You don\'t appear to be signed in. Sign in and try again.';
+
+  @override
+  String get groupSuspectSession =>
+      'Your session looks invalid. Log out and sign in again.';
+
+  @override
+  String get groupSuspectReadDenied =>
+      'The server is also refusing to let this account read data. The session or app verification may be the problem.';
+
+  @override
+  String get groupSuspectClock =>
+      'Your phone\'s clock differs from the server. The departure you chose is in the past for the server. Turn on \"Automatic date and time\" in Settings and try again.';
+
+  @override
+  String get groupSuspectNetwork =>
+      'There seems to be an internet problem. Check your connection and try again.';
+
+  @override
+  String get groupSuspectRules =>
+      'The clock and session look fine, but the server refused the write. The problem may be on the server side.';
+
+  @override
+  String get groupSuspectUnknown => 'The cause couldn\'t be determined.';
 }

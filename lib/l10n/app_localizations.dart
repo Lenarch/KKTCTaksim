@@ -1809,6 +1809,78 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Taksi çağır'**
   String get assistantCallTaxi;
+
+  /// No description provided for @groupFailureTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Grup açılamadı'**
+  String get groupFailureTitle;
+
+  /// No description provided for @groupFailureChecking.
+  ///
+  /// In tr, this message translates to:
+  /// **'Nedenini kontrol ediyorum…'**
+  String get groupFailureChecking;
+
+  /// No description provided for @groupFailureHint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu ekranın görüntüsünü geliştiriciye gönder.'**
+  String get groupFailureHint;
+
+  /// No description provided for @groupFailureCopy.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kopyala'**
+  String get groupFailureCopy;
+
+  /// No description provided for @groupFailureCopied.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kopyalandı.'**
+  String get groupFailureCopied;
+
+  /// No description provided for @groupSuspectSignedOut.
+  ///
+  /// In tr, this message translates to:
+  /// **'Giriş yapılmamış görünüyor. Giriş yapıp tekrar dene.'**
+  String get groupSuspectSignedOut;
+
+  /// No description provided for @groupSuspectSession.
+  ///
+  /// In tr, this message translates to:
+  /// **'Oturumun geçersiz görünüyor. Çıkış yapıp yeniden giriş yap.'**
+  String get groupSuspectSession;
+
+  /// No description provided for @groupSuspectReadDenied.
+  ///
+  /// In tr, this message translates to:
+  /// **'Sunucu bu hesabın veri okumasına da izin vermiyor. Sorun oturumda ya da uygulama doğrulamasında olabilir.'**
+  String get groupSuspectReadDenied;
+
+  /// No description provided for @groupSuspectClock.
+  ///
+  /// In tr, this message translates to:
+  /// **'Telefonunun saati sunucudan farklı görünüyor. Seçtiğin kalkış sunucuya göre geçmişte kalıyor. Ayarlar\'dan \"Otomatik tarih ve saat\"i açıp tekrar dene.'**
+  String get groupSuspectClock;
+
+  /// No description provided for @groupSuspectNetwork.
+  ///
+  /// In tr, this message translates to:
+  /// **'İnternet bağlantısında sorun var gibi görünüyor. Bağlantını kontrol edip tekrar dene.'**
+  String get groupSuspectNetwork;
+
+  /// No description provided for @groupSuspectRules.
+  ///
+  /// In tr, this message translates to:
+  /// **'Saat ve oturum sağlam görünüyor ama sunucu kaydı reddetti. Sorun sunucu tarafında olabilir.'**
+  String get groupSuspectRules;
+
+  /// No description provided for @groupSuspectUnknown.
+  ///
+  /// In tr, this message translates to:
+  /// **'Neden kesin olarak belirlenemedi.'**
+  String get groupSuspectUnknown;
 }
 
 class _AppLocalizationsDelegate

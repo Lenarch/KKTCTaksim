@@ -15,6 +15,7 @@ import 'package:kktc_taksim/data/mock/mock_assistant_repository.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:kktc_taksim/widgets/home/active_trip_sheet.dart';
+import 'package:kktc_taksim/widgets/group_failure_dialog.dart';
 import 'package:kktc_taksim/widgets/home/assistant_sheet.dart';
 import 'package:kktc_taksim/widgets/home/driver_found_sheet.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
@@ -639,5 +640,20 @@ void main() {
     expect(find.byType(ActiveTripSheet).hitTestable(), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Grup açılamayınca teşhis penceresi kodu ve en olası nedeni gösterir', (tester) async {
+    await signIn();
+    await tester.pumpWidget(localized(Scaffold(
+      body: GroupFailureDialog(
+        errorCode: 'cloud_firestore/permission-denied',
+        departure: DateTime.now().subtract(const Duration(hours: 1)),
+      ),
+    )));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Otomatik tarih ve saat'), findsOneWidget);
+    expect(find.textContaining('error: cloud_firestore/permission-denied'), findsOneWidget);
+    expect(find.text('Kopyala'), findsOneWidget);
   });
 }

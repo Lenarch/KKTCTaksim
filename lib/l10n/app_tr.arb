@@ -562,5 +562,17 @@
   "assistantConsentTitle": "Yapay zekâ ile paylaşım",
   "assistantConsentBody": "Soruların ve yaklaşık bölgen (tam konumun değil) öneri üretmek için bir yapay zekâ servisine gönderilir. Devam edelim mi?",
   "assistantConsentAccept": "Devam et",
-  "assistantCallTaxi": "Taksi çağır"
+  "assistantCallTaxi": "Taksi çağır",
+  "groupFailureTitle": "Grup açılamadı",
+  "groupFailureChecking": "Nedenini kontrol ediyorum…",
+  "groupFailureHint": "Bu ekranın görüntüsünü geliştiriciye gönder.",
+  "groupFailureCopy": "Kopyala",
+  "groupFailureCopied": "Kopyalandı.",
+  "groupSuspectSignedOut": "Giriş yapılmamış görünüyor. Giriş yapıp tekrar dene.",
+  "groupSuspectSession": "Oturumun geçersiz görünüyor. Çıkış yapıp yeniden giriş yap.",
+  "groupSuspectReadDenied": "Sunucu bu hesabın veri okumasına da izin vermiyor. Sorun oturumda ya da uygulama doğrulamasında olabilir.",
+  "groupSuspectClock": "Telefonunun saati sunucudan farklı görünüyor. Seçtiğin kalkış sunucuya göre geçmişte kalıyor. Ayarlar'dan \"Otomatik tarih ve saat\"i açıp tekrar dene.",
+  "groupSuspectNetwork": "İnternet bağlantısında sorun var gibi görünüyor. Bağlantını kontrol edip tekrar dene.",
+  "groupSuspectRules": "Saat ve oturum sağlam görünüyor ama sunucu kaydı reddetti. Sorun sunucu tarafında olabilir.",
+  "groupSuspectUnknown": "Neden kesin olarak belirlenemedi."
 }

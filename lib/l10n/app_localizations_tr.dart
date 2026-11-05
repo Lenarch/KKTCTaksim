@@ -966,4 +966,46 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get assistantCallTaxi => 'Taksi çağır';
+
+  @override
+  String get groupFailureTitle => 'Grup açılamadı';
+
+  @override
+  String get groupFailureChecking => 'Nedenini kontrol ediyorum…';
+
+  @override
+  String get groupFailureHint => 'Bu ekranın görüntüsünü geliştiriciye gönder.';
+
+  @override
+  String get groupFailureCopy => 'Kopyala';
+
+  @override
+  String get groupFailureCopied => 'Kopyalandı.';
+
+  @override
+  String get groupSuspectSignedOut =>
+      'Giriş yapılmamış görünüyor. Giriş yapıp tekrar dene.';
+
+  @override
+  String get groupSuspectSession =>
+      'Oturumun geçersiz görünüyor. Çıkış yapıp yeniden giriş yap.';
+
+  @override
+  String get groupSuspectReadDenied =>
+      'Sunucu bu hesabın veri okumasına da izin vermiyor. Sorun oturumda ya da uygulama doğrulamasında olabilir.';
+
+  @override
+  String get groupSuspectClock =>
+      'Telefonunun saati sunucudan farklı görünüyor. Seçtiğin kalkış sunucuya göre geçmişte kalıyor. Ayarlar\'dan \"Otomatik tarih ve saat\"i açıp tekrar dene.';
+
+  @override
+  String get groupSuspectNetwork =>
+      'İnternet bağlantısında sorun var gibi görünüyor. Bağlantını kontrol edip tekrar dene.';
+
+  @override
+  String get groupSuspectRules =>
+      'Saat ve oturum sağlam görünüyor ama sunucu kaydı reddetti. Sorun sunucu tarafında olabilir.';
+
+  @override
+  String get groupSuspectUnknown => 'Neden kesin olarak belirlenemedi.';
 }

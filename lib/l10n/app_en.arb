@@ -284,5 +284,17 @@
   "assistantConsentTitle": "Sharing with AI",
   "assistantConsentBody": "Your questions and your approximate area (not your exact location) are sent to an AI service to generate suggestions. Continue?",
   "assistantConsentAccept": "Continue",
-  "assistantCallTaxi": "Call a taxi"
+  "assistantCallTaxi": "Call a taxi",
+  "groupFailureTitle": "Couldn't create the group",
+  "groupFailureChecking": "Checking why…",
+  "groupFailureHint": "Send a screenshot of this screen to the developer.",
+  "groupFailureCopy": "Copy",
+  "groupFailureCopied": "Copied.",
+  "groupSuspectSignedOut": "You don't appear to be signed in. Sign in and try again.",
+  "groupSuspectSession": "Your session looks invalid. Log out and sign in again.",
+  "groupSuspectReadDenied": "The server is also refusing to let this account read data. The session or app verification may be the problem.",
+  "groupSuspectClock": "Your phone's clock differs from the server. The departure you chose is in the past for the server. Turn on \"Automatic date and time\" in Settings and try again.",
+  "groupSuspectNetwork": "There seems to be an internet problem. Check your connection and try again.",
+  "groupSuspectRules": "The clock and session look fine, but the server refused the write. The problem may be on the server side.",
+  "groupSuspectUnknown": "The cause couldn't be determined."
 }

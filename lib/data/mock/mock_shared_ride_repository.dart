@@ -5,6 +5,7 @@ import 'package:kktc_taksim/data/mock/watch_value.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
+import 'package:kktc_taksim/models/group_diagnostics.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 class MockSharedRideRepository implements SharedRideRepository {
@@ -39,6 +40,12 @@ class MockSharedRideRepository implements SharedRideRepository {
   Future<void> create(SharedRide ride) async {
     _rides.add(ride.copyWith(id: 'group-${_nextId++}', memberIds: [_userId]));
     _changes.add(null);
+  }
+
+  @override
+  Future<GroupDiagnostics> diagnose() async {
+    final now = DateTime.now();
+    return GroupDiagnostics(signedIn: _auth.currentUser != null, localTime: now, serverTime: now);
   }
 
   @override

@@ -14,6 +14,7 @@ import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
 import 'package:kktc_taksim/widgets/async_view.dart';
+import 'package:kktc_taksim/widgets/group_failure_dialog.dart';
 import 'package:kktc_taksim/widgets/home/sheet_container.dart';
 
 class SharedRideScreen extends StatefulWidget {
@@ -28,7 +29,8 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   late Stream<List<SharedRide>> _rides = _repository.watchActive();
 
   /// Repository çağrısını yapar; hata olursa kullanıcıya anlaşılır bir mesaj gösterir.
-  Future<bool> _run(Future<void> Function() action) async {
+  /// [onFailed] verilirse beklenmeyen hatada mesaj yerine o çağrılır.
+  Future<bool> _run(Future<void> Function() action, {void Function(String code)? onFailed}) async {
     final l10n = context.l10n;
     try {
       await action();
@@ -38,7 +40,12 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
     } catch (e) {
       // Hata kodu mesajda da görünsün: testçiler cihaz kaydına bakamıyor, ekran görüntüsü atıyor.
       debugPrint('Paylaşımlı grup işlemi başarısız: $e');
-      if (mounted) showMessage(context, l10n.actionFailedWithCode(errorCode(e)));
+      if (!mounted) return false;
+      if (onFailed != null) {
+        onFailed(errorCode(e));
+      } else {
+        showMessage(context, l10n.actionFailedWithCode(errorCode(e)));
+      }
     }
     return false;
   }
@@ -67,7 +74,13 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
       builder: (_) => const CreateSharedRideSheet(),
     );
     if (!mounted || ride == null) return;
-    await _run(() => _repository.create(ride));
+    await _run(
+      () => _repository.create(ride),
+      onFailed: (code) => showDialog<void>(
+        context: context,
+        builder: (_) => GroupFailureDialog(errorCode: code, departure: ride.departure),
+      ),
+    );
   }
 
   Future<void> _join(SharedRide ride) async {
