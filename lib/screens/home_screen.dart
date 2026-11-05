@@ -45,7 +45,11 @@ enum RideState {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  /// Testler sahte servis verebilir.
+  final GeocodingService? geocoding;
+  final RoutingService? routing;
+
+  const HomeScreen({super.key, this.geocoding, this.routing});
 
   @override
   State<HomeScreen> createState() => HomeScreenState();
@@ -57,8 +61,8 @@ class HomeScreenState extends State<HomeScreen> {
 
   final GlobalKey<RideMapState> _mapKey = GlobalKey();
   final LocationService _locationService = LocationService();
-  final GeocodingService _geocoding = GeocodingService();
-  final RoutingService _routing = RoutingService();
+  late final GeocodingService _geocoding = widget.geocoding ?? GeocodingService();
+  late final RoutingService _routing = widget.routing ?? RoutingService();
   StreamSubscription<LatLng>? _positionSubscription;
   LatLng? _userLocation;
   LocationStatus? _locationStatus;
@@ -74,10 +78,26 @@ class HomeScreenState extends State<HomeScreen> {
   final ValueNotifier<RideSession?> _session = ValueNotifier(null);
   StreamSubscription<RideSession>? _rideSubscription;
 
+  /// Şoför bulundu / yolculuk paneli ve kapanınca verdiği sonuç. Panel modal değildir: yolcu yolculuk
+  /// sürerken menüde gezebilsin diye ana sekmenin içinde durur.
+  RideSession? _panelSession;
+  Completer<bool>? _panelResult;
+
+  /// Açık güvenlik sheet'i; yolculuk biterse o da kapanır.
+  BuildContext? _safetySheetContext;
+
   /// Yolcu "Yolculuğumu paylaş" derse canlı konum paylaşımı; yolculuk bitince kendiliğinden kapanır.
   late final LiveShareController _liveShare = LiveShareController(Backend.instance.liveShares, _session);
 
   RideRepository get _rides => Backend.instance.rides;
+
+  /// Çağrı açık mı; sürerken çıkış gibi işlemler çağrıyı sahipsiz bırakır.
+  bool get hasActiveRide => const {
+        RideState.searching,
+        RideState.driverFound,
+        RideState.activeTrip,
+        RideState.tripCompleted,
+      }.contains(_state);
 
   @override
   void initState() {
@@ -135,6 +155,8 @@ class HomeScreenState extends State<HomeScreen> {
     _rideSubscription?.cancel();
     _rideSubscription = null;
     _session.value = null;
+    _panelSession = null;
+    _panelResult = null;
     setState(() {
       _state = RideState.idle;
       _destination = null;
@@ -291,25 +313,17 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> _showDriver(RideSession session) async {
     final driver = session.driver!;
-    setState(() => _state = RideState.driverFound);
+    setState(() {
+      _panelSession = session;
+      _state = RideState.driverFound;
+    });
     final driverAt = session.progress?.position;
     _mapKey.currentState?.fitPoints(
       [if (driverAt != null) driverAt, session.request.pickup.position],
       bottomInset: _sheetInset,
     );
 
-    final started = await showModalBottomSheet<bool>(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      barrierColor: Colors.transparent,
-      builder: (_) => DriverFoundSheet(
-        driver: driver,
-        session: _session,
-        onStartDemo: _rides.hasDemoControls ? () => _rides.startTripDemo(session.id) : null,
-      ),
-    );
+    final started = await _waitForPanel();
     if (!mounted || _state != RideState.driverFound) return;
     if (started != true) {
       await _rides.cancel(session.id);
@@ -323,20 +337,7 @@ class HomeScreenState extends State<HomeScreen> {
     setState(() => _state = RideState.activeTrip);
     _mapKey.currentState?.fitPoints(request.route.points, bottomInset: _sheetInset);
 
-    final completed = await showModalBottomSheet<bool>(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      barrierColor: Colors.transparent,
-      builder: (_) => ActiveTripSheet(
-        request: request,
-        driver: driver,
-        session: _session,
-        onSafety: _showSafetyTools,
-        onCompleteDemo: _rides.hasDemoControls ? () => _rides.completeDemo(rideId) : null,
-      ),
-    );
+    final completed = await _waitForPanel();
     if (!mounted) return;
     if (completed == true) {
       setState(() => _state = RideState.tripCompleted);
@@ -349,6 +350,47 @@ class HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
     }
     _reset();
+  }
+
+  Future<bool> _waitForPanel() {
+    final result = Completer<bool>();
+    _panelResult = result;
+    return result.future;
+  }
+
+  void _onPanelClosed(bool result) {
+    final safetySheet = _safetySheetContext;
+    if (safetySheet != null && safetySheet.mounted) {
+      final route = ModalRoute.of(safetySheet);
+      final navigator = Navigator.of(safetySheet);
+      navigator.popUntil((r) => r == route);
+      navigator.pop();
+    }
+    _panelResult?.complete(result);
+    _panelResult = null;
+  }
+
+  Widget? _buildRidePanel() {
+    final session = _panelSession;
+    final driver = session?.driver;
+    if (session == null || driver == null) return null;
+    return switch (_state) {
+      RideState.driverFound => DriverFoundSheet(
+          driver: driver,
+          session: _session,
+          onClosed: _onPanelClosed,
+          onStartDemo: _rides.hasDemoControls ? () => _rides.startTripDemo(session.id) : null,
+        ),
+      RideState.activeTrip => ActiveTripSheet(
+          request: session.request,
+          driver: driver,
+          session: _session,
+          onSafety: _showSafetyTools,
+          onClosed: _onPanelClosed,
+          onCompleteDemo: _rides.hasDemoControls ? () => _rides.completeDemo(session.id) : null,
+        ),
+      _ => null,
+    };
   }
 
   void _showSafetyTools() {
@@ -388,8 +430,11 @@ class HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => SafetySheet(shareText: shareText),
-    );
+      builder: (sheetContext) {
+        _safetySheetContext = sheetContext;
+        return SafetySheet(shareText: shareText);
+      },
+    ).whenComplete(() => _safetySheetContext = null);
   }
 
   void _recenter() {
@@ -411,6 +456,7 @@ class HomeScreenState extends State<HomeScreen> {
       RideState.activeTrip,
     }.contains(_state);
     final showNearbyTaxis = _state == RideState.idle || _state == RideState.pickingOnMap;
+    final ridePanel = _buildRidePanel();
 
     return Scaffold(
       body: Stack(
@@ -495,7 +541,33 @@ class HomeScreenState extends State<HomeScreen> {
             Positioned.fill(
               child: _BusyOverlay(title: l10n.searchingTaxi, subtitle: l10n.searchingTaxiHint, onCancel: _cancelSearch),
             ),
+          if (ridePanel != null)
+            Positioned.fill(
+              child: Align(alignment: Alignment.bottomCenter, child: _RidePanel(child: ridePanel)),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+/// Şoför ve yolculuk panellerinin zemini; sheet'lerle aynı görünür.
+class _RidePanel extends StatelessWidget {
+  final Widget child;
+
+  const _RidePanel({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final sheetTheme = Theme.of(context).bottomSheetTheme;
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: sheetTheme.backgroundColor,
+        shape: sheetTheme.shape,
+        elevation: 8,
+        clipBehavior: Clip.antiAlias,
+        child: child,
       ),
     );
   }

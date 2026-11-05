@@ -6,13 +6,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
+import 'package:kktc_taksim/core/app_tokens.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/assistant_repository.dart';
 import 'package:kktc_taksim/data/mock/mock_assistant_repository.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
+import 'package:kktc_taksim/services/routing_service.dart';
+import 'package:kktc_taksim/widgets/home/active_trip_sheet.dart';
 import 'package:kktc_taksim/widgets/home/assistant_sheet.dart';
+import 'package:kktc_taksim/widgets/home/driver_found_sheet.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
@@ -28,6 +32,8 @@ import 'package:kktc_taksim/models/route_info.dart';
 import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/models/trip.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
+import 'package:kktc_taksim/screens/home_screen.dart';
+import 'package:kktc_taksim/screens/main_navigation_screen.dart';
 import 'package:kktc_taksim/screens/my_trips_screen.dart';
 import 'package:kktc_taksim/screens/profile_screen.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
@@ -570,5 +576,68 @@ void main() {
       expect(await AppSettings.instance.takeAssistantQuota(day), isFalse);
       expect(await AppSettings.instance.takeAssistantQuota(day.add(const Duration(days: 1))), isTrue);
     });
+  });
+
+  testWidgets('Yolculuk sırasında menüde gezilir, çıkış engellenir', (tester) async {
+    // Profil listesinin tamamı ekrana sığsın.
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    // Profil listesinin tamamı ekrana sığsın.
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await signIn(name: 'Ayşe');
+    // Servisler hata verir: ad bulunmaz, rota kuş uçuşundan tahmin edilir.
+    final offline = MockClient((_) async => http.Response('hata', 500));
+    await tester.pumpWidget(localized(MainNavigationScreen(
+      showAds: false,
+      geocoding: GeocodingService(client: offline),
+      routing: RoutingService(client: offline),
+    )));
+    await tester.pump();
+
+    tester
+        .state<HomeScreenState>(find.byType(HomeScreen))
+        .rideTo(const GeoPlace(name: 'Girne Limanı', position: LatLng(35.3412, 33.3196)));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.ensureVisible(find.text('TAKSİ ÇAĞIR'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('TAKSİ ÇAĞIR'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(AppDurations.driverSearch + const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(DriverFoundSheet).hitTestable(), findsOneWidget);
+
+    // Şoför bulunmuşken menü çalışır.
+    await tester.tap(find.text('Profil'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(DriverFoundSheet).hitTestable(), findsNothing);
+
+    await tester.ensureVisible(find.text('Çıkış Yap'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Çıkış Yap'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Önce devam eden yolculuğunu tamamla.'), findsOneWidget);
+    expect(Backend.instance.auth.currentUser, isNotNull);
+
+    // Ana sekmeye dönünce panel yerinde; demo yolculuk başlayınca yolculuk paneline geçer.
+    await tester.tap(find.text('Ana Sayfa'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(DriverFoundSheet).hitTestable(), findsOneWidget);
+    final session = tester.widget<DriverFoundSheet>(find.byType(DriverFoundSheet)).session;
+    await Backend.instance.rides.startTripDemo(session.value!.id);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(ActiveTripSheet).hitTestable(), findsOneWidget);
+
+    await tester.tap(find.text('Paylaşımlı'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(ActiveTripSheet).hitTestable(), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
   });
 }

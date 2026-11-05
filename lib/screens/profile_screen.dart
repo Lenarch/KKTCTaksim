@@ -13,9 +13,19 @@ import 'package:kktc_taksim/screens/otp_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  /// Çağrı açıkken çıkış, hesap silme ve şoför moduna geçiş engellenir; çağrı sahipsiz kalırdı.
+  final bool Function()? hasActiveRide;
+
+  const ProfileScreen({super.key, this.hasActiveRide});
+
+  bool _blockedByRide(BuildContext context) {
+    if (hasActiveRide?.call() != true) return false;
+    showMessage(context, context.l10n.finishCurrentRideFirst);
+    return true;
+  }
 
   Future<void> _confirmLogout(BuildContext context) async {
+    if (_blockedByRide(context)) return;
     final l10n = context.l10n;
     final confirmed = await confirm(
       context,
@@ -39,6 +49,7 @@ class ProfileScreen extends StatelessWidget {
 
   /// Onay → SMS koduyla yeniden doğrulama → veriler ve hesap silinir (OtpScreen).
   Future<void> _confirmDeleteAccount(BuildContext context) async {
+    if (_blockedByRide(context)) return;
     final l10n = context.l10n;
     final user = Backend.instance.auth.currentUser;
     if (user == null) return;
@@ -144,6 +155,7 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.drive_eta_outlined,
             title: l10n.switchToDriver,
             onTap: () async {
+              if (_blockedByRide(context)) return;
               await AppSettings.instance.setRole(AppRole.driver);
               if (context.mounted) {
                 Navigator.pushNamedAndRemoveUntil(context, AppRoutes.driver, (route) => false);

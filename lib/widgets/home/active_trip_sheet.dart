@@ -12,8 +12,8 @@ import 'package:kktc_taksim/widgets/home/driver_card.dart';
 import 'package:kktc_taksim/widgets/home/ride_sheet_closer.dart';
 import 'package:kktc_taksim/widgets/home/sheet_container.dart';
 
-/// Devam eden yolculuk. Geri tuşuyla kapatılamaz; yolculuk tamamlanınca `true`,
-/// iptal edilirse `false` ile kendiliğinden kapanır.
+/// Devam eden yolculuk; ana sekmede gösterilir (menü kullanılabilir kalır). Geri tuşuyla kapatılamaz;
+/// yolculuk tamamlanınca `true`, iptal edilirse `false` ile kendiliğinden kapanır.
 class ActiveTripSheet extends StatefulWidget {
   final RideRequest request;
   final Driver driver;
@@ -22,6 +22,7 @@ class ActiveTripSheet extends StatefulWidget {
 
   /// Demo: şoför tarafı olmadığı için yolculuğu yolcu bitirir; null ise buton gösterilmez.
   final VoidCallback? onCompleteDemo;
+  final ValueChanged<bool> onClosed;
 
   const ActiveTripSheet({
     super.key,
@@ -29,6 +30,7 @@ class ActiveTripSheet extends StatefulWidget {
     required this.driver,
     required this.session,
     required this.onSafety,
+    required this.onClosed,
     this.onCompleteDemo,
   });
 
@@ -39,6 +41,9 @@ class ActiveTripSheet extends StatefulWidget {
 class _ActiveTripSheetState extends State<ActiveTripSheet> with RideSheetCloser {
   @override
   ValueListenable<RideSession?> get session => widget.session;
+
+  @override
+  ValueChanged<bool> get onClosed => widget.onClosed;
 
   @override
   Set<RideStatus> get closeOn => const {RideStatus.completed, RideStatus.cancelled};

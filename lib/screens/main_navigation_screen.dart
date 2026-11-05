@@ -6,12 +6,18 @@ import 'package:kktc_taksim/screens/home_screen.dart';
 import 'package:kktc_taksim/screens/my_trips_screen.dart';
 import 'package:kktc_taksim/screens/profile_screen.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
+import 'package:kktc_taksim/services/geocoding_service.dart';
+import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:kktc_taksim/widgets/nav_bar.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final bool showAds;
 
-  const MainNavigationScreen({super.key, this.showAds = true});
+  /// Testler sahte servis verebilir.
+  final GeocodingService? geocoding;
+  final RoutingService? routing;
+
+  const MainNavigationScreen({super.key, this.showAds = true, this.geocoding, this.routing});
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -78,11 +84,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             child: IndexedStack(
               index: _selectedIndex,
               children: [
-                HomeScreen(key: _homeKey),
+                HomeScreen(key: _homeKey, geocoding: widget.geocoding, routing: widget.routing),
                 MyTripsScreen(onCallTaxi: () => _onItemTapped(_homeIndex)),
                 const SharedRideScreen(),
                 ExploreScreen(onCallTaxi: _callTaxiTo),
-                const ProfileScreen(),
+                ProfileScreen(hasActiveRide: () => _homeKey.currentState?.hasActiveRide ?? false),
               ],
             ),
           ),

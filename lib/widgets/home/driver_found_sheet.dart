@@ -11,15 +11,23 @@ import 'package:kktc_taksim/widgets/home/ride_sheet_closer.dart';
 import 'package:kktc_taksim/widgets/home/sheet_container.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Sürücü yolcuya gelirken gösterilir. Yolculuk başlayınca `true`, iptal edilince `false` ile kapanır.
+/// Sürücü yolcuya gelirken ana sekmede gösterilir (menü kullanılabilir kalır).
+/// Yolculuk başlayınca `true`, iptal edilince `false` ile kapanır.
 class DriverFoundSheet extends StatefulWidget {
   final Driver driver;
   final ValueListenable<RideSession?> session;
 
   /// Demo: şoför tarafı olmadığı için yolculuğu yolcu başlatır; null ise buton gösterilmez.
   final VoidCallback? onStartDemo;
+  final ValueChanged<bool> onClosed;
 
-  const DriverFoundSheet({super.key, required this.driver, required this.session, this.onStartDemo});
+  const DriverFoundSheet({
+    super.key,
+    required this.driver,
+    required this.session,
+    required this.onClosed,
+    this.onStartDemo,
+  });
 
   @override
   State<DriverFoundSheet> createState() => _DriverFoundSheetState();
@@ -28,6 +36,9 @@ class DriverFoundSheet extends StatefulWidget {
 class _DriverFoundSheetState extends State<DriverFoundSheet> with RideSheetCloser {
   @override
   ValueListenable<RideSession?> get session => widget.session;
+
+  @override
+  ValueChanged<bool> get onClosed => widget.onClosed;
 
   @override
   Set<RideStatus> get closeOn => const {RideStatus.inProgress, RideStatus.cancelled};
