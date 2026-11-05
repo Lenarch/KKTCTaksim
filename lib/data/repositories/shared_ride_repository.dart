@@ -1,4 +1,5 @@
 import 'package:kktc_taksim/models/chat_message.dart';
+import 'package:kktc_taksim/models/group_diagnostics.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 enum SharedRideError { full, notFound, notMember }
@@ -22,6 +23,9 @@ abstract class SharedRideRepository {
 
   /// Grubu oluşturur; oluşturan kişi ilk üye olur. Kimliği repository verir.
   Future<void> create(SharedRide ride);
+
+  /// Grup açılamayınca oturumu, sunucudan okumayı ve telefon saatini ölçer; hata fırlatmaz.
+  Future<GroupDiagnostics> diagnose();
 
   /// Dolu gruba katılmak [SharedRideException] fırlatır.
   Future<void> join(String rideId);

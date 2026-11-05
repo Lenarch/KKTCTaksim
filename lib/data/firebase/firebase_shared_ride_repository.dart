@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
+import 'package:kktc_taksim/models/group_diagnostics.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 /// Paylaşımlı gruplar Firestore'da `sharedRides/{rideId}` altında; giriş yapan herkes görür,
@@ -46,6 +50,51 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
   Future<void> create(SharedRide ride) {
     final ref = _rides.doc();
     return ref.set(sharedRideToDocument(ride.copyWith(id: ref.id, memberIds: [_userId])));
+  }
+
+  @override
+  Future<GroupDiagnostics> diagnose() async {
+    final user = _auth.currentUser;
+    if (user == null) return GroupDiagnostics(signedIn: false, localTime: DateTime.now());
+
+    const timeout = Duration(seconds: 8);
+    String? tokenError;
+    try {
+      await user.getIdToken(true).timeout(timeout);
+    } on FirebaseException catch (e) {
+      tokenError = e.code;
+    } catch (e) {
+      tokenError = e.runtimeType.toString();
+    }
+
+    String? readError;
+    try {
+      await _rides.limit(1).get(const GetOptions(source: Source.server)).timeout(timeout);
+    } on FirebaseException catch (e) {
+      readError = e.code;
+    } catch (e) {
+      readError = e.runtimeType.toString();
+    }
+
+    DateTime? serverTime;
+    var localTime = DateTime.now();
+    try {
+      // Firestore sunucu saatini vermiyor; aynı alan adının yanıt başlığından okunur (saniye hassasiyetinde).
+      final response = await http.head(Uri.parse('https://firestore.googleapis.com/')).timeout(timeout);
+      localTime = DateTime.now();
+      serverTime = parseHttpDate(response.headers['date']);
+    } catch (e) {
+      debugPrint('Sunucu saati ölçülemedi: $e');
+    }
+
+    return GroupDiagnostics(
+      signedIn: true,
+      userIdPrefix: user.uid.substring(0, user.uid.length < 6 ? user.uid.length : 6),
+      tokenError: tokenError,
+      readError: readError,
+      serverTime: serverTime,
+      localTime: localTime,
+    );
   }
 
   @override
@@ -226,4 +275,15 @@ ChatMessage chatMessageFromDocument(DocumentSnapshot<Map<String, dynamic>> doc) 
     text: data['text'] as String,
     sentAt: sentAt is Timestamp ? sentAt.toDate() : DateTime.now(),
   );
+}
+
+/// HTTP `Date` başlığı ("Thu, 05 Nov 2026 13:02:24 GMT"); okunamazsa null.
+@visibleForTesting
+DateTime? parseHttpDate(String? value) {
+  if (value == null) return null;
+  try {
+    return DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_US').parseUtc(value.replaceAll(' GMT', ''));
+  } on FormatException {
+    return null;
+  }
 }

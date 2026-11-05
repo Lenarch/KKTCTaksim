@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kktc_taksim/data/firebase/firebase_assistant_repository.dart';
+import 'package:kktc_taksim/data/firebase/firebase_shared_ride_repository.dart' show parseHttpDate;
+import 'package:kktc_taksim/models/group_diagnostics.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -240,6 +242,79 @@ void main() {
     test('ad yalnızca şehirden oluşuyorsa şehir eşleşir', () {
       const city = GeoPlace(name: 'Girne', position: point);
       expect(bestPlaceMatch('Girne', [other, city]), city);
+    });
+  });
+
+  group('Grup açma hatası teşhisi', () {
+    final server = DateTime.utc(2026, 11, 5, 12);
+    const denied = 'cloud_firestore/permission-denied';
+
+    GroupFailureSuspect suspect({
+      String code = denied,
+      bool signedIn = true,
+      String? token,
+      String? read,
+      DateTime? serverTime,
+      bool knownServerTime = true,
+      Duration ahead = const Duration(minutes: 30),
+    }) =>
+        groupFailureSuspect(
+          errorCode: code,
+          departure: server.add(ahead),
+          diagnostics: GroupDiagnostics(
+            signedIn: signedIn,
+            tokenError: token,
+            readError: read,
+            localTime: server,
+            serverTime: knownServerTime ? server : null,
+          ),
+        );
+
+    test('kalkış sunucuya göre geçmişteyse şüpheli saattir', () {
+      expect(suspect(ahead: const Duration(minutes: -30)), GroupFailureSuspect.clock);
+    });
+
+    test('saat ve okuma sağlamsa şüpheli sunucu kurallarıdır', () {
+      expect(suspect(), GroupFailureSuspect.rules);
+    });
+
+    test('oturum ve okuma hataları saatten önce gelir', () {
+      const past = Duration(minutes: -30);
+      expect(suspect(signedIn: false, ahead: past), GroupFailureSuspect.signedOut);
+      expect(suspect(token: 'user-disabled', ahead: past), GroupFailureSuspect.session);
+      expect(suspect(read: 'permission-denied', ahead: past), GroupFailureSuspect.readDenied);
+    });
+
+    test('ağ sorunu oturum sorunu sayılmaz', () {
+      expect(suspect(token: 'network-request-failed'), GroupFailureSuspect.network);
+      expect(suspect(code: 'cloud_firestore/unavailable'), GroupFailureSuspect.network);
+    });
+
+    test('sunucu saati ölçülemediyse ya da hata farklıysa tahmin yürütülmez', () {
+      expect(suspect(knownServerTime: false), GroupFailureSuspect.unknown);
+      expect(suspect(code: 'StateError'), GroupFailureSuspect.unknown);
+    });
+
+    test('rapor saat farkını gösterir, kimlik dışında kişisel bilgi taşımaz', () {
+      final report = groupDiagnosticsReport(
+        errorCode: denied,
+        departure: server.add(const Duration(minutes: 30)),
+        diagnostics: GroupDiagnostics(
+          signedIn: true,
+          userIdPrefix: 'abc123',
+          localTime: server.subtract(const Duration(hours: 1)),
+          serverTime: server,
+        ),
+      );
+      expect(report, contains('clockSkewSec: -3600'));
+      expect(report, contains('departureAheadSec: 1800'));
+      expect(report, contains('uid: abc123'));
+    });
+
+    test('sunucu saati başlığı okunur, bozuksa null döner', () {
+      expect(parseHttpDate('Thu, 05 Nov 2026 12:00:00 GMT'), server);
+      expect(parseHttpDate('bozuk'), isNull);
+      expect(parseHttpDate(null), isNull);
     });
   });
 }
