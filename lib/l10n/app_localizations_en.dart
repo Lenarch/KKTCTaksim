@@ -1054,4 +1054,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String serviceTimeLabel(String time) {
     return '$time Cyprus time';
   }
+
+  @override
+  String get chooseLocation => 'Choose location';
+
+  @override
+  String get moveMapToPickPlace =>
+      'Move the map to put the pin on the place you want';
+
+  @override
+  String get samePlaceError =>
+      'The destination can\'t be the same as the starting point.';
+
+  @override
+  String get pickedPlaceNotFound =>
+      'No address found here. Move the pin to a place in North Cyprus.';
 }

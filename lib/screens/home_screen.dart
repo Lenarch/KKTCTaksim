@@ -27,6 +27,7 @@ import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:kktc_taksim/widgets/home/active_trip_sheet.dart';
 import 'package:kktc_taksim/widgets/home/assistant_sheet.dart';
 import 'package:kktc_taksim/widgets/home/destination_sheet.dart';
+import 'package:kktc_taksim/widgets/home/map_pick_overlay.dart';
 import 'package:kktc_taksim/widgets/home/driver_found_sheet.dart';
 import 'package:kktc_taksim/widgets/home/ride_map.dart';
 import 'package:kktc_taksim/widgets/home/safety_sheet.dart';
@@ -478,8 +479,8 @@ class HomeScreenState extends State<HomeScreen> {
           ),
           if (_state == RideState.idle) const _IdleHeader(),
           if (_state == RideState.pickingOnMap) ...[
-            const _CenterPin(),
-            _TopBanner(text: l10n.moveMapToPick),
+            const MapCenterPin(),
+            MapTopBanner(text: l10n.moveMapToPick),
           ],
           Positioned(
             left: AppSpacing.xl,
@@ -623,57 +624,6 @@ class _IdleHeader extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TopBanner extends StatelessWidget {
-  final String text;
-
-  const _TopBanner({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Material(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          elevation: 4,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Row(
-              children: [
-                const Icon(Icons.pan_tool_alt_outlined),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600))),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Haritanın tam ortasını gösteren iğne; ucu merkezde olsun diye yukarı kaydırılır.
-class _CenterPin extends StatelessWidget {
-  static const double _size = 48;
-
-  const _CenterPin();
-
-  @override
-  Widget build(BuildContext context) {
-    return const IgnorePointer(
-      child: Center(
-        child: Padding(
-          padding: EdgeInsets.only(bottom: _size),
-          child: Icon(Icons.location_on, size: _size, color: AppTheme.errorRed),
         ),
       ),
     );

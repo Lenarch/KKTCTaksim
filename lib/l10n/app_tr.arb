@@ -583,5 +583,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "chooseLocation": "Konum seç",
+  "moveMapToPickPlace": "Haritayı kaydırarak iğneyi seçmek istediğin yere getir",
+  "samePlaceError": "Varış noktası başlangıç noktasıyla aynı olamaz.",
+  "pickedPlaceNotFound": "Burada bir adres bulunamadı. İğneyi KKTC içinde bir yere getir."
 }
