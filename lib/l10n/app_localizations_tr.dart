@@ -1032,4 +1032,7 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get pickedPlaceNotFound =>
       'Burada bir adres bulunamadı. İğneyi KKTC içinde bir yere getir.';
+
+  @override
+  String get nameReserved => 'Bu ad kullanılamaz. Kendi adını yaz.';
 }

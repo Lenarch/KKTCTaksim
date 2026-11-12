@@ -33,8 +33,24 @@ class FirebaseRideRepository implements RideRepository {
 
   CollectionReference<Map<String, dynamic>> get _rides => _firestore.collection('rides');
 
+  CollectionReference<Map<String, dynamic>> get _locks => _firestore.collection('rideLocks');
+
   @override
   bool get hasDemoControls => false;
+
+  /// Uygulama yolculuk sırasında kapanırsa çağrı sunucuda açık kalır ama ekrana geri gelmez; kilit
+  /// de yeni çağrıyı engeller. Yeni çağrıdan önce yarım kalan çağrı iptal edilir (şoför de görür).
+  /// Yolculuk başlamışsa iptal edilemez; o çağrı şoför bitirene kadar sürer.
+  Future<void> _releasePrevious(String userId) async {
+    try {
+      final previousId = (await _locks.doc(userId).get()).data()?['rideId'] as String?;
+      if (previousId == null) return;
+      final previous = await _rides.doc(previousId).get();
+      if (passengerCanCancel(previous.data()?['status'] as String?)) await cancel(previousId);
+    } catch (_) {
+      // Okunamadıysa ya da iptal reddedildiyse yeni çağrının sonucunu kurallar belirler.
+    }
+  }
 
   @override
   Stream<RideSession> request(RideRequest request) {
@@ -74,8 +90,17 @@ class FirebaseRideRepository implements RideRepository {
 
     controller = StreamController<RideSession>(
       onListen: () async {
+        await _releasePrevious(user.uid);
         try {
-          await ref.set(rideRequestToDocument(request, user.uid));
+          // Kurallar yolcunun aynı anda tek etkin çağrısına izin verir: çağrı, kilidi kendine
+          // çeviren yazımla birlikte gider (önceki çağrı bitmemişse ikisi de reddedilir).
+          final batch = _firestore.batch()
+            ..set(ref, rideRequestToDocument(request, user.uid))
+            ..set(_locks.doc(user.uid), {
+              'rideId': ref.id,
+              'at': FieldValue.serverTimestamp(),
+            });
+          await batch.commit();
         } catch (e) {
           controller.addError(e);
           await close();
@@ -123,6 +148,10 @@ class FirebaseRideRepository implements RideRepository {
   @override
   Future<void> completeDemo(String rideId) async {}
 }
+
+/// Yolcu yalnızca yolculuk başlamadan iptal edebilir (firestore.rules'taki yolcu iptali ile aynı liste).
+bool passengerCanCancel(String? status) =>
+    status == 'searching' || status == 'driverAssigned' || status == 'driverArrived';
 
 /// Şoförün bildirdiği konumdan yolcu ekranının beklediği ilerleme hesaplanır.
 RideSession sessionFromOffer(RideOffer offer, RideRequest request) {

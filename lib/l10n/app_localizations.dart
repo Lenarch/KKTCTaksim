@@ -1917,6 +1917,12 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Burada bir adres bulunamadı. İğneyi KKTC içinde bir yere getir.'**
   String get pickedPlaceNotFound;
+
+  /// No description provided for @nameReserved.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu ad kullanılamaz. Kendi adını yaz.'**
+  String get nameReserved;
 }
 
 class _AppLocalizationsDelegate

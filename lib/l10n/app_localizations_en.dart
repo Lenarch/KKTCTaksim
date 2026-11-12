@@ -1069,4 +1069,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pickedPlaceNotFound =>
       'No address found here. Move the pin to a place in North Cyprus.';
+
+  @override
+  String get nameReserved =>
+      'This name can\'t be used. Please enter your own name.';
 }

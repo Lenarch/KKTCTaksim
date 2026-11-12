@@ -212,10 +212,12 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
     if (user == null) throw StateError('Giriş yapılmadan mesaj gönderilemez');
     final normalized = normalizeMessage(text);
     if (normalized == null) return;
+    // Kurallar gönderen adını profildeki adla karşılaştırır; ad oradan okunur.
+    final profile = await _firestore.collection('users').doc(user.uid).get();
     try {
       await _messages(rideId).add({
         'senderId': user.uid,
-        'senderName': user.displayName,
+        'senderName': profile.data()?['name'] as String?,
         'text': normalized,
         'sentAt': FieldValue.serverTimestamp(),
       });

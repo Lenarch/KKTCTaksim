@@ -57,6 +57,12 @@ class MockDriverRepository implements DriverRepository {
   }
 
   @override
+  Future<void> removeMe() async {
+    _profiles.remove(_userId);
+    _changes.add(null);
+  }
+
+  @override
   Future<void> setOnline(bool online, LatLng? position) async {
     if (online && position == null) throw const DriverException(DriverError.noLocation);
     final profile = _profiles[_userId];

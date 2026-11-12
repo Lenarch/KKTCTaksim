@@ -17,9 +17,13 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
+
+const HOUR = 60 * 60 * 1000;
 
 const ALICE = { uid: 'alice', phone: '+905330000001' };
 const BOB = { uid: 'bob', phone: '+905330000002' };
@@ -72,6 +76,14 @@ describe('users/{uid} profil', () => {
   test('profildeki telefon giriş yapılan telefonla aynı olmalı', async () => {
     const ref = doc(dbAs(ALICE), 'users/alice');
     await assertFails(setDoc(ref, { phone: BOB.phone, updatedAt: serverTimestamp() }));
+  });
+
+  test('profil adı uygulamanın kendisi ya da destek ekibi gibi görünemez', async () => {
+    const ref = doc(dbAs(ALICE), 'users/alice');
+    for (const name of ['KKTC Taksim Destek', 'kktctaksim', 'Destek Ekibi', 'Admin', 'Yönetici', 'Support']) {
+      await assertFails(setDoc(ref, { phone: ALICE.phone, name, updatedAt: serverTimestamp() }));
+    }
+    await assertSucceeds(setDoc(ref, { phone: ALICE.phone, name: 'Ayşe Demir', updatedAt: serverTimestamp() }));
   });
 
   test('profilde fazladan alan olamaz', async () => {
@@ -175,6 +187,9 @@ describe('sharedRides paylaşımlı gruplar', () => {
     await assertFails(setDoc(doc(db, 'sharedRides/g4'), sharedRide({ pricePerPerson: 0 })));
     await assertFails(setDoc(doc(db, 'sharedRides/g5'), sharedRide({ from: '' })));
     await assertFails(setDoc(doc(db, 'sharedRides/g6'), sharedRide({ driverId: 'x' })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g8'), sharedRide({ departure: Date.now() + 100 * 365 * 24 * HOUR })));
+    await assertFails(setDoc(doc(db, 'sharedRides/g9'), sharedRide({ departure: Date.now() + 32 * 24 * HOUR })));
+    await assertSucceeds(setDoc(doc(db, 'sharedRides/g10'), sharedRide({ departure: Date.now() + 30 * 24 * HOUR })));
     const { to, ...missingTo } = sharedRide();
     await assertFails(setDoc(doc(db, 'sharedRides/g7'), missingTo));
   });
@@ -225,6 +240,20 @@ const message = (overrides = {}) => ({
 });
 
 describe('sharedRides/{id}/messages grup sohbeti', () => {
+  beforeEach(() => seed('users/alice', { phone: ALICE.phone, name: 'Alice' }));
+
+  test('gönderen adı profildeki addan başka olamaz (başkası gibi görünme)', async () => {
+    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    const ref = (id) => doc(dbAs(ALICE), `sharedRides/g1/messages/${id}`);
+    await assertFails(setDoc(ref('m1'), message({ senderName: 'KKTC Taksim Destek' })));
+    await assertFails(setDoc(ref('m2'), message({ senderName: null })));
+    await assertSucceeds(setDoc(ref('m3'), message()));
+    // Profili ya da adı olmayan kullanıcı adsız yazar.
+    await seed('users/bob', { phone: BOB.phone, name: null });
+    await assertFails(setDoc(doc(dbAs(BOB), 'sharedRides/g1/messages/m4'), message({ senderId: 'bob', senderName: 'Bob' })));
+    await assertSucceeds(setDoc(doc(dbAs(BOB), 'sharedRides/g1/messages/m5'), message({ senderId: 'bob', senderName: null })));
+  });
+
   test('üye mesaj yazar ve okur', async () => {
     await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
     await assertSucceeds(setDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m1'), message()));
@@ -279,8 +308,6 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
     await assertFails(getDocs(collection(dbAs(BOB), 'sharedRides/g1/messages')));
   });
 });
-
-const HOUR = 60 * 60 * 1000;
 
 const liveShare = (overrides = {}) => ({
   ownerId: 'alice',
@@ -430,13 +457,31 @@ const ride = (overrides = {}) => ({
 const seedRide = (id, overrides = {}) => seed(`rides/${id}`, { ...ride(overrides), createdAt: 1, updatedAt: 1 });
 // Yönetici (konsol) onaylı şoför; seed kurallardan geçmez.
 const seedDriver = (user, overrides = {}) => seed(`drivers/${user.uid}`, { ...driverProfile(user, overrides), approved: true, updatedAt: 1 });
-const driverSnapshot = { name: 'Bob', plate: 'TAB 123', car: 'Toyota Corolla', carColor: 'white', phone: BOB.phone };
+// BOB'un seedDriver kaydıyla birebir aynı (kurallar karşılaştırır).
+const driverSnapshot = { name: 'Ahmet Yılmaz', plate: 'TAB 123', car: 'Toyota Corolla', carColor: 'white', phone: BOB.phone };
+
+/** Uygulamanın yaptığı gibi: çağrı ve yolcunun "etkin çağrı" kilidi tek seferde yazılır. */
+const requestRide = (user, id, overrides = {}) => {
+  const db = dbAs(user);
+  const batch = writeBatch(db);
+  batch.set(doc(db, `rides/${id}`), ride({ passengerId: user.uid, ...overrides }));
+  batch.set(doc(db, `rideLocks/${user.uid}`), { rideId: id, at: serverTimestamp() });
+  return batch.commit();
+};
 
 describe('drivers şoför kaydı', () => {
-  test('kullanıcı kendini şoför olarak kaydeder (onaysız, çevrimdışı); giriş yapan herkes okur', async () => {
+  test('kullanıcı kendini şoför olarak kaydeder (onaysız, çevrimdışı); kaydını yalnızca kendisi okur', async () => {
     await assertSucceeds(setDoc(doc(dbAs(BOB), 'drivers/bob'), driverProfile(BOB, { online: false })));
-    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'drivers/bob')));
+    await assertSucceeds(getDoc(doc(dbAs(BOB), 'drivers/bob')));
+    await assertFails(getDoc(doc(dbAs(ALICE), 'drivers/bob')));
     await assertFails(getDoc(doc(anonymousDb(), 'drivers/bob')));
+  });
+
+  test('kimse şoförlerin telefon ve konum listesini çekemez', async () => {
+    await seedDriver(BOB);
+    await seedDriver(CAROL, { online: false });
+    await assertFails(getDocs(collection(dbAs(ALICE), 'drivers')));
+    await assertFails(getDocs(collection(dbAs(BOB), 'drivers')));
   });
 
   test('başkası adına, başka telefonla ya da geçersiz alanla kayıt olmaz', async () => {
@@ -469,12 +514,62 @@ describe('drivers şoför kaydı', () => {
 
 describe('rides çağrılar ve eşleştirme', () => {
   test('yolcu kendi adına çağrı oluşturur; başkası adına, geçersiz ya da atanmış oluşturamaz', async () => {
-    const db = dbAs(ALICE);
-    await assertSucceeds(setDoc(doc(db, 'rides/r1'), ride()));
-    await assertFails(setDoc(doc(db, 'rides/r2'), ride({ passengerId: 'bob' })));
-    await assertFails(setDoc(doc(db, 'rides/r3'), ride({ status: 'driverAssigned' })));
-    await assertFails(setDoc(doc(db, 'rides/r4'), ride({ driverId: 'bob' })));
-    await assertFails(setDoc(doc(db, 'rides/r5'), ride({ taxiType: 'limuzin' })));
+    await assertFails(requestRide(ALICE, 'r2', { passengerId: 'bob' }));
+    await assertFails(requestRide(ALICE, 'r3', { status: 'driverAssigned' }));
+    await assertFails(requestRide(ALICE, 'r4', { driverId: 'bob' }));
+    await assertFails(requestRide(ALICE, 'r5', { taxiType: 'limuzin' }));
+    await assertSucceeds(requestRide(ALICE, 'r1'));
+  });
+
+  test('ücret ve koordinatlar geçerli olmalı', async () => {
+    await assertFails(requestRide(ALICE, 'r1', { fareLow: -500, fareHigh: 0 }));
+    await assertFails(requestRide(ALICE, 'r2', { fareLow: 1200, fareHigh: 900 }));
+    await assertFails(requestRide(ALICE, 'r3', { fareLow: 1, fareHigh: 10000000 }));
+    await assertFails(requestRide(ALICE, 'r4', { pickup: { name: 'X', lat: 999, lng: -999 } }));
+    await assertFails(requestRide(ALICE, 'r5', { destination: { name: 'X', lat: 35, lng: 200 } }));
+    await assertSucceeds(requestRide(ALICE, 'r6'));
+  });
+
+  test('yolcunun aynı anda tek etkin çağrısı olur; kilitsiz çağrı açılamaz', async () => {
+    await assertFails(setDoc(doc(dbAs(ALICE), 'rides/r0'), ride()));
+    await assertSucceeds(requestRide(ALICE, 'r1'));
+    await assertFails(requestRide(ALICE, 'r2'));
+    // İptal edince yenisi açılır.
+    await updateDoc(doc(dbAs(ALICE), 'rides/r1'), { status: 'cancelled', updatedAt: serverTimestamp() });
+    await assertSucceeds(requestRide(ALICE, 'r2'));
+    // Kilit başkasının çağrısını ya da olmayan çağrıyı göstermez.
+    await seedRide('rb', { passengerId: 'bob' });
+    await assertFails(setDoc(doc(dbAs(BOB), 'rideLocks/bob'), { rideId: 'rb', at: serverTimestamp() }));
+    await assertFails(setDoc(doc(dbAs(ALICE), 'rideLocks/alice'), { rideId: 'rb', at: serverTimestamp() }));
+    await assertFails(setDoc(doc(dbAs(ALICE), 'rideLocks/bob'), { rideId: 'r2', at: serverTimestamp() }));
+  });
+
+  test('uygulama kapanınca takılı kalan arama 10 dakika sonra yenisini engellemez', async () => {
+    await seed('rides/old', { ...ride(), createdAt: Timestamp.fromMillis(Date.now() - 20 * 60 * 1000), updatedAt: 1 });
+    await seed('rideLocks/alice', { rideId: 'old', at: Timestamp.fromMillis(Date.now() - 20 * 60 * 1000) });
+    await assertSucceeds(requestRide(ALICE, 'r1'));
+    await seed('rides/r1', { ...ride(), createdAt: Timestamp.fromMillis(Date.now() - 60 * 1000), updatedAt: 1 });
+    await assertFails(requestRide(ALICE, 'r2'));
+  });
+
+  test('uygulama kapanınca yarım kalan atanmış çağrı yenisini engeller; yolcu iptal edince açılır', async () => {
+    const recent = Timestamp.fromMillis(Date.now() - 5 * 60 * 1000);
+    await seed('rides/old', { ...ride(), status: 'driverAssigned', driverId: 'bob', driver: driverSnapshot, createdAt: recent, updatedAt: recent });
+    await seed('rideLocks/alice', { rideId: 'old', at: recent });
+    await assertFails(requestRide(ALICE, 'r1'));
+    // Uygulama yeni çağrıdan önce kilidi ve eski çağrıyı okur, iptal eder.
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'rideLocks/alice')));
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'rides/old')));
+    await assertSucceeds(updateDoc(doc(dbAs(ALICE), 'rides/old'), { status: 'cancelled', updatedAt: serverTimestamp() }));
+    await assertSucceeds(requestRide(ALICE, 'r1'));
+  });
+
+  test('kilidi yalnızca sahibi okur ve siler (hesap silme)', async () => {
+    await assertSucceeds(requestRide(ALICE, 'r1'));
+    await assertFails(getDoc(doc(dbAs(BOB), 'rideLocks/alice')));
+    await assertFails(deleteDoc(doc(dbAs(BOB), 'rideLocks/alice')));
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), 'rideLocks/alice')));
+    await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'rideLocks/alice')));
   });
 
   test('bekleyen çağrıyı yalnızca onaylı, çevrimiçi şoförler görür', async () => {
@@ -515,6 +610,14 @@ describe('rides çağrılar ve eşleştirme', () => {
       status: 'driverAssigned', driverId: 'carol', driver: driverSnapshot,
       driverPosition: { lat: 35.18, lng: 33.38 }, updatedAt: serverTimestamp(),
     }));
+    // Yolcuya görünen şoför bilgisi şoförün kendi kaydından başka olamaz.
+    for (const fake of [{ ...driverSnapshot, name: 'Polis' }, { ...driverSnapshot, phone: '+900000000000' },
+      { ...driverSnapshot, plate: 'SAHTE' }, { ...driverSnapshot, extra: 'x' }]) {
+      await assertFails(updateDoc(doc(dbAs(BOB), 'rides/r1'), {
+        status: 'driverAssigned', driverId: 'bob', driver: fake,
+        driverPosition: { lat: 35.18, lng: 33.38 }, updatedAt: serverTimestamp(),
+      }));
+    }
     await assertSucceeds(accept(BOB));
     await assertFails(accept(CAROL));
     // Atandıktan sonra diğer şoför okuyamaz; atanan şoför ve yolcu okur.
