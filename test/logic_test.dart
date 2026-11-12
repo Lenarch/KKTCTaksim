@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kktc_taksim/core/http_headers.dart';
 import 'package:kktc_taksim/core/fare_calculator.dart';
+import 'package:kktc_taksim/core/group_fare.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/validators.dart';
@@ -343,6 +344,28 @@ void main() {
       expect(report, contains('uid: abc123'));
     });
 
+  });
+
+  group('Grup ücreti', () {
+    test('toplam: açılış + km, asgari ücret, büyük araç çarpanı', () {
+      expect(groupTotalFare(baseMeters: 20000, extraMeters: 0, capacity: 4), 900);
+      expect(groupTotalFare(baseMeters: 20000, extraMeters: 2500, capacity: 4), 1000);
+      expect(groupTotalFare(baseMeters: 500, extraMeters: 0, capacity: 4), 150);
+      expect(groupTotalFare(baseMeters: 20000, extraMeters: 0, capacity: 5), 1620);
+      expect(TaxiType.xl.fareMultiplier, 1.8); // kurallardaki 18/10 ile aynı kalmalı
+    });
+
+    test('kişi başı: eşit bölünür, 10 TL\'ye yukarı yuvarlanır', () {
+      int p(int n, {int capacity = 4}) =>
+          groupPricePerPerson(baseMeters: 20000, extraMeters: 0, capacity: capacity, members: n);
+      expect([p(1), p(2), p(3), p(4)], [900, 450, 300, 230]);
+      expect(p(5, capacity: 8), 330);
+    });
+
+    test('sapma 100 metreye yukarı yuvarlanır', () {
+      expect([roundDetour(0), roundDetour(1), roundDetour(100), roundDetour(2501.2), roundDetour(-5)],
+          [0, 100, 100, 2600, 0]);
+    });
   });
 
   group('Güvenilir saat ve Kıbrıs saati', () {
