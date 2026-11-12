@@ -1,9 +1,36 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **5 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **12 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
+
+## 7–12 Kasım 2026: grup konum seçici ve güvenlik denetimi (`main`, `c9389ae`)
+**Durum:** Hepsi `main`'de ve GitHub'da; yeni kurallar 12 Kasım'da canlıya yüklendi; `apk/KKTCTaksim-test.apk`
+aynı koddan derlendi (debug token gömülü). Testler: kurallar 55/55, Flutter 86/86, analyze temiz.
+
+- **Grup oluştururken konum seçilir (7 Kasım):** "Nereden/Nereye" artık serbest metin değil; ana sayfadaki
+  seçiciyle (adres araması, son yerler, haritadan seçme) seçilir. Küfür, selam ya da isim yazılamaz.
+  Haritada adı bulunamayan nokta ve aynı başlangıç/varış reddedilir (`CreateSharedRideSheet`,
+  `lib/screens/map_pick_screen.dart`).
+- **Güvenlik denetimi (12 Kasım):** Kötü niyetli 12 işlem emülatörde denendi, hepsi geçiyordu. Kapatılanlar:
+  1. Şoför kaydı (telefon, konum) herkese açıktı → yalnızca şoförün kendisi okur.
+  2. Sohbette istenen adla yazılabiliyordu → gönderen adı profildeki ad olmak zorunda; "destek", "admin",
+     "kktc taksim" gibi adlar kurallarda ve kayıt ekranında reddedilir (`isReservedName`, iki yerde aynı liste).
+  3. Sınırsız çağrı açılabiliyordu → yolcunun aynı anda tek açık çağrısı olur (`rideLocks/{uid}`; çağrı ve
+     kilit tek yazımda gider).
+  4. Şoför yolcuya sahte ad/telefon/plaka gösterebiliyordu → çağrıdaki şoför kopyası kayıtla birebir aynı olmalı.
+  5. Eksi/ters ücret ve dünya dışı koordinat kabul ediliyordu → aralık denetimi.
+  6. 100 yıl sonrasına grup açılabiliyordu → kalkış en fazla 31 gün sonrası.
+- **Yarım kalan çağrı:** Uygulama yolculuk sırasında kapanırsa çağrı sunucuda açık kalıyor ve ekrana geri
+  gelmiyor (yolcu tarafı açılışta çağrıyı geri yüklemiyor). Yeni çağrıdan önce yarım kalan iptal edilir
+  (`FirebaseRideRepository._releasePrevious`); yolculuk başlamışsa iptal edilemez, şoför bitirene kadar sürer.
+- **Hesap silme:** Çağrı kilidi ve şoför kaydı da silinir (önceden şoför kaydı kalıyordu).
+- **Canlıda denendi (emülatör, test hesabı 03):** taksi çağırma, iptal, uygulamayı zorla kapatıp yeniden
+  çağırma, grup açma, sohbet mesajı, gruptan çıkma. **Denenmedi:** şoförün çağrı kabul etmesi (ikinci hesap
+  gerekir), hesap silme, kayıt ekranında ayrılmış ad.
+- ⚠️ **Sürüm uyumu:** `679dcf6` öncesi APK'lar yeni kurallarla taksi çağıramaz; yeni APK da eski kurallarla
+  çağıramaz. Kurallar ve uygulama birlikte yayınlanmalı. Açık kalanlar: UYARILAR "Güvenlik denetimi".
 
 ## 5 Kasım 2026: hata düzeltmeleri (`main`)
 - **Yolculukta menü:** Şoför ve yolculuk panelleri modal değil, ana sekmenin içinde (`HomeScreenState._buildRidePanel`). Çağrı açıkken çıkış, hesap silme ve şoför moduna geçiş engelli. Web yolcu + emülatör şoförle uçtan uca denendi; yolcu tarafı Android'de denenmedi.

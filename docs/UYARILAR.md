@@ -86,8 +86,7 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
   çevrimiçi şoför yoksa "uygun taksi bulunamadı" der. Test için bir telefonu şoför moduna almak gerekir.
 - Şoför konumu yalnızca **uygulama açıkken** yazılır (arka plan konumu ve bildirim yok, B2'de
   bildirim gelecek). Şoför uygulamayı kapatırsa yolcu taksiyi hareketsiz görür.
-- Şoför kendi çağrısını kabul edebiliyor (tek test numarasıyla deneme için); yayından önce
-  kurallarda `driverId != passengerId` şartı eklenmeli.
+- Şoför kendi çağrısını kabul edemez (1 Kasım'da kurala eklendi); tam akışı denemek için iki hesap gerekir.
 - Ücret tahminidir; şoför bitirince yolcunun geçmişine aralığın ortası yazılır. Gerçek ücret/taksimetre yok.
 - Puanlar `rides` belgesinde duruyor ama şoför ortalaması hesaplanmıyor (her şoför 5.0 görünür).
 
@@ -133,6 +132,27 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
 
 ## Grup hatası teşhis penceresi (yayından önce)
 - `lib/widgets/group_failure_dialog.dart` "geliştiriciye gönder" diyor ve teknik özet gösteriyor; normal kullanıcıya uygun değil. Yayından önce kaldırılmalı ya da sadeleştirilmeli.
+
+## Güvenlik denetimi (12 Kasım 2026)
+- **Kurallar ve uygulama birlikte değişir:** Çağrı açmak için uygulamanın `rideLocks/{uid}` kilidini de
+  yazması gerekir. `679dcf6` öncesi APK'lar taksi çağıramaz; kuralları değiştirirken eski sürümleri düşün.
+- **Tek açık çağrı:** Yolcu yarım kalan çağrısını iptal edemezse (yolculuk başlamış) yeni çağrı açamaz;
+  kilit en geç 3 saat sonra düşer. Aramada takılı kalan çağrı 10 dakika sonra engel olmaz.
+- **Ayrılmış adlar** iki yerde durur ve birlikte değişmeli: `firestore.rules` → `isReservedName`,
+  `lib/core/validators.dart` → `isReservedName`. Liste dar; küfür filtresi değildir.
+- ⚠️ **Hâlâ açık:**
+  - Uygulamayı atlayan biri grup "nereden/nereye" alanına doğrudan istekle serbest metin yazabilir. Kurallar
+    bir metnin gerçek yer olup olmadığını denetleyemez; sunucu fonksiyonu (Cloud Function) gerekir.
+  - Debug token APK'dan düz metin olarak okunabiliyor (denendi). APK'yı alan asistan kotasını tüketebilir;
+    günlük 15 soru sınırı yalnızca cihazda. Testten sonra token iptal edilmeli.
+  - Ücreti uygulama hesaplıyor; kurallar yalnızca aralığı denetler, tarifeye uygunluğu denetlemez.
+  - Yolcu verdiği puanı defalarca değiştirebilir; kendi geçmişine istediği yolculuğu yazabilir (yalnızca
+    kendisi görür).
+  - Yayın APK'sı debug anahtarıyla imzalanıyor (`android/app/build.gradle.kts`); Play Store'a bu haliyle yüklenemez.
+  - Rota (OSRM) ve adres arama (Photon) ücretsiz demo sunucularında; gerçek kullanımda kesilebilir.
+  - SMS girişinde bölge kısıtlaması olup olmadığı konsolda kontrol edilmedi (SMS sömürüsü maliyet riski).
+  - Üstlendiği yolculuk süren şoförün hesap silmesinin engellenip engellenmediği kontrol edilmedi.
+- Canlı veritabanında denemelerden kalan iptal edilmiş test çağrıları var (çağrılar silinemez); zararsız.
 
 ## Saat ve saat dilimi
 - Grup saatleri `Asia/Nicosia` kurallarıyla hesaplanır (`timezone` paketi). KKTC yaz saati kararı bundan ayrılırsa paket veya kod güncellenmeli.
