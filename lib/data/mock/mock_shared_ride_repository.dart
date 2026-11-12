@@ -6,12 +6,16 @@ import 'package:kktc_taksim/data/repositories/auth_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 class MockSharedRideRepository implements SharedRideRepository {
   final AuthRepository _auth;
   final List<SharedRide> _rides = MockData.sharedRides();
   final Map<String, List<ChatMessage>> _messages = {};
+
+  /// Grup kimliği -> kullanıcı kimliği -> toplama noktası.
+  final Map<String, Map<String, Pickup>> _pickups = {};
   final Set<String> _blocked = {};
 
   /// Testler için: gönderilen şikâyetler (grup, mesaj, neden).
@@ -37,8 +41,11 @@ class MockSharedRideRepository implements SharedRideRepository {
   Stream<List<SharedRide>> watchActive() => watchValue(_changes.stream, () => _active);
 
   @override
-  Future<void> create(SharedRide ride) async {
-    _rides.add(ride.copyWith(id: 'group-${_nextId++}', memberIds: [_userId]));
+  Future<void> create(SharedRide draft, Pickup pickup) async {
+    final userId = _userId;
+    final id = 'group-${_nextId++}';
+    _rides.add(newGroup(draft, userId, pickup.detourMeters).copyWith(id: id));
+    _pickups[id] = {userId: pickup};
     _changes.add(null);
   }
 
@@ -49,13 +56,30 @@ class MockSharedRideRepository implements SharedRideRepository {
   }
 
   @override
-  Future<void> join(String rideId) async {
+  Future<void> join(String rideId, Pickup pickup) async {
+    final userId = _userId;
     final index = _indexOf(rideId);
     final ride = _rides[index];
-    final joined = rideAfterJoin(ride, _userId, 0);
+    final joined = rideAfterJoin(ride, userId, pickup.detourMeters);
     if (identical(joined, ride)) return;
     _rides[index] = joined;
+    (_pickups[rideId] ??= {})[userId] = pickup;
     _changes.add(null);
+  }
+
+  @override
+  Future<void> changePickup(String rideId, Pickup pickup) async {
+    final userId = _userId;
+    final index = _indexOf(rideId);
+    _rides[index] = rideAfterRepick(_rides[index], userId, pickup.detourMeters);
+    (_pickups[rideId] ??= {})[userId] = pickup;
+    _changes.add(null);
+  }
+
+  @override
+  Future<Pickup?> myPickup(String rideId) async {
+    final userId = _auth.currentUser?.id;
+    return userId == null ? null : _pickups[rideId]?[userId];
   }
 
   @override
@@ -66,8 +90,10 @@ class MockSharedRideRepository implements SharedRideRepository {
     if (left == null) {
       _rides.removeAt(index);
       _messages.remove(rideId);
+      _pickups.remove(rideId);
     } else {
       _rides[index] = left;
+      _pickups[rideId]?.remove(_userId);
     }
     _changes.add(null);
   }

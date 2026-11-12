@@ -22,6 +22,7 @@ import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/data/mock/mock_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/screens/driver/driver_shell.dart';
 import 'package:kktc_taksim/data/mock/mock_driver_repository.dart';
 import 'package:kktc_taksim/models/ride_offer.dart';
@@ -318,7 +319,7 @@ void main() {
     final shared = Backend.instance.sharedRides;
     // Önce başka bir yolcu gruba katılıp yazar.
     await signIn(name: 'Mehmet');
-    await shared.join('demo-group-1');
+    await shared.join('demo-group-1', Pickup(place: MockData.sharedRides().first.meetingPlace!, detourMeters: 0));
     await shared.sendMessage('demo-group-1', 'Havalimanına bavulla geleceğim');
 
     await Backend.instance.auth.sendCode('+90 542 111 22 33');
@@ -388,13 +389,13 @@ void main() {
   testWidgets('Sohbette başkasının mesajı şikâyet edilir; engellenen kişinin mesajı gizlenir', (tester) async {
     final shared = Backend.instance.sharedRides as MockSharedRideRepository;
     await signIn(name: 'Mehmet');
-    await shared.join('demo-group-1');
+    await shared.join('demo-group-1', Pickup(place: MockData.sharedRides().first.meetingPlace!, detourMeters: 0));
     await shared.sendMessage('demo-group-1', 'Kaba bir mesaj');
     final mehmet = Backend.instance.auth.currentUser!.id;
 
     await Backend.instance.auth.sendCode('+90 542 111 22 33');
     await Backend.instance.auth.verifyCode('1' * Backend.instance.auth.codeLength);
-    await shared.join('demo-group-1');
+    await shared.join('demo-group-1', Pickup(place: MockData.sharedRides().first.meetingPlace!, detourMeters: 0));
     // Widget testinde akışı `await ….first` ile beklemek testi kilitler; grup örnek veriden alınır.
     final ride = MockData.sharedRides().firstWhere((r) => r.id == 'demo-group-1');
     await tester.pumpWidget(localized(GroupChatScreen(ride: ride)));

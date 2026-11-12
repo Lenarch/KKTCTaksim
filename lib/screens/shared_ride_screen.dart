@@ -16,6 +16,7 @@ import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
@@ -90,7 +91,7 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
     );
     if (!mounted || ride == null) return;
     await _run(
-      () => _repository.create(ride),
+      () => _repository.create(ride, Pickup(place: ride.meetingPlace!, detourMeters: 0)),
       onFailed: (code) => showDialog<void>(
         context: context,
         builder: (_) => GroupFailureDialog(errorCode: code, departure: ride.departure),
@@ -101,7 +102,9 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   Future<void> _join(SharedRide ride) async {
     if (!_ensureSignedIn()) return;
     final message = context.l10n.joinedGroup(ride.from, ride.to);
-    if (await _run(() => _repository.join(ride.id)) && mounted) showMessage(context, message);
+    // Görev 8: gerçek toplama noktası seçimi gelene kadar buluşma noktası, sapma 0.
+    final pickup = Pickup(place: ride.meetingPlace!, detourMeters: 0);
+    if (await _run(() => _repository.join(ride.id, pickup)) && mounted) showMessage(context, message);
   }
 
   Future<void> _leave(SharedRide ride) async {
@@ -558,6 +561,10 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
         capacity: _capacity.toInt(),
         memberIds: const [],
         pricePerPerson: _pricePerPerson!,
+        fromPoint: _from!.position,
+        toPoint: _to!.position,
+        // Görev 7: gerçek rota mesafesi gelene kadar geçici olarak kuş uçuşu mesafe.
+        baseMeters: distanceMeters(_from!.position, _to!.position).round(),
       ),
     );
   }

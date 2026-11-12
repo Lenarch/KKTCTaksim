@@ -1,6 +1,7 @@
 import 'package:kktc_taksim/core/group_fare.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 enum SharedRideError { full, notFound, notMember, closed }
@@ -22,16 +23,23 @@ abstract class SharedRideRepository {
   /// Kalkış zamanı gelmemiş gruplar, en yakın kalkış başta.
   Stream<List<SharedRide>> watchActive();
 
-  /// Grubu oluşturur; oluşturan kişi ilk üye olur. Kimliği repository verir.
-  Future<void> create(SharedRide ride);
+  /// Grubu oluşturur; oluşturan kişi [pickup] noktasıyla ilk üye olur. Kimliği repository verir.
+  Future<void> create(SharedRide draft, Pickup pickup);
 
   /// Grup açılamayınca oturumu, sunucudan okumayı ve telefon saatini ölçer; hata fırlatmaz.
   Future<GroupDiagnostics> diagnose();
 
-  /// Dolu gruba katılmak [SharedRideException] fırlatır.
-  Future<void> join(String rideId);
+  /// Dolu ya da açık olmayan gruba katılmak [SharedRideException] fırlatır.
+  Future<void> join(String rideId, Pickup pickup);
 
-  /// Son üye ayrılırsa grup sohbetiyle birlikte silinir.
+  /// Üyenin biniş noktasını ve sapmasını değiştirir; ücret yeniden hesaplanır.
+  Future<void> changePickup(String rideId, Pickup pickup);
+
+  /// Giriş yapan kullanıcının bu gruptaki toplama noktası; üye değilse, eski grupta ya da
+  /// girişsizken null. Hata fırlatmaz.
+  Future<Pickup?> myPickup(String rideId);
+
+  /// Toplama kaydı silinir; son üye ayrılırsa grup sohbetiyle birlikte silinir.
   Future<void> leave(String rideId);
 
   /// Grup sohbeti, eskiden yeniye (en fazla son [chatHistoryLimit] mesaj). Yalnızca üyeler okur.

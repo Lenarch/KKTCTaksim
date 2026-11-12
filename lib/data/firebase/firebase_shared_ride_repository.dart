@@ -4,6 +4,7 @@ import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/services/trusted_clock.dart';
 
@@ -45,10 +46,16 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
   }
 
   @override
-  Future<void> create(SharedRide ride) {
+  Future<void> create(SharedRide draft, Pickup pickup) {
     final ref = _rides.doc();
-    return ref.set(sharedRideToDocument(ride.copyWith(id: ref.id, memberIds: [_userId])));
+    return ref.set(sharedRideToDocument(newGroup(draft, _userId, pickup.detourMeters).copyWith(id: ref.id)));
   }
+
+  @override
+  Future<void> changePickup(String rideId, Pickup pickup) => throw UnimplementedError(); // Görev 5
+
+  @override
+  Future<Pickup?> myPickup(String rideId) async => null; // Görev 5
 
   @override
   Future<GroupDiagnostics> diagnose() async {
@@ -88,7 +95,7 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
   }
 
   @override
-  Future<void> join(String rideId) async {
+  Future<void> join(String rideId, Pickup pickup) async {
     final userId = _userId;
     final ref = _rides.doc(rideId);
     // Hata transaction'ın dışında fırlatılır; web'de içeride fırlatılan hata sarmalanabiliyor.
@@ -98,7 +105,7 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       if (!snapshot.exists) return SharedRideError.notFound;
       final ride = sharedRideFromDocument(snapshot);
       try {
-        final joined = rideAfterJoin(ride, userId, 0);
+        final joined = rideAfterJoin(ride, userId, pickup.detourMeters);
         if (!identical(joined, ride)) transaction.update(ref, {'memberIds': joined.memberIds});
         return null;
       } on SharedRideException catch (e) {
