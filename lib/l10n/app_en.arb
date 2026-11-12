@@ -305,5 +305,10 @@
         "type": "String"
       }
     }
-  }
+  },
+  "chooseLocation": "Choose location",
+  "moveMapToPickPlace": "Move the map to put the pin on the place you want",
+  "samePlaceError": "The destination can't be the same as the starting point.",
+  "pickedPlaceNotFound": "No address found here. Move the pin to a place in North Cyprus.",
+  "nameReserved": "This name can't be used. Please enter your own name."
 }

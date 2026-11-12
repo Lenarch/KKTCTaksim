@@ -508,8 +508,17 @@ void main() {
       const LatLng(35.2, 33.3),
     );
     expect(await trips.watch(TripStatus.completed).first, isNotEmpty);
+    await backend.drivers.register(
+      const DriverProfile(name: 'Ahmet Yılmaz', plate: 'TAB 123', car: 'Toyota Corolla', carColor: CarColor.white),
+    );
+    expect(await backend.drivers.watchProfile().first, isNotNull);
 
     await deleteAccountAndData(backend);
+
+    // Şoför kaydı (ad, plaka, telefon, konum) da gider: aynı numarayla yeniden girince kayıt yoktur.
+    await _signIn(backend.auth);
+    expect(await backend.drivers.watchProfile().first, isNull);
+    await backend.auth.signOut();
 
     expect(backend.auth.currentUser, isNull);
     expect(await trips.watch(TripStatus.completed).first, isEmpty);

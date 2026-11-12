@@ -37,6 +37,7 @@ import 'package:kktc_taksim/screens/home_screen.dart';
 import 'package:kktc_taksim/screens/main_navigation_screen.dart';
 import 'package:kktc_taksim/screens/my_trips_screen.dart';
 import 'package:kktc_taksim/screens/profile_screen.dart';
+import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
@@ -61,6 +62,14 @@ Future<void> signIn({String? name}) async {
   await auth.sendCode('+90 533 123 45 67');
   await auth.verifyCode('1' * auth.codeLength);
   if (name != null) await auth.updateName(name);
+}
+
+/// Grup formunda "Konum seç"e basıp son gidilen yerlerden birini seçer (ağ gerekmez).
+Future<void> chooseRecentPlace(WidgetTester tester, String name) async {
+  await tester.tap(find.text('Konum seç'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
 }
 
 Future<void> openSplashAndChooseRole(WidgetTester tester) async {
@@ -128,11 +137,94 @@ void main() {
     expect(find.byType(TextField), findsNWidgets(Backend.instance.auth.codeLength));
   });
 
-  testWidgets('Grup formu alttan açılınca, kayma bitince "Nereden?" alanı odaklanır', (tester) async {
+  testWidgets('Grup formunda nereden/nereye yazılamaz, yalnızca konum seçilir', (tester) async {
+    await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
+
+    // Serbest yazı yok: küfür, selam ya da isim girilemez.
+    expect(find.byType(TextField), findsNothing);
+    Finder next() => find.widgetWithText(ElevatedButton, 'Devam Et');
+    expect(tester.widget<ElevatedButton>(next()).onPressed, isNull);
+
+    await chooseRecentPlace(tester, 'Ercan Havalimanı');
+    expect(find.text('Ercan Havalimanı'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(next()).onPressed, isNotNull);
+
+    await tester.tap(next());
+    await tester.pumpAndSettle();
+    // 2. adım boş başlar, 1. adımın seçimini taşımaz.
+    expect(find.text('Nereye?'), findsOneWidget);
+    expect(find.text('Ercan Havalimanı'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
+    expect(tester.widget<ElevatedButton>(next()).onPressed, isNull);
+  });
+
+  testWidgets('Grup formunda konum haritadan da seçilir, adı adres servisinden gelir', (tester) async {
+    const reverse = '{"features":[{"properties":{"name":"Kafe","street":"Ziya Rızkı Caddesi","city":"Girne",'
+        '"state":"Kuzey Kıbrıs Türk Cumhuriyeti"},"geometry":{"coordinates":[33.32,35.34]}}]}';
+    final geocoding = GeocodingService(
+      client: MockClient((_) async => http.Response(reverse, 200, headers: {'content-type': 'application/json; charset=utf-8'})),
+    );
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(geocoding: geocoding))));
+
+    await tester.tap(find.text('Konum seç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Haritadan seç'));
+    // Harita sürekli çizildiği için pumpAndSettle beklemez.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Bu Noktayı Seç'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Ziya Rızkı Caddesi'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Devam Et')).onPressed, isNotNull);
+  });
+
+  testWidgets('Haritada adı bulunamayan nokta gruba yer olarak seçilemez', (tester) async {
+    // KKTC dışı ya da denizde: adres servisi sonuç vermez.
+    final geocoding = GeocodingService(client: MockClient((_) async => http.Response('{"features":[]}', 200)));
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(geocoding: geocoding))));
+
+    await tester.tap(find.text('Konum seç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Haritadan seç'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('Bu Noktayı Seç'));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Burada bir adres bulunamadı. İğneyi KKTC içinde bir yere getir.'), findsOneWidget);
+    expect(find.text('İşaretlenen konum'), findsNothing);
+    // Harita açık kalır; vazgeçilince seçim boş kalır.
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Konum seç'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Devam Et')).onPressed, isNull);
+  });
+
+  testWidgets('Grupta nereden ve nereye aynı yer olamaz', (tester) async {
+    await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
+    await chooseRecentPlace(tester, 'Ercan Havalimanı');
+    await tester.tap(find.text('Devam Et'));
+    await tester.pumpAndSettle();
+    await chooseRecentPlace(tester, 'Ercan Havalimanı');
+
+    expect(find.text('Varış noktası başlangıç noktasıyla aynı olamaz.'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Devam Et')).onPressed, isNull);
+
+    // Geri dönünce ilk seçim durur.
+    await tester.tap(find.text('Geri'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ercan Havalimanı'), findsOneWidget);
+  });
+
+  testWidgets('Oluşturulan grubun nereden/nereye bilgisi seçilen yerlerin adıdır', (tester) async {
+    SharedRide? created;
     await tester.pumpWidget(localized(Builder(
       builder: (context) => Scaffold(
         body: ElevatedButton(
-          onPressed: () => showModalBottomSheet<void>(
+          onPressed: () async => created = await showModalBottomSheet<SharedRide>(
             context: context,
             isScrollControlled: true,
             builder: (_) => const CreateSharedRideSheet(),
@@ -142,50 +234,25 @@ void main() {
       ),
     )));
     await tester.tap(find.text('aç'));
-    await tester.pump();
-    // Kayma sürerken odak istenmez (bazı Android telefonlarda klavye açılmıyordu).
-    expect(tester.testTextInput.isVisible, isFalse);
-    await tester.pumpAndSettle();
-    expect(tester.testTextInput.isVisible, isTrue);
-    final field = tester.widget<EditableText>(find.byType(EditableText));
-    expect(field.focusNode.hasFocus, isTrue);
-
-    // Sonraki adımın alanı da odaklanır.
-    await tester.enterText(find.byType(TextFormField), 'Girne');
-    await tester.pump();
-    await tester.tap(find.text('Devam Et'));
-    await tester.pumpAndSettle();
-    expect(tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus, isTrue);
-    // Klavye yeni alana bağlı: yazılan 2. adımın alanına gider.
-    expect(tester.testTextInput.isVisible, isTrue);
-    tester.testTextInput.enterText('Lefkoşa');
-    await tester.pump();
-    expect(find.text('Lefkoşa'), findsOneWidget);
-  });
-
-  testWidgets('Grup oluştururken 2. adımın alanı 1. adımın yazısını taşımaz', (tester) async {
-    await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
-
-    await tester.enterText(find.byType(TextFormField), 'Gazimağusa');
-    await tester.pump();
-    await tester.tap(find.text('Devam Et'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nereye?'), findsOneWidget);
-    expect(find.text('Gazimağusa'), findsNothing);
+    for (final place in ['Girne Yat Limanı', 'Ercan Havalimanı']) {
+      await chooseRecentPlace(tester, place);
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur'));
+    await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextFormField), 'Lefkoşa');
-    await tester.pump();
-    final next = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Devam Et'));
-    expect(next.onPressed, isNotNull);
+    expect(created?.from, 'Girne Yat Limanı');
+    expect(created?.to, 'Ercan Havalimanı');
   });
 
   testWidgets('Grup oluşturmanın son adımında tarih ve kişi başı ücret sorulur', (tester) async {
     await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
 
-    for (final place in ['Girne', 'Lefkoşa']) {
-      await tester.enterText(find.byType(TextFormField), place);
-      await tester.pump();
+    for (final place in ['Girne Yat Limanı', 'Ercan Havalimanı']) {
+      await chooseRecentPlace(tester, place);
       await tester.tap(find.text('Devam Et'));
       await tester.pumpAndSettle();
     }
@@ -672,12 +739,10 @@ void main() {
     await tester.tap(find.text('Grup Oluştur'));
     await tester.pumpAndSettle();
     expect(find.text('Nereden?'), findsOneWidget);
-    await tester.enterText(find.byType(TextFormField).first, 'Lefkoşa');
-    await tester.pump();
+    await chooseRecentPlace(tester, 'Gazimağusa Surlariçi');
     await tester.tap(find.text('Devam Et'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).first, 'Girne');
-    await tester.pump();
+    await chooseRecentPlace(tester, 'Girne Yat Limanı');
     await tester.tap(find.text('Devam Et'));
     await tester.pumpAndSettle();
 
@@ -690,7 +755,7 @@ void main() {
     await tester.pumpAndSettle();
     // `first` testWidgets'in sahte zamanında takılır; gerçek zamanda okunur.
     final rides = await tester.runAsync(() => Backend.instance.sharedRides.watchActive().first);
-    final mine = rides!.where((r) => r.from == 'Lefkoşa' && r.to == 'Girne');
+    final mine = rides!.where((r) => r.from == 'Gazimağusa Surlariçi' && r.to == 'Girne Yat Limanı');
     expect(mine.single.departure.isAfter(TrustedClock.instance.now), isTrue);
     expect(find.textContaining('Kıbrıs saati'), findsWidgets);
   });

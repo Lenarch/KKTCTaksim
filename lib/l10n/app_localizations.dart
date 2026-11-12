@@ -1893,6 +1893,36 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'{time} Kıbrıs saati'**
   String serviceTimeLabel(String time);
+
+  /// No description provided for @chooseLocation.
+  ///
+  /// In tr, this message translates to:
+  /// **'Konum seç'**
+  String get chooseLocation;
+
+  /// No description provided for @moveMapToPickPlace.
+  ///
+  /// In tr, this message translates to:
+  /// **'Haritayı kaydırarak iğneyi seçmek istediğin yere getir'**
+  String get moveMapToPickPlace;
+
+  /// No description provided for @samePlaceError.
+  ///
+  /// In tr, this message translates to:
+  /// **'Varış noktası başlangıç noktasıyla aynı olamaz.'**
+  String get samePlaceError;
+
+  /// No description provided for @pickedPlaceNotFound.
+  ///
+  /// In tr, this message translates to:
+  /// **'Burada bir adres bulunamadı. İğneyi KKTC içinde bir yere getir.'**
+  String get pickedPlaceNotFound;
+
+  /// No description provided for @nameReserved.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu ad kullanılamaz. Kendi adını yaz.'**
+  String get nameReserved;
 }
 
 class _AppLocalizationsDelegate

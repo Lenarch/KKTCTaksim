@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:kktc_taksim/core/geo.dart';
+import 'package:kktc_taksim/data/mock_data.dart';
+import 'package:kktc_taksim/models/geo_place.dart';
+import 'package:kktc_taksim/screens/map_pick_screen.dart';
+import 'package:kktc_taksim/services/geocoding_service.dart';
+import 'package:kktc_taksim/widgets/home/destination_sheet.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
-import 'package:kktc_taksim/core/focus_after_transition.dart';
 import 'package:kktc_taksim/core/formatters.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/service_time.dart';
@@ -433,9 +438,13 @@ class _ChatButtonState extends State<_ChatButton> {
   }
 }
 
-/// Üç adımlı grup oluşturma formu. Oluşturulan [SharedRide] ile kapanır.
+/// Üç adımlı grup oluşturma formu; oluşturulan [SharedRide] ile kapanır. Nereden/nereye yazılmaz, ana sayfadaki gibi seçilir (adres araması,
+/// son yerler, haritadan seçme): gruba küfür, selam ya da isim gibi yer olmayan bir şey yazılamasın.
 class CreateSharedRideSheet extends StatefulWidget {
-  const CreateSharedRideSheet({super.key});
+  /// Testler sahte adres servisi verebilir.
+  final GeocodingService? geocoding;
+
+  const CreateSharedRideSheet({super.key, this.geocoding});
 
   @override
   State<CreateSharedRideSheet> createState() => _CreateSharedRideSheetState();
@@ -448,13 +457,22 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
 
   int _currentStep = 0;
 
-  /// Nereden/nereye alanlarının odakları. Ayrı olmalı: tek düğüm paylaşılınca 2. adımın alanı
-  /// odağı "zaten var" bulup klavyeyi açmıyordu (alan seçili görünür ama yazılamazdı).
-  final FocusNode _fromFocus = FocusNode();
-  final FocusNode _toFocus = FocusNode();
-  bool _focusRequested = false;
-  String _from = '';
-  String _to = '';
+  late final GeocodingService _geocoding = widget.geocoding ?? GeocodingService();
+  GeoPlace? _from;
+  GeoPlace? _to;
+
+  /// Seçim sayfası açıkken ikinci dokunuş yeni sayfa açmasın.
+  bool _choosing = false;
+
+  static const double _samePlaceMeters = 100;
+
+  /// Nereden ve nereye aynı yerse grup anlamsız.
+  bool get _samePlace {
+    final from = _from, to = _to;
+    return from != null &&
+        to != null &&
+        (from.name == to.name || distanceMeters(from.position, to.position) < _samePlaceMeters);
+  }
   double _capacity = 4;
   late ServiceDateTime _departure = _defaultDeparture();
   String _price = '$_defaultPrice';
@@ -473,31 +491,60 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
   }
 
   bool get _canContinue => switch (_currentStep) {
-        0 => _from.trim().isNotEmpty,
-        1 => _to.trim().isNotEmpty,
+        0 => _from != null,
+        1 => _to != null && !_samePlace,
         _ => _pricePerPerson != null && _departure.isAfter(serviceNow()),
       };
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_focusRequested) return;
-    _focusRequested = true;
-    focusAfterTransition(context, _fromFocus);
+  /// Ana sayfadaki seçim sayfasını açar; "Haritadan seç" denirse harita ekranına geçer.
+  Future<void> _choosePlace({required bool from}) async {
+    if (_choosing) return;
+    _choosing = true;
+    try {
+      await _choosePlaceOnce(from: from);
+    } finally {
+      _choosing = false;
+    }
   }
 
-  @override
-  void dispose() {
-    _fromFocus.dispose();
-    _toFocus.dispose();
-    super.dispose();
+  Future<void> _choosePlaceOnce({required bool from}) async {
+    final l10n = context.l10n;
+    final near = (from ? _from : _to)?.position ?? _from?.position ?? MockData.fallbackLocation;
+    final choice = await showModalBottomSheet<DestinationChoice>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DestinationSheet(
+        geocoding: _geocoding,
+        near: near,
+        hintText: from ? l10n.startPoint : l10n.endPoint,
+      ),
+    );
+    if (!mounted || choice == null) return;
+    final place = switch (choice) {
+      PlaceChosen(:final place) => place,
+      PickOnMapChosen() => await Navigator.push<GeoPlace>(
+          context,
+          MaterialPageRoute(builder: (_) => MapPickScreen(geocoding: _geocoding, initialCenter: near, requireName: true)),
+        ),
+    };
+    if (!mounted || place == null) return;
+    setState(() {
+      if (from) {
+        _from = place;
+      } else {
+        _to = place;
+      }
+    });
   }
+
+  /// Kurallar 200 karakterden uzun yeri reddeder; adres servisinden çok uzun ad gelirse kısaltılır.
+  static String _placeName(GeoPlace place) => place.name.length <= SharedRide.maxPlaceLength
+      ? place.name
+      : place.name.substring(0, SharedRide.maxPlaceLength);
 
   void _next() {
     if (_currentStep < _lastStep) {
       setState(() => _currentStep++);
-      // Pencere zaten açık; yeni adımın alanı çizilince odaklansın (klavye açık kalsın).
-      if (_currentStep == 1) focusAfterTransition(context, _toFocus);
       return;
     }
     Navigator.pop(
@@ -505,8 +552,8 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
       // Kimliği ve ilk üyeyi (oluşturan kişi) repository verir.
       SharedRide(
         id: '',
-        from: _from.trim(),
-        to: _to.trim(),
+        from: _placeName(_from!),
+        to: _placeName(_to!),
         departure: DateTime.fromMillisecondsSinceEpoch(_departure.millisecondsSinceEpoch),
         capacity: _capacity.toInt(),
         memberIds: const [],
@@ -563,26 +610,19 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
               child: switch (_currentStep) {
                 0 => _Step(
                     title: l10n.fromQuestion,
-                    child: TextFormField(
-                      // Adımlar ağaçta aynı yerde durduğu için ayrı key verilmezse
-                      // Flutter önceki adımın alanını (ve yazısını) yeniden kullanır.
-                      key: const ValueKey('from'),
-                      initialValue: _from,
-                      focusNode: _fromFocus,
-                      maxLength: SharedRide.maxPlaceLength,
-                      onChanged: (v) => setState(() => _from = v),
-                      decoration: InputDecoration(hintText: l10n.startPoint, counterText: ''),
-                    ),
+                    child: _PlaceChoice(place: _from, onTap: () => _choosePlace(from: true)),
                   ),
                 1 => _Step(
                     title: l10n.toQuestion,
-                    child: TextFormField(
-                      key: const ValueKey('to'),
-                      initialValue: _to,
-                      focusNode: _toFocus,
-                      maxLength: SharedRide.maxPlaceLength,
-                      onChanged: (v) => setState(() => _to = v),
-                      decoration: InputDecoration(hintText: l10n.endPoint, counterText: ''),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _PlaceChoice(place: _to, onTap: () => _choosePlace(from: false)),
+                        if (_samePlace) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(l10n.samePlaceError, style: TextStyle(color: theme.colorScheme.error)),
+                        ],
+                      ],
                     ),
                   ),
                 _ => _Step(
@@ -659,6 +699,34 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Seçilen yer ya da "Konum seç"; dokununca seçim sayfası açılır.
+class _PlaceChoice extends StatelessWidget {
+  final GeoPlace? place;
+  final VoidCallback onTap;
+
+  const _PlaceChoice({required this.place, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final place = this.place;
+    final address = place?.address;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(place == null ? Icons.search : Icons.place, color: theme.colorScheme.primary),
+        title: Text(
+          place?.name ?? context.l10n.chooseLocation,
+          style: TextStyle(fontWeight: place == null ? FontWeight.normal : FontWeight.w600),
+        ),
+        subtitle: address == null ? null : Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: Icon(place == null ? Icons.chevron_right : Icons.edit_outlined),
+        onTap: onTap,
       ),
     );
   }

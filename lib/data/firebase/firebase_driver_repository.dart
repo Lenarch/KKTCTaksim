@@ -137,7 +137,8 @@ class FirebaseDriverRepository implements DriverRepository {
       transaction.update(ref, {
         'status': RideStatus.driverAssigned.name,
         'driverId': user.uid,
-        'driver': driverSnapshot(profile, user.phoneNumber ?? ''),
+        // Kurallar bu kopyayı şoför kaydıyla birebir karşılaştırır; telefon da kayıttan gelir.
+        'driver': driverSnapshot(profile, data['phone'] as String),
         'driverPosition': pointToJson(position),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -145,6 +146,9 @@ class FirebaseDriverRepository implements DriverRepository {
     });
     if (taken) throw const DriverException(DriverError.rideTaken);
   }
+
+  @override
+  Future<void> removeMe() => _drivers.doc(_user.uid).delete();
 
   @override
   Future<void> updateRidePosition(String rideId, LatLng position) => _rides.doc(rideId).update({

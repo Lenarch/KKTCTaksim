@@ -10,6 +10,7 @@ Future<void> deleteAccountAndData(Backend backend) async {
   await backend.liveShares.deleteAllMine();
   await backend.sharedRides.removeMe();
   await backend.trips.deleteAll();
+  await backend.drivers.removeMe();
   await backend.auth.deleteAccount();
   await ChatReadState.instance.clear();
 }

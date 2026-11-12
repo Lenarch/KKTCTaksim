@@ -33,7 +33,10 @@ class DestinationSheet extends StatefulWidget {
   /// Arama sonuçları bu noktaya yakın olanlar öne çıkacak şekilde sıralanır.
   final LatLng near;
 
-  const DestinationSheet({super.key, required this.geocoding, required this.near});
+  /// Arama kutusunun ipucu; verilmezse "Nereye gitmek istiyorsun?".
+  final String? hintText;
+
+  const DestinationSheet({super.key, required this.geocoding, required this.near, this.hintText});
 
   @override
   State<DestinationSheet> createState() => _DestinationSheetState();
@@ -127,7 +130,7 @@ class _DestinationSheetState extends State<DestinationSheet> {
               if (value.trim().length >= 2) _search(value.trim());
             },
             decoration: InputDecoration(
-              hintText: l10n.whereTo,
+              hintText: widget.hintText ?? l10n.whereTo,
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _loading
                   ? const Padding(

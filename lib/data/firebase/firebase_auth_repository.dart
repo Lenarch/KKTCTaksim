@@ -133,6 +133,7 @@ class FirebaseAuthRepository implements AuthRepository {
     final user = _auth.currentUser;
     if (user == null) return;
     try {
+      await _firestore.collection('rideLocks').doc(user.uid).delete();
       await _firestore.collection('users').doc(user.uid).delete();
       await user.delete();
     } on FirebaseAuthException catch (e) {

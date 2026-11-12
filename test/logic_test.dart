@@ -13,6 +13,7 @@ import 'package:kktc_taksim/core/fare_calculator.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/validators.dart';
+import 'package:kktc_taksim/data/firebase/firebase_ride_repository.dart';
 import 'package:kktc_taksim/data/firebase/ride_documents.dart';
 import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
@@ -21,6 +22,24 @@ import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 void main() {
+  test('Uygulama ya da destek ekibi gibi görünen adlar alınamaz (kurallardaki listeyle aynı)', () {
+    for (final name in ['KKTC Taksim Destek', 'kktctaksim', 'Destek Ekibi', 'Admin', 'Yönetici', 'Support', 'Moderatör']) {
+      expect(isReservedName(name), isTrue, reason: name);
+    }
+    for (final name in ['Ayşe Demir', 'Mehmet Yılmaz', 'Ali Kaya']) {
+      expect(isReservedName(name), isFalse, reason: name);
+    }
+  });
+
+  test('Yarım kalan çağrı yalnızca yolculuk başlamadan iptal edilir', () {
+    for (final status in ['searching', 'driverAssigned', 'driverArrived']) {
+      expect(passengerCanCancel(status), isTrue, reason: status);
+    }
+    for (final status in ['inProgress', 'completed', 'cancelled', null]) {
+      expect(passengerCanCancel(status), isFalse, reason: '$status');
+    }
+  });
+
   const lefkosa = LatLng(35.1856, 33.3823);
   const girne = LatLng(35.3412, 33.3196);
 

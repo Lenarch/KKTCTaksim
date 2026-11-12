@@ -6,6 +6,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Grup sohbetinde ad görünür; kimse uygulamanın kendisi ya da destek ekibi gibi görünmesin
+    // ("KKTC Taksim Destek: ödemeyi şu IBAN'a yapın"). Uygulamadaki `isReservedName` ile aynı liste.
+    function isReservedName(name) {
+      return name.lower().matches('.*(kktc ?taksim|destek|support|admin|y[öo]net|moderat).*');
+    }
+
     // Aşama 1: kullanıcı profili. Herkes yalnızca kendi belgesini okur ve yazar;
     // belgedeki telefon, giriş yapılan telefonla aynı olmak zorunda.
     match /users/{uid} {
@@ -18,7 +24,7 @@ service cloud.firestore {
         return data.keys().hasOnly(['phone', 'name', 'updatedAt'])
           && data.phone == request.auth.token.phone_number
           && (!('name' in data) || data.name == null
-              || (data.name is string && data.name.size() <= 80))
+              || (data.name is string && data.name.size() <= 80 && !isReservedName(data.name)))
           && data.updatedAt == request.time;
       }
 
@@ -66,7 +72,8 @@ service cloud.firestore {
     // Aşama 5: şoförler. Herkes şoför olmak için başvurabilir, ama `approved: true` alanını yalnızca
     // yönetici (Firebase konsolu / Admin SDK) yazar; kurallar istemcinin bu alanı koymasına ya da
     // değiştirmesine izin vermez. Onaysız şoför çevrimiçi olamaz ve çağrı göremez (rides kuralları).
-    // Giriş yapan herkes okur: yolcu kendisine atanan şoförü görür.
+    // Kaydı yalnızca şoförün kendisi okur: telefon ve konum başkasına açık değil. Yolcu, kendisine
+    // atanan şoförü çağrı belgesindeki kopyadan görür (rides kuralları bu kopyayı kayıtla karşılaştırır).
     match /drivers/{uid} {
       function isPoint(p) {
         return p is map && p.keys().hasAll(['lat', 'lng']) && p.keys().hasOnly(['lat', 'lng'])
@@ -93,7 +100,7 @@ service cloud.firestore {
           && data.updatedAt == request.time;
       }
 
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && request.auth.uid == uid;
       allow create: if request.auth != null && request.auth.uid == uid
         && !('approved' in request.resource.data)
         && isValidDriver(request.resource.data);
@@ -119,11 +126,23 @@ service cloud.firestore {
       function place(p) {
         return p is map && p.keys().hasAll(['name', 'lat', 'lng']) && p.keys().hasOnly(['name', 'lat', 'lng'])
           && p.name is string && p.name.size() > 0 && p.name.size() <= 200
-          && p.lat is number && p.lng is number;
+          && point({'lat': p.lat, 'lng': p.lng});
       }
 
       function driverDoc() {
         return get(/databases/$(database)/documents/drivers/$(request.auth.uid));
+      }
+
+      // Yolcuya görünen şoför bilgisi, şoförün kendi kaydının birebir kopyası (sahte ad/telefon/plaka olmaz).
+      function isOwnDriverSnapshot(snapshot) {
+        let d = driverDoc().data;
+        return snapshot == {'name': d.name, 'plate': d.plate, 'car': d.car, 'carColor': d.carColor, 'phone': d.phone};
+      }
+
+      // Yolcunun aynı anda tek etkin çağrısı olur: çağrı, aynı yazımda kilidi bu çağrıya çevirmeli
+      // (kilidin kuralları bkz. rideLocks).
+      function lockedForThisRide() {
+        return getAfter(/databases/$(database)/documents/rideLocks/$(request.auth.uid)).data.rideId == rideId;
       }
 
       function isOnlineDriver() {
@@ -169,9 +188,13 @@ service cloud.firestore {
         && request.resource.data.taxiType in ['economy', 'comfort', 'xl']
         && request.resource.data.payment in ['cash', 'card']
         && request.resource.data.fareLow is int && request.resource.data.fareHigh is int
+        && request.resource.data.fareLow >= 0
+        && request.resource.data.fareHigh >= request.resource.data.fareLow
+        && request.resource.data.fareHigh <= 1000000
         && request.resource.data.status == 'searching'
         && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.updatedAt == request.time
+        && lockedForThisRide();
 
       allow update: if request.resource.data.updatedAt == request.time && (
         // Yolcu: şoför yola çıkmadan / gelmeden iptal; bitince puan.
@@ -189,7 +212,7 @@ service cloud.firestore {
           && resource.data.status == 'searching' && next() == 'driverAssigned'
           && changes(['status', 'driverId', 'driver', 'driverPosition', 'updatedAt'])
           && request.resource.data.driverId == request.auth.uid
-          && request.resource.data.driver is map
+          && isOwnDriverSnapshot(request.resource.data.driver)
           && point(request.resource.data.driverPosition))
         // Atanan şoför: konum yeniler ve sırayla ilerletir ya da iptal eder.
         || (isAssignedDriver()
@@ -206,6 +229,40 @@ service cloud.firestore {
       );
 
       allow delete: if false;
+    }
+
+    // Yolcunun etkin çağrı kilidi: son açtığı çağrıyı gösterir. Yeni çağrı yalnızca önceki bittiyse
+    // (iptal/tamamlandı) kilidi alır; böylece kimse şoför ekranını sahte çağrılarla dolduramaz.
+    // Uygulama kapanıp arama takılı kalırsa 10 dakika, başka bir durumda 3 saat sonra kilit düşer.
+    match /rideLocks/{uid} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      function ridePath(id) {
+        return /databases/$(database)/documents/rides/$(id);
+      }
+
+      function previousFinished() {
+        let previous = get(ridePath(resource.data.rideId)).data;
+        return previous.status in ['cancelled', 'completed']
+          || (previous.status == 'searching' && previous.createdAt < request.time - duration.value(10, 'm'))
+          || resource.data.at < request.time - duration.value(3, 'h');
+      }
+
+      function isValidLock() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['rideId', 'at']) && data.keys().hasOnly(['rideId', 'at'])
+          && data.rideId is string
+          && data.at == request.time
+          // Yalnızca aynı yazımda oluşturulan kendi çağrısını gösterir.
+          && !exists(ridePath(data.rideId))
+          && getAfter(ridePath(data.rideId)).data.passengerId == uid;
+      }
+
+      allow read, delete: if isOwner();
+      allow create: if isOwner() && isValidLock();
+      allow update: if isOwner() && isValidLock() && previousFinished();
     }
 
     // Sohbet şikâyetleri. Yalnızca kendi adına oluşturulur; kimse okuyamaz (Firebase konsolundan
@@ -239,6 +296,8 @@ service cloud.firestore {
           && data.from is string && data.from.size() > 0 && data.from.size() <= 200
           && data.to is string && data.to.size() > 0 && data.to.size() <= 200
           && data.departure is int && data.departure > request.time.toMillis()
+          // Form en fazla 30 gün sonrasını seçtirir; bir gün pay bırakılır.
+          && data.departure <= request.time.toMillis() + 31 * 24 * 60 * 60 * 1000
           && data.capacity is int && data.capacity >= 1 && data.capacity <= 8
           && data.pricePerPerson is int && data.pricePerPerson > 0 && data.pricePerPerson <= 100000;
       }
@@ -284,11 +343,17 @@ service cloud.firestore {
             && request.auth.uid in get(groupPath()).data.memberIds;
         }
 
+        // Gönderen adı profildeki ad (yoksa adsız); mesaja başka ad yazılamaz.
+        function profileName() {
+          let path = /databases/$(database)/documents/users/$(request.auth.uid);
+          return exists(path) ? get(path).data.get('name', null) : null;
+        }
+
         function isValidMessage(data) {
           return data.keys().hasAll(['senderId', 'senderName', 'text', 'sentAt'])
             && data.keys().hasOnly(['senderId', 'senderName', 'text', 'sentAt'])
             && data.senderId == request.auth.uid
-            && (data.senderName == null || (data.senderName is string && data.senderName.size() <= 80))
+            && data.senderName == profileName()
             && data.text is string && data.text.size() > 0 && data.text.size() <= 500
             && data.sentAt == request.time;
         }

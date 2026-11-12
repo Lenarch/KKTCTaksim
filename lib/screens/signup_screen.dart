@@ -79,10 +79,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
                   autofillHints: const [AutofillHints.name],
-                  validator: (value) => Validators.required(l10n, value),
+                  // Kurallar profil adını 80 karakterle sınırlar.
+                  maxLength: 80,
+                  validator: (value) => Validators.name(l10n, value),
                   decoration: InputDecoration(
                     labelText: l10n.fullName,
                     prefixIcon: const Icon(Icons.person_outline),
+                    counterText: '',
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),

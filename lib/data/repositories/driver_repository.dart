@@ -65,6 +65,9 @@ abstract class DriverRepository {
 
   /// Yolcu alınmadan önce iptal.
   Future<void> cancelRide(String rideId);
+
+  /// Giriş yapan kullanıcının şoför kaydını (ad, plaka, telefon, konum) siler; hesap silinirken çağrılır.
+  Future<void> removeMe();
 }
 
 /// Yolcunun gördüğü şoför bilgisi (çağrı belgesinde saklanan kopya).

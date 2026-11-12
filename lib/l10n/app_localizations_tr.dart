@@ -1017,4 +1017,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String serviceTimeLabel(String time) {
     return '$time Kıbrıs saati';
   }
+
+  @override
+  String get chooseLocation => 'Konum seç';
+
+  @override
+  String get moveMapToPickPlace =>
+      'Haritayı kaydırarak iğneyi seçmek istediğin yere getir';
+
+  @override
+  String get samePlaceError =>
+      'Varış noktası başlangıç noktasıyla aynı olamaz.';
+
+  @override
+  String get pickedPlaceNotFound =>
+      'Burada bir adres bulunamadı. İğneyi KKTC içinde bir yere getir.';
+
+  @override
+  String get nameReserved => 'Bu ad kullanılamaz. Kendi adını yaz.';
 }
