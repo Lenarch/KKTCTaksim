@@ -11,6 +11,8 @@ import 'package:http/testing.dart';
 import 'package:kktc_taksim/core/http_headers.dart';
 import 'package:kktc_taksim/core/fare_calculator.dart';
 import 'package:kktc_taksim/core/group_fare.dart';
+import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
+import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/validators.dart';
@@ -365,6 +367,75 @@ void main() {
     test('sapma 100 metreye yukarı yuvarlanır', () {
       expect([roundDetour(0), roundDetour(1), roundDetour(100), roundDetour(2501.2), roundDetour(-5)],
           [0, 100, 100, 2600, 0]);
+    });
+  });
+
+  group('Grup üyelik geçişleri', () {
+    SharedRide ride({int capacity = 4}) => SharedRide(
+          id: 'g',
+          from: 'A',
+          to: 'B',
+          departure: DateTime(2030),
+          capacity: capacity,
+          memberIds: const [],
+          fromPoint: const LatLng(35.34, 33.32),
+          toPoint: const LatLng(35.15, 33.50),
+          baseMeters: 20000,
+        );
+
+    test('katılınca sapma ve ücret güncellenir', () {
+      final g = newGroup(ride(), 'a', 0);
+      expect(g.memberIds, ['a']);
+      expect(g.detours, {'a': 0});
+      expect(g.pricePerPerson, 900);
+      final j = rideAfterJoin(g, 'b', 2500);
+      expect(j.memberIds, ['a', 'b']);
+      expect(j.extraMeters, 2500);
+      expect(j.pricePerPerson, 500);
+      expect(identical(rideAfterJoin(j, 'b', 900), j), isTrue);
+    });
+
+    test('ayrılınca sapma düşer; son üye null', () {
+      final j = rideAfterJoin(newGroup(ride(), 'a', 0), 'b', 2500);
+      final l = rideAfterLeave(j, 'b')!;
+      expect(l.memberIds, ['a']);
+      expect(l.detours, {'a': 0});
+      expect(l.pricePerPerson, 900);
+      expect(rideAfterLeave(l, 'a'), isNull);
+      expect(identical(rideAfterLeave(l, 'x'), l), isTrue);
+    });
+
+    test('nokta değişince yalnızca kendi sapması değişir', () {
+      final j = rideAfterJoin(newGroup(ride(), 'a', 0), 'b', 2500);
+      final r = rideAfterRepick(j, 'b', 0);
+      expect(r.detours, {'a': 0, 'b': 0});
+      expect(r.pricePerPerson, 450);
+      expect(() => rideAfterRepick(j, 'x', 0), throwsA(isA<SharedRideException>()));
+    });
+
+    test('eski biçimli gruba katılınamaz ama ayrılınabilir', () {
+      final legacy = SharedRide.fromJson({
+        'id': 'g',
+        'from': 'A',
+        'to': 'B',
+        'departure': 1,
+        'capacity': 4,
+        'memberIds': ['a', 'b'],
+        'pricePerPerson': 200,
+      });
+      expect(legacy.isLegacy, isTrue);
+      expect(legacy.joinable, isFalse);
+      expect(() => rideAfterJoin(legacy, 'c', 0),
+          throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.closed)));
+      expect(() => rideAfterRepick(legacy, 'a', 0),
+          throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.closed)));
+      expect(rideAfterLeave(legacy, 'b')!.pricePerPerson, 200);
+    });
+
+    test('dolu gruba katılma full fırlatır', () {
+      final g = newGroup(ride(capacity: 1), 'a', 0);
+      expect(() => rideAfterJoin(g, 'b', 0),
+          throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.full)));
     });
   });
 

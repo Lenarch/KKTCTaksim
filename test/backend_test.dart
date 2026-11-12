@@ -196,6 +196,9 @@ void main() {
         capacity: 1,
         memberIds: const [],
         pricePerPerson: 100,
+        fromPoint: const LatLng(35.3, 33.3),
+        toPoint: const LatLng(35.2, 33.4),
+        baseMeters: 10000,
       ));
       final full = (await rides.watchActive().first).firstWhere((r) => r.from == 'X');
 
@@ -218,6 +221,9 @@ void main() {
         capacity: 4,
         memberIds: const [],
         pricePerPerson: 150,
+        fromPoint: const LatLng(35.2, 32.99),
+        toPoint: const LatLng(35.18, 33.38),
+        baseMeters: 20000,
       ));
       final group = (await rides.watchActive().first).firstWhere((r) => r.from == 'Güzelyurt');
       expect(await rides.watchMessages(group.id).first, isEmpty);
@@ -392,6 +398,30 @@ void main() {
         pricePerPerson: 200,
       );
       expect(SharedRide.fromJson(ride.toJson()).toJson(), ride.toJson());
+
+      final pointed = SharedRide(
+        id: 'g2',
+        from: 'Girne',
+        to: 'Lefkoşa',
+        departure: DateTime(2026, 11, 2, 10),
+        capacity: 4,
+        memberIds: const ['a', 'b'],
+        pricePerPerson: 500,
+        fromPoint: const LatLng(35.34, 33.32),
+        toPoint: const LatLng(35.18, 33.38),
+        baseMeters: 20000,
+        detours: const {'a': 0, 'b': 2500},
+      );
+      final copy = SharedRide.fromJson(pointed.toJson());
+      expect(copy.toJson(), pointed.toJson());
+      expect(copy.fromPoint, pointed.fromPoint);
+      expect(copy.toPoint, pointed.toPoint);
+      expect(copy.baseMeters, 20000);
+      expect(copy.detours, {'a': 0, 'b': 2500});
+      expect(copy.extraMeters, 2500);
+      expect(copy.status, SharedRideStatus.open);
+      expect(pointed.toJson()['status'], 'open');
+      expect(ride.isLegacy, isTrue);
 
       const user = AppUser(id: 'u1', phone: _phone, name: 'Ayşe');
       expect(AppUser.fromJson(user.toJson()).toJson(), user.toJson());

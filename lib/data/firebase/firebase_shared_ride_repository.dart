@@ -98,8 +98,8 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       if (!snapshot.exists) return SharedRideError.notFound;
       final ride = sharedRideFromDocument(snapshot);
       try {
-        final members = membersAfterJoin(ride, userId);
-        if (!identical(members, ride.memberIds)) transaction.update(ref, {'memberIds': members});
+        final joined = rideAfterJoin(ride, userId, 0);
+        if (!identical(joined, ride)) transaction.update(ref, {'memberIds': joined.memberIds});
         return null;
       } on SharedRideException catch (e) {
         return e.error;
@@ -123,11 +123,11 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       if (!snapshot.exists) return SharedRideError.notFound;
       final ride = sharedRideFromDocument(snapshot);
       if (!ride.hasMember(userId)) return null;
-      final members = membersAfterLeave(ride, userId);
-      if (members.isEmpty) {
+      final left = rideAfterLeave(ride, userId);
+      if (left == null) {
         transaction.delete(ref);
       } else {
-        transaction.update(ref, {'memberIds': members});
+        transaction.update(ref, {'memberIds': left.memberIds});
       }
       return null;
     });

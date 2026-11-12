@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:kktc_taksim/core/group_fare.dart';
 import 'package:kktc_taksim/models/driver.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/models/payment_method.dart';
@@ -96,7 +97,11 @@ class MockData {
         departure: today.add(const Duration(days: 1, hours: 14, minutes: 30)),
         capacity: 8,
         memberIds: const ['demo-a', 'demo-b', 'demo-c'],
-        pricePerPerson: 250,
+        pricePerPerson: groupPricePerPerson(baseMeters: 12000, extraMeters: 0, capacity: 8, members: 3),
+        fromPoint: const LatLng(35.1856, 33.3823),
+        toPoint: const LatLng(35.1547, 33.4961),
+        baseMeters: 12000,
+        detours: const {'demo-a': 0, 'demo-b': 0, 'demo-c': 0},
       ),
       SharedRide(
         id: 'demo-group-2',
@@ -105,7 +110,11 @@ class MockData {
         departure: today.add(const Duration(days: 2, hours: 10)),
         capacity: 8,
         memberIds: const ['demo-a', 'demo-b', 'demo-c', 'demo-d', 'demo-e'],
-        pricePerPerson: 200,
+        pricePerPerson: groupPricePerPerson(baseMeters: 26000, extraMeters: 0, capacity: 8, members: 5),
+        fromPoint: const LatLng(35.3417, 33.3192),
+        toPoint: const LatLng(35.1856, 33.3823),
+        baseMeters: 26000,
+        detours: const {'demo-a': 0, 'demo-b': 0, 'demo-c': 0, 'demo-d': 0, 'demo-e': 0},
       ),
     ];
   }
