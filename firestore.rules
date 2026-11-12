@@ -283,53 +283,191 @@ service cloud.firestore {
     }
 
     // Aşama 3: paylaşımlı gruplar. Giriş yapan herkes görür; üyeliği herkes yalnızca kendisi
-    // için değiştirir. Katılma/ayrılmayı uygulama transaction ile yapar; kurallar ise tek bir
-    // üyenin eklenip çıkarılmasından başka değişikliği reddeder.
+    // için değiştirir. Grup belgesi herkese açık olduğundan yalnızca buluşma/varış noktası,
+    // üyelerin sapma mesafesi ve kişi başı ücret tutulur; her üyenin özel toplama noktası
+    // pickups/{uid} altında, yalnızca sahibine açık. Ücret ve sapma burada yeniden hesaplanır.
+    // Noktasız (eski biçimli) gruplardan yalnızca ayrılınır.
     match /sharedRides/{rideId} {
       function signedIn() {
         return request.auth != null;
       }
 
-      function isValidSharedRide(data) {
-        return data.keys().hasAll(['from', 'to', 'departure', 'capacity', 'memberIds', 'pricePerPerson'])
-          && data.keys().hasOnly(['from', 'to', 'departure', 'capacity', 'memberIds', 'pricePerPerson'])
+      function point(p) {
+        return p is map && p.keys().hasAll(['lat', 'lng']) && p.keys().hasOnly(['lat', 'lng'])
+          && p.lat is number && p.lat >= -90 && p.lat <= 90
+          && p.lng is number && p.lng >= -180 && p.lng <= 180;
+      }
+
+      function groupDoc() {
+        return /databases/$(database)/documents/sharedRides/$(rideId);
+      }
+
+      function pickupPath(uid) {
+        return /databases/$(database)/documents/sharedRides/$(rideId)/pickups/$(uid);
+      }
+
+      // Kuş uçuşu mesafe (metre); KKTC enleminde düz yaklaşım yeterli.
+      function straight(a, b) {
+        let dy = (a.lat - b.lat) * 111320.0;
+        let dx = (a.lng - b.lng) * 90950.0;
+        return math.sqrt(dx * dx + dy * dy);
+      }
+
+      // Kişi başı ücret: lib/core/group_fare.dart groupPricePerPerson ile birebir aynı tamsayı hesap.
+      function price(base, extra, capacity, n) {
+        let metered = 100 + (40 * (base + extra)) / 1000;
+        let fare = metered > 150 ? metered : 150;
+        let total = capacity >= 5 ? fare * 18 / 10 : fare;
+        return ((total + n * 10 - 1) / (n * 10)) * 10;
+      }
+
+      // Yazanın sapması: 100 m'nin katı, en fazla 10 km ve toplama noktasının buluşma noktasına
+      // kuş uçuşu uzaklığından (%10 pay ve yuvarlama ile) kısa olamaz. Toplama kaydı aynı yazımda
+      // bulunmalı.
+      function validDetour(data) {
+        let d = data.detours[request.auth.uid];
+        let place = getAfter(pickupPath(request.auth.uid)).data.place;
+        return d is int && d >= 0 && d <= 10000 && d % 100 == 0
+          && d + 100 >= straight(place, data.fromPoint) * 0.9;
+      }
+
+      function isValidNewRide(data) {
+        let uid = request.auth.uid;
+        let keys = ['from', 'to', 'fromPoint', 'toPoint', 'departure', 'capacity', 'memberIds', 'baseMeters',
+            'detours', 'extraMeters', 'pricePerPerson', 'status'];
+        let s = straight(data.fromPoint, data.toPoint);
+        return data.keys().hasAll(keys) && data.keys().hasOnly(keys)
           && data.from is string && data.from.size() > 0 && data.from.size() <= 200
           && data.to is string && data.to.size() > 0 && data.to.size() <= 200
+          && point(data.fromPoint) && point(data.toPoint)
           && data.departure is int && data.departure > request.time.toMillis()
           // Form en fazla 30 gün sonrasını seçtirir; bir gün pay bırakılır.
           && data.departure <= request.time.toMillis() + 31 * 24 * 60 * 60 * 1000
           && data.capacity is int && data.capacity >= 1 && data.capacity <= 8
-          && data.pricePerPerson is int && data.pricePerPerson > 0 && data.pricePerPerson <= 100000;
+          && data.status == 'open'
+          && data.memberIds == [uid]
+          && data.detours is map && data.detours.size() == 1 && data.detours.keys().hasOnly([uid])
+          && validDetour(data)
+          && data.extraMeters == data.detours[uid]
+          // Güzergâh kuş uçuşundan kısa, çok dolambaçlı ya da 300 km'den uzun olamaz.
+          && data.baseMeters is int && data.baseMeters >= s * 0.9 && data.baseMeters <= s * 4 + 5000
+          && data.baseMeters <= 300000
+          && data.pricePerPerson is int && data.pricePerPerson <= 100000
+          && data.pricePerPerson == price(data.baseMeters, data.extraMeters, data.capacity, 1);
       }
 
-      function onlyMembersChange() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds']);
+      function changes(keys) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      }
+
+      // Yazanınki dışında hiçbir üyenin sapması değişmez.
+      function onlyOwnDetourChanges() {
+        return request.resource.data.detours.diff(resource.data.detours).affectedKeys()
+          .hasOnly([request.auth.uid]);
+      }
+
+      // Ücret, güncel üye sayısı ve toplam sapmayla yeniden hesaplanır; aynı anda katılan iki kişiden
+      // eski sayıyla hesaplayanın yazımı reddedilir.
+      function consistentPrice() {
+        let after = request.resource.data;
+        return after.pricePerPerson
+          == price(resource.data.baseMeters, after.extraMeters, resource.data.capacity, after.memberIds.size());
       }
 
       function isJoin() {
-        let before = resource.data.memberIds;
-        let after = request.resource.data.memberIds;
-        return !(request.auth.uid in before)
-          && after == before.concat([request.auth.uid])
-          && after.size() <= resource.data.capacity
-          && resource.data.departure > request.time.toMillis();
+        let uid = request.auth.uid;
+        let before = resource.data;
+        let after = request.resource.data;
+        return before.status == 'open'
+          && before.departure > request.time.toMillis()
+          && !(uid in before.memberIds)
+          && after.memberIds == before.memberIds.concat([uid])
+          && after.memberIds.size() <= before.capacity
+          && changes(['memberIds', 'detours', 'extraMeters', 'pricePerPerson'])
+          && onlyOwnDetourChanges() && !(uid in before.detours)
+          && validDetour(after)
+          && after.extraMeters == before.extraMeters + after.detours[uid]
+          && consistentPrice();
       }
 
-      // Son üye listeyi boşaltmaz, grubu siler (aşağıdaki delete).
+      // Son üye listeyi boşaltmaz, grubu siler (aşağıdaki delete). Toplama kaydı aynı yazımda silinir.
       function isLeave() {
+        let uid = request.auth.uid;
+        let before = resource.data;
+        let after = request.resource.data;
+        return uid in before.memberIds
+          && after.memberIds == before.memberIds.removeAll([uid])
+          && after.memberIds.size() > 0
+          && changes(['memberIds', 'detours', 'extraMeters', 'pricePerPerson'])
+          && onlyOwnDetourChanges() && !(uid in after.detours)
+          && after.extraMeters == before.extraMeters - before.detours[uid]
+          && consistentPrice()
+          && !existsAfter(pickupPath(uid));
+      }
+
+      // Üye toplama noktasını değiştirir; yalnızca kendi sapması, toplam ve ücret değişir.
+      function isMovePickup() {
+        let uid = request.auth.uid;
+        let before = resource.data;
+        let after = request.resource.data;
+        return before.status == 'open'
+          && uid in before.memberIds
+          && changes(['detours', 'extraMeters', 'pricePerPerson'])
+          && onlyOwnDetourChanges() && uid in after.detours
+          && validDetour(after)
+          && after.extraMeters == before.extraMeters - before.detours[uid] + after.detours[uid]
+          && consistentPrice();
+      }
+
+      // Eski biçim: yalnızca kendini üye listesinden çıkarır.
+      function isLegacyLeave() {
         let before = resource.data.memberIds;
         let after = request.resource.data.memberIds;
-        return request.auth.uid in before
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+          && request.auth.uid in before
           && after == before.removeAll([request.auth.uid])
           && after.size() > 0;
       }
 
+      function isNewFormat() {
+        return 'fromPoint' in resource.data;
+      }
+
       allow read: if signedIn();
-      allow create: if signedIn()
-        && isValidSharedRide(request.resource.data)
-        && request.resource.data.memberIds == [request.auth.uid];
-      allow update: if signedIn() && onlyMembersChange() && (isJoin() || isLeave());
-      allow delete: if signedIn() && resource.data.memberIds == [request.auth.uid];
+      allow create: if signedIn() && isValidNewRide(request.resource.data);
+      allow update: if signedIn()
+        && (isNewFormat() ? (isJoin() || isLeave() || isMovePickup()) : isLegacyLeave());
+      // Geride özel toplama kaydı kalmasın: son üye kaydını aynı yazımda siler.
+      allow delete: if signedIn() && resource.data.memberIds == [request.auth.uid]
+        && (!isNewFormat() || !existsAfter(pickupPath(request.auth.uid)));
+
+      // Üyenin özel toplama noktası. Yalnızca sahibi okur (şoför okuması Aşama 2'de).
+      match /pickups/{uid} {
+        function isOwner() {
+          return signedIn() && request.auth.uid == uid;
+        }
+
+        function isPlace(p) {
+          return p is map && p.keys().hasAll(['name', 'lat', 'lng']) && p.keys().hasOnly(['name', 'lat', 'lng'])
+            && p.name is string && p.name.size() > 0 && p.name.size() <= 200
+            && point({'lat': p.lat, 'lng': p.lng});
+        }
+
+        // Kayıt, açık bir grubun üyesine ait ve gruptaki sapmasıyla tutarlı olmalı (nokta tek başına
+        // uzağa taşınıp sapma düşük bırakılamaz).
+        function isValidPickup(data) {
+          let group = getAfter(groupDoc()).data;
+          return data.keys().hasAll(['place', 'state']) && data.keys().hasOnly(['place', 'state'])
+            && isPlace(data.place)
+            && data.state == 'waiting'
+            && group.status == 'open'
+            && uid in group.memberIds
+            && group.detours[uid] + 100 >= straight(data.place, group.fromPoint) * 0.9;
+        }
+
+        allow read, delete: if isOwner();
+        allow create, update: if isOwner() && isValidPickup(request.resource.data);
+      }
 
       // Grup sohbeti. Yalnızca o anki üyeler okur ve yazar; mesajlar değiştirilemez.
       // Gönderenin telefonu değil, yalnızca adı tutulur.
