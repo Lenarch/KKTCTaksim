@@ -1,9 +1,41 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **12 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **13 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
+
+## 13 Kasım 2026: grup toplama, Aşama 1 (dal `feature/grup-toplama-1`, `main`'e BİRLEŞMEDİ)
+**Durum:** Kod yazıldı ve testlerden geçti; hepsi yalnızca `feature/grup-toplama-1` dalında.
+`main`'e **birleştirilmedi**, GitHub'a **gönderilmedi**, yeni kurallar **canlıya yüklenmedi**, test APK'sı
+(`apk/KKTCTaksim-test.apk`) **yenilenmedi**. Gerçek Firebase'e karşı da **denenmedi**: Firestore'a yazan kod
+için birim testi yok (projede Firestore sahtesi yok); kodun yazdığı alanlar kurallarla satır satır
+karşılaştırılarak kontrol edildi. Testler: analyze temiz, Flutter 113/113, kurallar 70/70.
+
+- **Kullanıcı için ne değişti:**
+  - Grubu kuran artık ücret yazmaz; kişi başı ücreti uygulama hesaplar.
+  - Grup kurma formu 4 adım oldu; yeni adımda kurucu kendi toplama noktasını seçer.
+  - Gruba katılırken yolcudan toplama noktası istenir ve yeni kişi başı ücret gösterilir.
+  - Üyeler toplama noktasını sonradan değiştirebilir.
+  - Grup kartlarında ücret "≈" ile gösterilir (üye değişince değişebilir).
+  - Eski biçimli gruplar (toplama noktası olmayanlar) listede görünür ama katılıma kapalıdır
+    ("Eski sürüm grubu"); üyeleri yalnızca ayrılabilir.
+- **Altta ne değişti:**
+  - `sharedRides` belgesine yeni alanlar: buluşma/varış koordinatı (`fromPoint`, `toPoint`), güzergâh
+    uzunluğu (`baseMeters`), üye başına sapma (`detours`) ve `status` (şimdilik hep `open`).
+  - Üyenin toplama noktası özel kayıtta: `sharedRides/{id}/pickups/{uid}`; kurallara göre yalnızca sahibi okur
+    (başka üye ve şoför dahil kimse göremez).
+  - Ücret formülü `lib/core/group_fare.dart` içinde; **aynısı `firestore.rules` içinde de yazılı** ve kurallar
+    gönderilen ücreti bununla karşılaştırır.
+  - Yeni kural testleri eklendi (55 → 70).
+- **Bağlantılar:** tasarım `docs/superpowers/specs/2026-11-13-grup-toplama-design.md`, uygulama planı
+  `docs/superpowers/plans/2026-11-13-grup-toplama-asama-1.md`.
+- **Sıradaki iş:**
+  1. Sahibin onayı: kurallar canlıya yüklensin + dal `main`'e birleşsin + yeni APK derlensin, **üçü birlikte**
+     (bkz. UYARILAR "Grup toplama"). Yüklemeden sonra gerçek Firebase'e karşı emülatörde deneme.
+  2. **Aşama 2 planı:** şoför bir grubu üstlenir (üye listesi ve ücret kilitlenir).
+  3. Aşama 3–4 (kalkış günü akışı, "Gelmedi" kaydı) tasarımda anlatıldığı gibi.
+  4. Ayrı ve daha sonraki proje: kapora / uygulama içi ödeme. Şoförü koruyan asıl çözüm o.
 
 ## 7–12 Kasım 2026: grup konum seçici ve güvenlik denetimi (`main`, `c9389ae`)
 **Durum:** Hepsi `main`'de ve GitHub'da; yeni kurallar 12 Kasım'da canlıya yüklendi; `apk/KKTCTaksim-test.apk`

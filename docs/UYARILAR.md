@@ -1,6 +1,6 @@
 # KKTC Taksim: Uyarılar
 
-Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama şu an demo; aşağıdakiler yayından önce bilinmesi ve
+Son güncelleme: **13 Kasım 2026** (grup toplama Aşama 1). Uygulama şu an demo; aşağıdakiler yayından önce bilinmesi ve
 çözülmesi gereken noktalar.
 
 ## Harici servisler
@@ -153,6 +153,19 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
   - SMS girişinde bölge kısıtlaması olup olmadığı konsolda kontrol edilmedi (SMS sömürüsü maliyet riski).
   - Üstlendiği yolculuk süren şoförün hesap silmesinin engellenip engellenmediği kontrol edilmedi.
 - Canlı veritabanında denemelerden kalan iptal edilmiş test çağrıları var (çağrılar silinemez); zararsız.
+
+## Grup toplama, Aşama 1 (13 Kasım 2026; henüz canlıda değil)
+- ⚠️ **Kurallar ve yeni APK birlikte çıkmalı:** Yeni kurallar yüklenince eski APK'lar grup kuramaz ve gruba
+  katılamaz (yeni alanları ve toplama kaydını yazmazlar); grupları yine görürler. Kuralları APK'dan önce
+  yüklemek, APK'yı kurallardan önce vermek ikisi de sorun çıkarır.
+- **Tarife iki yerde duruyor:** Sabitler artık `lib/core/group_fare.dart` içinde ve `firestore.rules` içinde.
+  Tarife değişirse ikisi birlikte değişmeli, kurallar yeniden yüklenmeli ve kural testleri güncellenmeli.
+  Eski uygulama sürümleri eski tarifeyle hesapladığı için yeni kurallarla gruba katılamaz.
+- **Canlıdaki eski biçimli gruplar** (toplama noktası olmayanlar) listede görünür ama katılıma kapalıdır;
+  30 gün içinde kalkış tarihleri geçip kendiliğinden biter.
+- **Bu sürümde bildirim ve kapora yok:** Anlık (push) bildirim ve ön ödeme/kapora gelmedi; ödeme projesiyle
+  birlikte planlanıyor. Olaylar yalnızca uygulama açıkken görünür; ücret şoföre elden ödenir.
+- Firestore'a yazan grup kodu gerçek Firebase'e karşı henüz denenmedi (yalnızca kural testleri ve satır satır kontrol).
 
 ## Saat ve saat dilimi
 - Grup saatleri `Asia/Nicosia` kurallarıyla hesaplanır (`timezone` paketi). KKTC yaz saati kararı bundan ayrılırsa paket veya kod güncellenmeli.
