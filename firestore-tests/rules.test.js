@@ -448,6 +448,67 @@ describe('sharedRides paylaşımlı gruplar', () => {
     await assertSucceeds(setDoc(ref, pickup({ place: { ...MEETING, name: 'Girne Limanı, kapı' } })));
   });
 
+  // JS SDK -0'ı ondalık (double) gönderir; kurallar 0.0 == 0 sayar. Ondalık extraMeters ile price()
+  // kesirli hesaplanır (ör. 1149, 579,5) ve formülden farklı ücret geçebilirdi.
+  test('tamsayı: ondalık extraMeters ile grup kurulamaz', async () => {
+    const db = dbAs(ALICE);
+    await assertFails(createBatch(db, ALICE, { id: 'f1', ride: { extraMeters: -0, pricePerPerson: 1149 } }));
+    await assertFails(createBatch(db, ALICE, { id: 'f2', ride: { extraMeters: -0 } }));
+    await assertSucceeds(createBatch(db, ALICE, { id: 'f3' }));
+  });
+
+  test('tamsayı: ondalık extraMeters ile katılınamaz', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    const carol = dbAs(CAROL);
+    const zeroJoin = { detour: 0, place: MEETING, price: fare(26000, 0, 4, 2) };
+    await assertFails(joinBatch(carol, CAROL, { ...zeroJoin, price: 579.5, update: { extraMeters: -0 } }));
+    await assertFails(joinBatch(carol, CAROL, { ...zeroJoin, update: { extraMeters: -0 } }));
+    await assertSucceeds(joinBatch(carol, CAROL, zeroJoin));
+  });
+
+  test("tamsayı: diff() 0 ile -0.0'ı ayırt etmez; ücrete giren baseMeters ondalığa çevrilemez", async () => {
+    // Buluşma = varış olan grupta baseMeters 0 olabilir.
+    await seed('sharedRides/g0', sharedRide({ toPoint: GIRNE, baseMeters: 0, pricePerPerson: 150 }));
+    const carol = dbAs(CAROL);
+    const sameJoin = { group: 'g0', detour: 0, place: MEETING, price: fare(0, 0, 4, 2) };
+    await assertFails(joinBatch(carol, CAROL, { ...sameJoin, update: { baseMeters: -0 } }));
+    await assertSucceeds(joinBatch(carol, CAROL, sameJoin));
+  });
+
+  const zeroDetourRide = () => twoMemberRide({ detours: { alice: 0, bob: 0 }, extraMeters: 0, pricePerPerson: 570 });
+
+  test('tamsayı: ondalık extraMeters ile nokta değiştirilemez', async () => {
+    await seed('sharedRides/g2', zeroDetourRide());
+    await seed(pickupPath('g2', 'alice'), pickup());
+    const alice = dbAs(ALICE);
+    const move = (extraMeters, pricePerPerson = 570) => {
+      const batch = writeBatch(alice);
+      batch.set(doc(alice, pickupPath('g2', 'alice')), pickup({ place: { ...MEETING, name: 'İskele' } }));
+      batch.update(doc(alice, 'sharedRides/g2'), { 'detours.alice': 0, extraMeters, pricePerPerson });
+      return batch.commit();
+    };
+    await assertFails(move(-0, 579.5));
+    await assertFails(move(-0));
+    await assertSucceeds(move(0));
+  });
+
+  test('tamsayı: ondalık extraMeters ile ayrılınamaz', async () => {
+    await seed('sharedRides/g2', zeroDetourRide());
+    await seed(pickupPath('g2', 'bob'), pickup());
+    const bob = dbAs(BOB);
+    const leave = (extraMeters, pricePerPerson = 1140) => {
+      const batch = writeBatch(bob);
+      batch.update(doc(bob, 'sharedRides/g2'), {
+        memberIds: ['alice'], 'detours.bob': deleteField(), extraMeters, pricePerPerson,
+      });
+      batch.delete(doc(bob, pickupPath('g2', 'bob')));
+      return batch.commit();
+    };
+    await assertFails(leave(-0, 1149));
+    await assertFails(leave(-0));
+    await assertSucceeds(leave(0));
+  });
+
   test('eski biçimli gruba katılınamaz; ayrılınır', async () => {
     await seed('sharedRides/old', legacyRide({ memberIds: ['alice', 'bob'] }));
     await assertFails(joinBatch(dbAs(CAROL), CAROL, { group: 'old', price: 300 }));

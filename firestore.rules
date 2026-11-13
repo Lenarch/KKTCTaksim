@@ -348,7 +348,7 @@ service cloud.firestore {
           && data.memberIds == [uid]
           && data.detours is map && data.detours.size() == 1 && data.detours.keys().hasOnly([uid])
           && validDetour(data)
-          && data.extraMeters == data.detours[uid]
+          && data.extraMeters is int && data.extraMeters == data.detours[uid]
           // Güzergâh kuş uçuşundan kısa, çok dolambaçlı ya da 300 km'den uzun olamaz.
           && data.baseMeters is int && data.baseMeters >= s * 0.9 && data.baseMeters <= s * 4 + 5000
           && data.baseMeters <= 300000
@@ -367,10 +367,14 @@ service cloud.firestore {
       }
 
       // Ücret, güncel üye sayısı ve toplam sapmayla yeniden hesaplanır; aynı anda katılan iki kişiden
-      // eski sayıyla hesaplayanın yazımı reddedilir.
+      // eski sayıyla hesaplayanın yazımı reddedilir. Alanlar tamsayı olmalı: kurallar 0.0 == 0 sayar
+      // ve ondalık toplamla price() kesirli hesaplanırdı. diff() 0 ile 0.0'ı ayırt etmediğinden
+      // ücrete giren baseMeters ve capacity de burada denetlenir.
       function consistentPrice() {
         let after = request.resource.data;
-        return after.pricePerPerson
+        return after.extraMeters is int && after.pricePerPerson is int
+          && after.baseMeters is int && after.capacity is int
+          && after.pricePerPerson
           == price(resource.data.baseMeters, after.extraMeters, resource.data.capacity, after.memberIds.size());
       }
 
