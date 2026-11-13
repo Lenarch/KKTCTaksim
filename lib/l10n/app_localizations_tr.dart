@@ -553,7 +553,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get endPoint => 'Varış noktası';
 
   @override
-  String get rideDetails => 'Tarih, Saat ve Ücret';
+  String get rideDetails => 'Tarih, Saat ve Kapasite';
 
   @override
   String get rideDate => 'Tarih';
@@ -570,15 +570,13 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get pricePerPersonLabel => 'Kişi başı ücret';
-
-  @override
-  String get pricePerPersonHelp => 'Her yolcunun ödeyeceği tutar';
-
-  @override
-  String pricePerPersonInvalid(String max) {
-    return '1 ile $max arasında bir tutar gir';
+  String groupFareEstimate(String one, String full) {
+    return 'Tek kişiyle $one, grup dolarsa kişi başı yaklaşık $full';
   }
+
+  @override
+  String get largeGroupNote =>
+      '5 ve üzeri kişilik gruplar büyük araç tarifesiyle hesaplanır.';
 
   @override
   String get createRideButton => 'Yolculuğu Oluştur';

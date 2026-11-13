@@ -588,7 +588,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get endPoint => 'Destination';
 
   @override
-  String get rideDetails => 'Date, Time and Price';
+  String get rideDetails => 'Date, Time and Capacity';
 
   @override
   String get rideDate => 'Date';
@@ -605,15 +605,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pricePerPersonLabel => 'Price per person';
-
-  @override
-  String get pricePerPersonHelp => 'The amount each passenger pays';
-
-  @override
-  String pricePerPersonInvalid(String max) {
-    return 'Enter an amount between 1 and $max';
+  String groupFareEstimate(String one, String full) {
+    return 'Alone $one, about $full per person once the group is full';
   }
+
+  @override
+  String get largeGroupNote =>
+      'Groups of 5 or more are priced with the large-vehicle tariff.';
 
   @override
   String get createRideButton => 'Create Ride';

@@ -1069,7 +1069,7 @@ abstract class AppLocalizations {
   /// No description provided for @rideDetails.
   ///
   /// In tr, this message translates to:
-  /// **'Tarih, Saat ve Ücret'**
+  /// **'Tarih, Saat ve Kapasite'**
   String get rideDetails;
 
   /// No description provided for @rideDate.
@@ -1096,23 +1096,17 @@ abstract class AppLocalizations {
   /// **'Vito kapasitesi: {count}'**
   String vitoCapacity(int count);
 
-  /// No description provided for @pricePerPersonLabel.
+  /// No description provided for @groupFareEstimate.
   ///
   /// In tr, this message translates to:
-  /// **'Kişi başı ücret'**
-  String get pricePerPersonLabel;
+  /// **'Tek kişiyle {one}, grup dolarsa kişi başı yaklaşık {full}'**
+  String groupFareEstimate(String one, String full);
 
-  /// No description provided for @pricePerPersonHelp.
+  /// No description provided for @largeGroupNote.
   ///
   /// In tr, this message translates to:
-  /// **'Her yolcunun ödeyeceği tutar'**
-  String get pricePerPersonHelp;
-
-  /// No description provided for @pricePerPersonInvalid.
-  ///
-  /// In tr, this message translates to:
-  /// **'1 ile {max} arasında bir tutar gir'**
-  String pricePerPersonInvalid(String max);
+  /// **'5 ve üzeri kişilik gruplar büyük araç tarifesiyle hesaplanır.'**
+  String get largeGroupNote;
 
   /// No description provided for @createRideButton.
   ///

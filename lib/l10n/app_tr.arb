@@ -360,7 +360,7 @@
   "toQuestion": "Nereye?",
   "startPoint": "Başlangıç noktası",
   "endPoint": "Varış noktası",
-  "rideDetails": "Tarih, Saat ve Ücret",
+  "rideDetails": "Tarih, Saat ve Kapasite",
   "rideDate": "Tarih",
   "rideTime": "Saat",
   "departureInPast": "Kalkış zamanı geçmişte kalamaz.",
@@ -372,16 +372,18 @@
       }
     }
   },
-  "pricePerPersonLabel": "Kişi başı ücret",
-  "pricePerPersonHelp": "Her yolcunun ödeyeceği tutar",
-  "pricePerPersonInvalid": "1 ile {max} arasında bir tutar gir",
-  "@pricePerPersonInvalid": {
+  "groupFareEstimate": "Tek kişiyle {one}, grup dolarsa kişi başı yaklaşık {full}",
+  "@groupFareEstimate": {
     "placeholders": {
-      "max": {
+      "one": {
+        "type": "String"
+      },
+      "full": {
         "type": "String"
       }
     }
   },
+  "largeGroupNote": "5 ve üzeri kişilik gruplar büyük araç tarifesiyle hesaplanır.",
   "createRideButton": "Yolculuğu Oluştur",
   "exploreSearchHint": "Yakınında ne arıyorsun?",
   "categoryAll": "Hepsi",

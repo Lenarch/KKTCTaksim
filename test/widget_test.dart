@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -74,6 +76,24 @@ Future<void> chooseRecentPlace(WidgetTester tester, String name) async {
   await tester.pumpAndSettle();
 }
 
+/// Rota servisi her istekte [meters] metrelik bir yol döndürür (kuş uçuşundan uzun seçilmeli).
+RoutingService groupRouting([int meters = 40000]) => RoutingService(
+      client: MockClient((_) async => http.Response(
+          '{"code":"Ok","routes":[{"distance":$meters,"duration":300,'
+          '"geometry":{"coordinates":[[33.32,35.34],[33.33,35.35]]}}]}',
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'})),
+    );
+
+/// Grup formunda nereden ve nereye yerlerini seçip 3. adıma kadar ilerler.
+Future<void> fillGroupPlaces(WidgetTester tester, List<String> places) async {
+  for (final place in places) {
+    await chooseRecentPlace(tester, place);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+    await tester.pumpAndSettle();
+  }
+}
+
 Future<void> openSplashAndChooseRole(WidgetTester tester) async {
   await tester.pumpWidget(const TaxiApp(showAds: false));
   await tester.pump(const Duration(seconds: 3));
@@ -140,7 +160,7 @@ void main() {
   });
 
   testWidgets('Grup formunda nereden/nereye yazılamaz, yalnızca konum seçilir', (tester) async {
-    await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(routing: groupRouting()))));
 
     // Serbest yazı yok: küfür, selam ya da isim girilemez.
     expect(find.byType(TextField), findsNothing);
@@ -166,7 +186,7 @@ void main() {
     final geocoding = GeocodingService(
       client: MockClient((_) async => http.Response(reverse, 200, headers: {'content-type': 'application/json; charset=utf-8'})),
     );
-    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(geocoding: geocoding))));
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(geocoding: geocoding, routing: groupRouting()))));
 
     await tester.tap(find.text('Konum seç'));
     await tester.pumpAndSettle();
@@ -185,7 +205,7 @@ void main() {
   testWidgets('Haritada adı bulunamayan nokta gruba yer olarak seçilemez', (tester) async {
     // KKTC dışı ya da denizde: adres servisi sonuç vermez.
     final geocoding = GeocodingService(client: MockClient((_) async => http.Response('{"features":[]}', 200)));
-    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(geocoding: geocoding))));
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(geocoding: geocoding, routing: groupRouting()))));
 
     await tester.tap(find.text('Konum seç'));
     await tester.pumpAndSettle();
@@ -206,7 +226,7 @@ void main() {
   });
 
   testWidgets('Grupta nereden ve nereye aynı yer olamaz', (tester) async {
-    await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(routing: groupRouting()))));
     await chooseRecentPlace(tester, 'Ercan Havalimanı');
     await tester.tap(find.text('Devam Et'));
     await tester.pumpAndSettle();
@@ -221,15 +241,15 @@ void main() {
     expect(find.text('Ercan Havalimanı'), findsOneWidget);
   });
 
-  testWidgets('Oluşturulan grubun nereden/nereye bilgisi seçilen yerlerin adıdır', (tester) async {
-    SharedRide? created;
+  testWidgets('Oluşturulan grup seçilen yerlerin adını, noktalarını ve varsayılan toplama noktasını taşır', (tester) async {
+    ({SharedRide draft, Pickup pickup})? created;
     await tester.pumpWidget(localized(Builder(
       builder: (context) => Scaffold(
         body: ElevatedButton(
-          onPressed: () async => created = await showModalBottomSheet<SharedRide>(
+          onPressed: () async => created = await showModalBottomSheet<({SharedRide draft, Pickup pickup})>(
             context: context,
             isScrollControlled: true,
-            builder: (_) => const CreateSharedRideSheet(),
+            builder: (_) => CreateSharedRideSheet(routing: groupRouting()),
           ),
           child: const Text('aç'),
         ),
@@ -238,48 +258,89 @@ void main() {
     await tester.tap(find.text('aç'));
     await tester.pumpAndSettle();
 
-    for (final place in ['Girne Yat Limanı', 'Ercan Havalimanı']) {
-      await chooseRecentPlace(tester, place);
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
-      await tester.pumpAndSettle();
-    }
+    await fillGroupPlaces(tester, ['Girne Yat Limanı', 'Ercan Havalimanı']);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur'));
     await tester.pumpAndSettle();
 
-    expect(created?.from, 'Girne Yat Limanı');
-    expect(created?.to, 'Ercan Havalimanı');
+    expect(created?.draft.from, 'Girne Yat Limanı');
+    expect(created?.draft.to, 'Ercan Havalimanı');
+    expect(created?.draft.fromPoint, isNotNull);
+    expect(created!.draft.baseMeters, greaterThan(0));
+    expect(created!.pickup.detourMeters, 0);
+    expect(created!.pickup.place.name, 'Girne Yat Limanı');
   });
 
-  testWidgets('Grup oluşturmanın son adımında tarih ve kişi başı ücret sorulur', (tester) async {
-    await tester.pumpWidget(localized(const Scaffold(body: CreateSharedRideSheet())));
-
-    for (final place in ['Girne Yat Limanı', 'Ercan Havalimanı']) {
-      await chooseRecentPlace(tester, place);
-      await tester.tap(find.text('Devam Et'));
-      await tester.pumpAndSettle();
-    }
+  testWidgets('Grup formunda kişi başı ücret sorulmaz; 3. adımda tahmin görünür ve kapasiteyle değişir', (tester) async {
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(routing: groupRouting()))));
+    await fillGroupPlaces(tester, ['Girne Yat Limanı', 'Ercan Havalimanı']);
 
     expect(find.text('Tarih'), findsOneWidget);
-    expect(find.text('Kişi başı ücret'), findsOneWidget);
+    expect(find.text('Kişi başı ücret'), findsNothing);
+    expect(find.byType(TextFormField), findsNothing);
+    // 40 km yol: toplam ₺1.700; 4 kişide kişi başı ₺430.
+    expect(find.text('Tek kişiyle ₺1.700, grup dolarsa kişi başı yaklaşık ₺430'), findsOneWidget);
+    expect(find.text('5 ve üzeri kişilik gruplar büyük araç tarifesiyle hesaplanır.'), findsNothing);
 
-    await tester.enterText(find.byType(TextFormField), '');
+    // 5 kişi: büyük araç tarifesi (×1,8) → toplam ₺3.060; kişi başı ₺620.
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(5);
     await tester.pump();
-    final create = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur'));
-    expect(create.onPressed, isNull, reason: 'Ücret girilmeden grup oluşturulamaz');
+    expect(find.text('Tek kişiyle ₺3.060, grup dolarsa kişi başı yaklaşık ₺620'), findsOneWidget);
+    expect(find.text('5 ve üzeri kişilik gruplar büyük araç tarifesiyle hesaplanır.'), findsOneWidget);
+  });
 
-    // Firestore kuralları 100.000 ₺ üstünü reddeder; form bunu önceden söyler.
-    await tester.enterText(find.byType(TextFormField), '150000');
-    await tester.pump();
-    expect(find.text('1 ile ₺100.000 arasında bir tutar gir'), findsOneWidget);
-    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed, isNull);
+  testWidgets('Rota hesaplanırken 3. adımda ilerleme görünür ve Devam kapalıdır', (tester) async {
+    final response = Completer<http.Response>();
+    final routing = RoutingService(client: MockClient((_) => response.future));
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(routing: routing))));
+    await chooseRecentPlace(tester, 'Girne Yat Limanı');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+    await tester.pumpAndSettle();
+    await chooseRecentPlace(tester, 'Ercan Havalimanı');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+    // İlerleme göstergesi sürekli çizildiği için pumpAndSettle beklemez (ve rota zaman aşımına uğrardı).
+    await tester.pump(const Duration(milliseconds: 500));
 
-    await tester.enterText(find.byType(TextFormField), '250');
-    await tester.pump();
-    expect(find.text('1 ile ₺100.000 arasında bir tutar gir'), findsNothing);
-    expect(
-      tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed,
-      isNotNull,
-    );
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.textContaining('Tek kişiyle'), findsNothing);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Devam Et')).onPressed, isNull);
+
+    response.complete(http.Response(
+        '{"code":"Ok","routes":[{"distance":40000,"duration":300,"geometry":{"coordinates":[[33.32,35.34],[33.33,35.35]]}}]}',
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'}));
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.textContaining('Tek kişiyle'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Devam Et')).onPressed, isNotNull);
+  });
+
+  testWidgets('Toplama noktası adımı nereden seçimini buluşma noktası yapar; nereden değişince sıfırlanır', (tester) async {
+    await tester.pumpWidget(localized(Scaffold(body: CreateSharedRideSheet(routing: groupRouting()))));
+    await fillGroupPlaces(tester, ['Girne Yat Limanı', 'Ercan Havalimanı']);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Seni nereden alalım?'), findsOneWidget);
+    expect(find.text('Girne Yat Limanı'), findsOneWidget);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed, isNotNull);
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('Geri'));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('Girne Yat Limanı'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gazimağusa Surlariçi'));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Gazimağusa Surlariçi'), findsOneWidget);
+    expect(find.text('Girne Yat Limanı'), findsNothing);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed, isNotNull);
   });
 
   testWidgets('Giriş yapmadan grup açılmak istenirse giriş yapılması söylenir', (tester) async {
@@ -735,20 +796,18 @@ void main() {
     await signIn();
     // Arkadaşın telefonu: sunucu 1 saat ileride.
     TrustedClock.instance.serverTimeSource = () async => DateTime.now().add(const Duration(seconds: 3657));
-    await tester.pumpWidget(localized(const SharedRideScreen()));
+    await tester.pumpWidget(localized(SharedRideScreen(routing: groupRouting())));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Grup Oluştur'));
     await tester.pumpAndSettle();
     expect(find.text('Nereden?'), findsOneWidget);
-    await chooseRecentPlace(tester, 'Gazimağusa Surlariçi');
-    await tester.tap(find.text('Devam Et'));
-    await tester.pumpAndSettle();
-    await chooseRecentPlace(tester, 'Girne Yat Limanı');
-    await tester.tap(find.text('Devam Et'));
-    await tester.pumpAndSettle();
+    await fillGroupPlaces(tester, ['Gazimağusa Surlariçi', 'Girne Yat Limanı']);
 
     expect(find.textContaining('Kıbrıs saati'), findsWidgets);
+    expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Devam Et')).onPressed, isNotNull);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Devam Et'));
+    await tester.pumpAndSettle();
     expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Yolculuğu Oluştur')).onPressed, isNotNull);
 
     await tester.ensureVisible(find.text('Yolculuğu Oluştur'));
