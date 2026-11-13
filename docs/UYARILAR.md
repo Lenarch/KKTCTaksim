@@ -1,6 +1,6 @@
 # KKTC Taksim: Uyarılar
 
-Son güncelleme: **13 Kasım 2026** (grup toplama Aşama 1). Uygulama şu an demo; aşağıdakiler yayından önce bilinmesi ve
+Son güncelleme: **14 Kasım 2026** (grup toplama Aşama 1, kurallar canlıda). Uygulama şu an demo; aşağıdakiler yayından önce bilinmesi ve
 çözülmesi gereken noktalar.
 
 ## Harici servisler
@@ -167,7 +167,10 @@ Son güncelleme: **13 Kasım 2026** (grup toplama Aşama 1). Uygulama şu an dem
   30 gün içinde kalkış tarihleri geçip kendiliğinden biter.
 - **Bu sürümde bildirim ve kapora yok:** Anlık (push) bildirim ve ön ödeme/kapora gelmedi; ödeme projesiyle
   birlikte planlanıyor. Olaylar yalnızca uygulama açıkken görünür; ücret şoföre elden ödenir.
-- Firestore'a yazan grup kodu gerçek Firebase'e karşı henüz denenmedi (yalnızca kural testleri ve satır satır kontrol).
+- **14 Kasım: yeni kurallar canlıya yüklendi.** O andan itibaren `apk/` klasöründeki eski test APK'sı grup
+  kuramaz ve gruba katılamaz; yeni APK `feature/grup-toplama-1` dalından derlenmeli.
+- Grup kurma, katılma, nokta değiştirme, ayrılma ve son üyenin ayrılması 14 Kasım'da gerçek Firebase'de
+  emülatörle denendi ve geçti. Üyeyken hesap silme gerçek Firebase'de denenmedi.
 
 ## Saat ve saat dilimi
 - Grup saatleri `Asia/Nicosia` kurallarıyla hesaplanır (`timezone` paketi). KKTC yaz saati kararı bundan ayrılırsa paket veya kod güncellenmeli.

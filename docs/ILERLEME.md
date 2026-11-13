@@ -1,16 +1,25 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **13 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **14 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
 
 ## 13 Kasım 2026: grup toplama, Aşama 1 (dal `feature/grup-toplama-1`, `main`'e BİRLEŞMEDİ)
-**Durum:** Kod yazıldı ve testlerden geçti; hepsi yalnızca `feature/grup-toplama-1` dalında.
-`main`'e **birleştirilmedi**, GitHub'a **gönderilmedi**, yeni kurallar **canlıya yüklenmedi**, test APK'sı
-(`apk/KKTCTaksim-test.apk`) **yenilenmedi**. Gerçek Firebase'e karşı da **denenmedi**: Firestore'a yazan kod
-için birim testi yok (projede Firestore sahtesi yok); kodun yazdığı alanlar kurallarla satır satır
-karşılaştırılarak kontrol edildi. Testler: analyze temiz, Flutter 113/113, kurallar 70/70.
+**Durum (14 Kasım):** Kod `feature/grup-toplama-1` dalında (`2dcdccd` ve sonrası). Yeni kurallar 14 Kasım'da
+**canlıya yüklendi** (sahibinin onayıyla). `main`'e **birleştirilmedi**, GitHub'a **gönderilmedi**, test APK'sı
+(`apk/KKTCTaksim-test.apk`) **yenilenmedi**: klasördeki eski APK artık grup kuramaz ve gruba katılamaz.
+Testler: analyze temiz, Flutter 116/116, kurallar 70/70.
+
+**Gerçek Firebase denemesi (14 Kasım, emülatör, daldan derlenen APK, iki test hesabı):** hepsi geçti.
+- Hesap 03 grup kurdu (Girne Yat Limanı → Ercan Havalimanı, 4 kişi, buluşma noktasından biniş): kart ≈₺2.010.
+- Hesap 01 grubu gördü (başkasının toplama noktası görünmüyor), Karakum'dan katıldı: önizleme ve kart ≈₺1.080
+  (3,5 km ek mesafe).
+- Hesap 01 noktasını buluşma noktasına çevirdi: ≈₺1.010. Sonra ayrıldı: grup 1/4, ≈₺2.010.
+- Hesap 03 son üye olarak ayrıldı: grup silindi (kurallar, toplama kaydı kalırsa silmeye izin vermez).
+- **Denenmedi:** üyeyken hesap silme, haritadan nokta seçerek katılma, 10 km'den uzak nokta, eski biçimli grup
+  (canlıda yoktu), gerçek telefon.
+- **Görülen kusur:** grup kartında yer adları ücret sütunu yüzünden kısalıyor ("Girne Ya…", "Ercan H…").
 
 - **Kullanıcı için ne değişti:**
   - Grubu kuran artık ücret yazmaz; kişi başı ücreti uygulama hesaplar.
