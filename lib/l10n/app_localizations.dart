@@ -1953,6 +1953,48 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Ücrete eklenen mesafe: {distance}'**
   String pickupExtra(String distance);
+
+  /// No description provided for @joinPricePreview.
+  ///
+  /// In tr, this message translates to:
+  /// **'Katılırsan kişi başı {price} olur (şu an {current}).'**
+  String joinPricePreview(String price, String current);
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaydet'**
+  String get saveChanges;
+
+  /// No description provided for @priceMayChange.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kişi sayısına göre değişir'**
+  String get priceMayChange;
+
+  /// No description provided for @legacyGroup.
+  ///
+  /// In tr, this message translates to:
+  /// **'Eski sürüm grubu'**
+  String get legacyGroup;
+
+  /// No description provided for @groupClosed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu gruba artık katılınamıyor.'**
+  String get groupClosed;
+
+  /// No description provided for @myPickupPoint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Toplama noktam: {name}'**
+  String myPickupPoint(String name);
+
+  /// No description provided for @changePickupAction.
+  ///
+  /// In tr, this message translates to:
+  /// **'Değiştir'**
+  String get changePickupAction;
 }
 
 class _AppLocalizationsDelegate

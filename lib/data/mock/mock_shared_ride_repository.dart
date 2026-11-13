@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/data/mock/watch_value.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
@@ -35,6 +36,13 @@ class MockSharedRideRepository implements SharedRideRepository {
     final now = DateTime.now();
     return _rides.where((r) => r.departure.isAfter(now)).toList()
       ..sort((a, b) => a.departure.compareTo(b.departure));
+  }
+
+  /// Testler için: listeye hazır bir grup (örneğin eski biçimli) ekler.
+  @visibleForTesting
+  void addForTest(SharedRide ride) {
+    _rides.add(ride);
+    _changes.add(null);
   }
 
   @override

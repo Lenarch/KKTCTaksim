@@ -1055,4 +1055,29 @@ class AppLocalizationsTr extends AppLocalizations {
   String pickupExtra(String distance) {
     return 'Ücrete eklenen mesafe: $distance';
   }
+
+  @override
+  String joinPricePreview(String price, String current) {
+    return 'Katılırsan kişi başı $price olur (şu an $current).';
+  }
+
+  @override
+  String get saveChanges => 'Kaydet';
+
+  @override
+  String get priceMayChange => 'Kişi sayısına göre değişir';
+
+  @override
+  String get legacyGroup => 'Eski sürüm grubu';
+
+  @override
+  String get groupClosed => 'Bu gruba artık katılınamıyor.';
+
+  @override
+  String myPickupPoint(String name) {
+    return 'Toplama noktam: $name';
+  }
+
+  @override
+  String get changePickupAction => 'Değiştir';
 }

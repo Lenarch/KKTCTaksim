@@ -44,7 +44,10 @@ import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
+import 'package:kktc_taksim/core/group_fare.dart';
+import 'package:kktc_taksim/widgets/join_group_sheet.dart';
 import 'package:kktc_taksim/widgets/pickup_chooser.dart';
+import 'package:intl/intl.dart';
 import 'package:kktc_taksim/services/trusted_clock.dart';
 import 'package:kktc_taksim/widgets/home/taxi_selection_sheet.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -93,6 +96,15 @@ Future<void> fillGroupPlaces(WidgetTester tester, List<String> places) async {
     await tester.pumpAndSettle();
   }
 }
+
+/// Açılan katılma sayfasındaki onay düğmesine basar.
+Future<void> confirmJoinSheet(WidgetTester tester, {String label = 'Katıl'}) async {
+  final button = find.descendant(of: find.byType(JoinGroupSheet), matching: find.widgetWithText(ElevatedButton, label));
+  await tester.tap(button);
+  await tester.pumpAndSettle();
+}
+
+String liraTr(int amount) => '₺${NumberFormat.decimalPattern('tr').format(amount)}';
 
 Future<void> openSplashAndChooseRole(WidgetTester tester) async {
   await tester.pumpWidget(const TaxiApp(showAds: false));
@@ -366,6 +378,7 @@ void main() {
     expect(find.text('kişi başı'), findsWidgets);
     await tester.tap(find.text('Katıl').first);
     await tester.pumpAndSettle();
+    await confirmJoinSheet(tester);
     expect(find.text('Ayrıl'), findsOneWidget);
 
     await tester.tap(find.text('Ayrıl'));
@@ -392,6 +405,7 @@ void main() {
 
     await tester.tap(find.text('Katıl').first);
     await tester.pumpAndSettle();
+    await confirmJoinSheet(tester);
     expect(find.text('Grup sohbeti • Yeni mesaj var'), findsOneWidget);
 
     // "Gruba katıldın" bildirimi kaybolsun; düğmenin üstünü kapatıyor.
@@ -819,6 +833,125 @@ void main() {
     final mine = rides!.where((r) => r.from == 'Gazimağusa Surlariçi' && r.to == 'Girne Yat Limanı');
     expect(mine.single.departure.isAfter(TrustedClock.instance.now), isTrue);
     expect(find.textContaining('Kıbrıs saati'), findsWidgets);
+  });
+
+  group('Gruba katılma ve toplama noktası', () {
+    // Ercan Havalimanı'nın (son gidilen yerler) yaklaşık 1 km yakınında bir buluşma noktası.
+    const meetingPoint = LatLng(35.1600, 33.5000);
+    final nearRide = SharedRide(
+      id: 'near-group',
+      from: 'Buluşma Durağı',
+      to: 'Girne Yat Limanı',
+      departure: DateTime.now().add(const Duration(days: 1)),
+      capacity: 8,
+      memberIds: const ['demo-x', 'demo-y', 'demo-z'],
+      pricePerPerson: groupPricePerPerson(baseMeters: 20000, extraMeters: 0, capacity: 8, members: 3),
+      fromPoint: meetingPoint,
+      toPoint: const LatLng(35.3417, 33.3192),
+      baseMeters: 20000,
+      detours: const {'demo-x': 0, 'demo-y': 0, 'demo-z': 0},
+    );
+
+    MockSharedRideRepository mockRides() => Backend.instance.sharedRides as MockSharedRideRepository;
+
+    testWidgets('katılma sayfası yeni ücreti gösterir; onaydan sonra kullanıcı üye olur', (tester) async {
+      await signIn();
+      mockRides().addForTest(nearRide);
+      await tester.pumpWidget(localized(SharedRideScreen(routing: groupRouting(9000))));
+      await tester.pumpAndSettle();
+
+      final card = find.ancestor(of: find.text('Buluşma Durağı'), matching: find.byType(Card));
+      await tester.tap(find.descendant(of: card, matching: find.text('Katıl')));
+      await tester.pumpAndSettle();
+
+      final after = groupPricePerPerson(baseMeters: 20000, extraMeters: 0, capacity: 8, members: 4);
+      expect(find.text('Seni nereden alalım?'), findsOneWidget);
+      expect(
+        find.text('Katılırsan kişi başı ${liraTr(after)} olur (şu an ${liraTr(nearRide.pricePerPerson)}).'),
+        findsOneWidget,
+      );
+
+      await confirmJoinSheet(tester);
+      expect(find.byType(JoinGroupSheet), findsNothing);
+      expect(find.text('Toplama noktam: Buluşma Durağı'), findsOneWidget);
+      expect(find.text('Değiştir'), findsOneWidget);
+      final mine = await tester.runAsync(() => mockRides().myPickup('near-group'));
+      expect(mine!.place.name, 'Buluşma Durağı');
+      expect(mine.detourMeters, 0);
+    });
+
+    testWidgets('karttan "Değiştir" ile başka nokta seçilince yeni ad ve yeni ücret görünür', (tester) async {
+      await signIn();
+      mockRides().addForTest(nearRide);
+      await mockRides().join('near-group', Pickup(place: nearRide.meetingPlace!, detourMeters: 0));
+      await tester.pumpWidget(localized(SharedRideScreen(routing: groupRouting(9000))));
+      await tester.pumpAndSettle();
+
+      final before = groupPricePerPerson(baseMeters: 20000, extraMeters: 0, capacity: 8, members: 4);
+      final changed = groupPricePerPerson(baseMeters: 20000, extraMeters: 9000, capacity: 8, members: 4);
+      expect(changed, isNot(before));
+      expect(find.text('≈ ${liraTr(before)}'), findsOneWidget);
+      expect(find.text('Toplama noktam: Buluşma Durağı'), findsOneWidget);
+
+      await tester.tap(find.text('Değiştir'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(ElevatedButton, 'Kaydet'), findsOneWidget);
+      await tester.tap(find.text('Başka bir yerden alınmak istiyorum'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ercan Havalimanı'));
+      await tester.pumpAndSettle();
+      expect(find.text('Katılırsan kişi başı ${liraTr(changed)} olur (şu an ${liraTr(before)}).'), findsOneWidget);
+
+      await confirmJoinSheet(tester, label: 'Kaydet');
+      expect(find.text('Toplama noktam: Ercan Havalimanı'), findsOneWidget);
+      expect(find.text('≈ ${liraTr(changed)}'), findsOneWidget);
+    });
+
+    testWidgets('eski biçimli grup kartında kapalı "Eski sürüm grubu" düğmesi vardır; liste çökmez', (tester) async {
+      await signIn();
+      mockRides().addForTest(SharedRide(
+        id: 'legacy-group',
+        from: 'Eski Başlangıç',
+        to: 'Eski Varış',
+        departure: DateTime.now().add(const Duration(days: 1)),
+        capacity: 4,
+        memberIds: const ['demo-x'],
+        pricePerPerson: 100,
+      ));
+      await tester.pumpWidget(localized(const SharedRideScreen()));
+      await tester.pumpAndSettle();
+
+      final card = find.ancestor(of: find.text('Eski Başlangıç'), matching: find.byType(Card));
+      final button = find.descendant(of: card, matching: find.widgetWithText(ElevatedButton, 'Eski sürüm grubu'));
+      expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+      expect(find.descendant(of: card, matching: find.textContaining('≈')), findsNothing);
+      expect(find.descendant(of: card, matching: find.text('Kişi sayısına göre değişir')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('eski biçimli grubun üyesi "Ayrıl" ile çıkabilir, toplama satırı görünmez', (tester) async {
+      await signIn();
+      final userId = Backend.instance.auth.currentUser!.id;
+      mockRides().addForTest(SharedRide(
+        id: 'legacy-group',
+        from: 'Eski Başlangıç',
+        to: 'Eski Varış',
+        departure: DateTime.now().add(const Duration(days: 1)),
+        capacity: 4,
+        memberIds: ['demo-x', userId],
+        pricePerPerson: 100,
+      ));
+      await tester.pumpWidget(localized(const SharedRideScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Toplama noktam'), findsNothing);
+      await tester.tap(find.text('Ayrıl'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Ayrıl'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ayrıl'), findsNothing);
+      expect(find.text('Eski sürüm grubu'), findsOneWidget);
+    });
   });
 
   group('Toplama noktası seçici', () {

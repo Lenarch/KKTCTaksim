@@ -610,5 +610,29 @@
         "type": "String"
       }
     }
-  }
+  },
+  "joinPricePreview": "Katılırsan kişi başı {price} olur (şu an {current}).",
+  "@joinPricePreview": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "Kaydet",
+  "priceMayChange": "Kişi sayısına göre değişir",
+  "legacyGroup": "Eski sürüm grubu",
+  "groupClosed": "Bu gruba artık katılınamıyor.",
+  "myPickupPoint": "Toplama noktam: {name}",
+  "@myPickupPoint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "changePickupAction": "Değiştir"
 }

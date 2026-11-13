@@ -1093,4 +1093,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String pickupExtra(String distance) {
     return 'Distance added to the fare: $distance';
   }
+
+  @override
+  String joinPricePreview(String price, String current) {
+    return 'If you join, it will be $price per person (now $current).';
+  }
+
+  @override
+  String get saveChanges => 'Save';
+
+  @override
+  String get priceMayChange => 'Changes with the number of people';
+
+  @override
+  String get legacyGroup => 'Old-version group';
+
+  @override
+  String get groupClosed => 'This group can no longer be joined.';
+
+  @override
+  String myPickupPoint(String name) {
+    return 'My pickup point: $name';
+  }
+
+  @override
+  String get changePickupAction => 'Change';
 }

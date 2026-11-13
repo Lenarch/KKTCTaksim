@@ -7,6 +7,7 @@ import 'package:kktc_taksim/screens/map_pick_screen.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
 import 'package:kktc_taksim/services/pickup_detour.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
+import 'package:kktc_taksim/widgets/join_group_sheet.dart';
 import 'package:kktc_taksim/widgets/pickup_chooser.dart';
 import 'package:kktc_taksim/widgets/home/destination_sheet.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
@@ -46,6 +47,15 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   /// Saat ölçülürken düğmeye yeniden basılırsa form iki kez açılmasın.
   bool _openingCreateSheet = false;
 
+  /// Katılma/değiştirme sayfası açıkken ikinci dokunuş yeni sayfa açmasın.
+  bool _openingJoinSheet = false;
+
+  /// Her toplama noktası değişince artar; kartlardaki "Toplama noktam" satırı yeniden okunur.
+  int _pickupRevision = 0;
+
+  late final GeocodingService _geocoding = widget.geocoding ?? GeocodingService();
+  late final RoutingService _routing = widget.routing ?? RoutingService();
+
   /// Repository çağrısını yapar; hata olursa kullanıcıya anlaşılır bir mesaj gösterir.
   /// [onFailed] verilirse beklenmeyen hatada mesaj yerine o çağrılır.
   Future<bool> _run(Future<void> Function() action, {void Function(String code)? onFailed}) async {
@@ -54,7 +64,15 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
       await action();
       return true;
     } on SharedRideException catch (e) {
-      if (mounted) showMessage(context, e.error == SharedRideError.full ? l10n.groupFull : l10n.actionFailed);
+      if (!mounted) return false;
+      showMessage(
+        context,
+        switch (e.error) {
+          SharedRideError.full => l10n.groupFull,
+          SharedRideError.closed => l10n.groupClosed,
+          _ => l10n.actionFailed,
+        },
+      );
     } catch (e) {
       // Hata kodu mesajda da görünsün: testçiler cihaz kaydına bakamıyor, ekran görüntüsü atıyor.
       debugPrint('Paylaşımlı grup işlemi başarısız: $e');
@@ -94,7 +112,7 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
     final created = await showModalBottomSheet<({SharedRide draft, Pickup pickup})>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => CreateSharedRideSheet(geocoding: widget.geocoding, routing: widget.routing),
+      builder: (_) => CreateSharedRideSheet(geocoding: _geocoding, routing: _routing),
     );
     if (!mounted || created == null) return;
     await _run(
@@ -106,12 +124,42 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
     );
   }
 
+  /// Katılma ya da (şimdiki nokta [current] ise) toplama noktasını değiştirme sayfasını açar.
+  Future<Pickup?> _askPickup(SharedRide ride, {Pickup? current}) async {
+    if (_openingJoinSheet) return null;
+    _openingJoinSheet = true;
+    try {
+      return await showModalBottomSheet<Pickup>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => JoinGroupSheet(ride: ride, geocoding: _geocoding, routing: _routing, current: current),
+      );
+    } finally {
+      _openingJoinSheet = false;
+    }
+  }
+
   Future<void> _join(SharedRide ride) async {
-    if (!_ensureSignedIn()) return;
+    // Eski biçimli grubun düğmesi kapalıdır; yine de buluşma noktası olmadan ilerlenmez.
+    if (ride.isLegacy || !_ensureSignedIn()) return;
     final message = context.l10n.joinedGroup(ride.from, ride.to);
-    // Görev 8: gerçek toplama noktası seçimi gelene kadar buluşma noktası, sapma 0.
-    final pickup = Pickup(place: ride.meetingPlace!, detourMeters: 0);
-    if (await _run(() => _repository.join(ride.id, pickup)) && mounted) showMessage(context, message);
+    final pickup = await _askPickup(ride);
+    if (pickup == null || !mounted) return;
+    if (await _run(() => _repository.join(ride.id, pickup)) && mounted) {
+      setState(() => _pickupRevision++);
+      showMessage(context, message);
+    }
+  }
+
+  Future<void> _changePickup(SharedRide ride) async {
+    if (ride.isLegacy || !_ensureSignedIn()) return;
+    final current = await _repository.myPickup(ride.id);
+    if (current == null || !mounted) return;
+    final pickup = await _askPickup(ride, current: current);
+    if (pickup == null || !mounted) return;
+    if (await _run(() => _repository.changePickup(ride.id, pickup)) && mounted) {
+      setState(() => _pickupRevision++);
+    }
   }
 
   Future<void> _leave(SharedRide ride) async {
@@ -186,7 +234,9 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
                 _RideCard(
                   ride: ride,
                   joined: ride.hasMember(userId),
+                  pickupRevision: _pickupRevision,
                   onJoin: () => _join(ride),
+                  onChangePickup: () => _changePickup(ride),
                   onLeave: () => _leave(ride),
                   onChat: () => _openChat(ride),
                 ),
@@ -253,14 +303,20 @@ class _RideCard extends StatelessWidget {
 
   /// Giriş yapmış kullanıcı bu grubun üyesi mi.
   final bool joined;
+
+  /// "Toplama noktam" satırını yeniden okutmak için; değişince satır yenilenir.
+  final int pickupRevision;
   final VoidCallback onJoin;
+  final VoidCallback onChangePickup;
   final VoidCallback onLeave;
   final VoidCallback onChat;
 
   const _RideCard({
     required this.ride,
     required this.joined,
+    required this.pickupRevision,
     required this.onJoin,
+    required this.onChangePickup,
     required this.onLeave,
     required this.onChat,
   });
@@ -273,6 +329,8 @@ class _RideCard extends StatelessWidget {
     final mutedStyle = TextStyle(color: mutedColor, fontSize: 13);
     const placeStyle = TextStyle(fontWeight: FontWeight.w600);
     const buttonSize = Size(100, 45);
+    // Kişi başı ücret üye sayısına göre oynar; yalnızca yeni biçimli, açık gruplarda geçerli.
+    final priceMayChange = !ride.isLegacy && ride.status == SharedRideStatus.open;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.xl),
@@ -308,10 +366,11 @@ class _RideCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      context.lira(ride.pricePerPerson),
+                      '${priceMayChange ? '≈ ' : ''}${context.lira(ride.pricePerPerson)}',
                       style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(l10n.perPerson, style: mutedStyle),
+                    if (priceMayChange) Text(l10n.priceMayChange, style: mutedStyle),
                   ],
                 ),
               ],
@@ -379,15 +438,19 @@ class _RideCard extends StatelessWidget {
                   )
                 else
                   ElevatedButton(
-                    onPressed: ride.isFull ? null : onJoin,
+                    onPressed: ride.joinable ? onJoin : null,
                     style: ElevatedButton.styleFrom(
                       minimumSize: buttonSize,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                     ),
-                    child: Text(ride.isFull ? l10n.full : l10n.join),
+                    child: Text(ride.isLegacy ? l10n.legacyGroup : (ride.isFull ? l10n.full : l10n.join)),
                   ),
               ],
             ),
+            if (joined && priceMayChange) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _MyPickupRow(rideId: ride.id, revision: pickupRevision, onChange: onChangePickup),
+            ],
             if (joined) ...[
               const SizedBox(height: AppSpacing.lg),
               _ChatButton(rideId: ride.id, onPressed: onChat),
@@ -395,6 +458,56 @@ class _RideCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Üyenin kendi toplama noktası ve "Değiştir" eylemi; yüklenirken ya da kayıt yokken boş kalır.
+class _MyPickupRow extends StatefulWidget {
+  final String rideId;
+  final int revision;
+  final VoidCallback onChange;
+
+  const _MyPickupRow({required this.rideId, required this.revision, required this.onChange});
+
+  @override
+  State<_MyPickupRow> createState() => _MyPickupRowState();
+}
+
+class _MyPickupRowState extends State<_MyPickupRow> {
+  late Future<Pickup?> _pickup = Backend.instance.sharedRides.myPickup(widget.rideId);
+
+  @override
+  void didUpdateWidget(_MyPickupRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revision != widget.revision || oldWidget.rideId != widget.rideId) {
+      _pickup = Backend.instance.sharedRides.myPickup(widget.rideId);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return FutureBuilder<Pickup?>(
+      future: _pickup,
+      builder: (context, snapshot) {
+        final pickup = snapshot.data;
+        if (pickup == null) return const SizedBox.shrink();
+        return Row(
+          children: [
+            const Icon(Icons.place_outlined, size: 18),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                l10n.myPickupPoint(pickup.place.name),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            TextButton(onPressed: widget.onChange, child: Text(l10n.changePickupAction)),
+          ],
+        );
+      },
     );
   }
 }

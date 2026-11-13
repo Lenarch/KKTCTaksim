@@ -329,5 +329,29 @@
         "type": "String"
       }
     }
-  }
+  },
+  "joinPricePreview": "If you join, it will be {price} per person (now {current}).",
+  "@joinPricePreview": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "Save",
+  "priceMayChange": "Changes with the number of people",
+  "legacyGroup": "Old-version group",
+  "groupClosed": "This group can no longer be joined.",
+  "myPickupPoint": "My pickup point: {name}",
+  "@myPickupPoint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "changePickupAction": "Change"
 }
