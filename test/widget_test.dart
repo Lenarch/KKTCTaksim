@@ -875,7 +875,7 @@ void main() {
       expect(find.byType(JoinGroupSheet), findsNothing);
       expect(find.text('Toplama noktam: Buluşma Durağı'), findsOneWidget);
       expect(find.text('Değiştir'), findsOneWidget);
-      final mine = await tester.runAsync(() => mockRides().myPickup('near-group'));
+      final mine = await mockRides().myPickup('near-group');
       expect(mine!.place.name, 'Buluşma Durağı');
       expect(mine.detourMeters, 0);
     });
