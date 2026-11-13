@@ -907,6 +907,22 @@ void main() {
       expect(find.text('≈ ${liraTr(changed)}'), findsOneWidget);
     });
 
+    testWidgets('"Değiştir" sırasında nokta okunamazsa hata mesajı çıkar, sayfa açılmaz', (tester) async {
+      await signIn();
+      mockRides().addForTest(nearRide);
+      await mockRides().join('near-group', Pickup(place: nearRide.meetingPlace!, detourMeters: 0));
+      await tester.pumpWidget(localized(SharedRideScreen(routing: groupRouting(9000))));
+      await tester.pumpAndSettle();
+
+      // Kart satırı "Değiştir"i gösterdikten sonra okuma başarısız olsun.
+      mockRides().myPickupReturnsNull = true;
+      await tester.tap(find.text('Değiştir'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('İşlem tamamlanamadı. Lütfen tekrar dene.'), findsOneWidget);
+      expect(find.byType(JoinGroupSheet), findsNothing);
+    });
+
     testWidgets('eski biçimli grup kartında kapalı "Eski sürüm grubu" düğmesi vardır; liste çökmez', (tester) async {
       await signIn();
       mockRides().addForTest(SharedRide(

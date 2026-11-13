@@ -541,6 +541,15 @@ void main() {
       expect(back.detourMeters, 800);
       expect(pickupToDocument(back), doc);
     });
+
+    test('Toplama noktası adı kuralların izin verdiği 200 karaktere kısaltılır', () {
+      final pickup = Pickup(
+        place: GeoPlace(name: 'x' * 250, position: const LatLng(35.3, 33.3)),
+        detourMeters: 0,
+      );
+      final place = pickupToDocument(pickup)['place'] as Map;
+      expect((place['name'] as String).length, 200);
+    });
   });
 
   group('LiveShareController', () {

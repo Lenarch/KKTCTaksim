@@ -515,4 +515,17 @@ void main() {
     const a = LatLng(35.35, 33.32), b = LatLng(35.34, 33.32);
     expect(await groupBaseMeters(offline, a, b), (distanceMeters(a, b) * 1.3).round());
   });
+
+  test('grup temel mesafesi: çok dolambaçlı rota kuralların sınırına (kuş uçuşu × 3,9 + 5000) çekilir', () async {
+    const a = LatLng(35.35, 33.32), b = LatLng(35.34, 33.32);
+    final huge = RoutingService(
+      client: MockClient((_) async => http.Response(
+          '{"code":"Ok","routes":[{"distance":500000,"duration":10,"geometry":{"coordinates":[[33.32,35.34],[33.32,35.35]]}}]}', 200)),
+    );
+    final result = await groupBaseMeters(huge, a, b);
+    final straight = distanceMeters(a, b);
+    expect(result, (straight * 3.9 + 5000).floor());
+    expect(result, lessThan(straight * 4 + 5000));
+    expect(result, greaterThanOrEqualTo(straight));
+  });
 }

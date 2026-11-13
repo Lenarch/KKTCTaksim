@@ -18,7 +18,11 @@ Future<int> pickupDetourMeters(RoutingService routing, LatLng pickup, LatLng mee
 }
 
 /// Grubun kalkış-varış arasındaki temel mesafesi (metre): rota ya da kuş uçuşu, hangisi uzunsa.
+/// Kurallar `baseMeters <= kuş uçuşu × 4 + 5000` ister (kuralların mesafe yaklaşığı haversine'den
+/// %1'den az sapar); çok dolambaçlı rota dürüst bir oluşturmayı reddettirmesin diye 3,9 ile sınırlanır.
 Future<int> groupBaseMeters(RoutingService routing, LatLng from, LatLng to) async {
   final route = await routing.route(from, to);
-  return math.max(route.distanceMeters, distanceMeters(from, to)).round();
+  final straight = distanceMeters(from, to);
+  final base = math.max(route.distanceMeters, straight).round();
+  return math.min(base, (straight * 3.9 + 5000).floor());
 }

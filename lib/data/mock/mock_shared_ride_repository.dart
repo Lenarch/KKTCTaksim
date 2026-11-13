@@ -45,6 +45,10 @@ class MockSharedRideRepository implements SharedRideRepository {
     _changes.add(null);
   }
 
+  /// Testler için: true iken [myPickup] üyeler için de null döner (okuma başarısızlığı).
+  @visibleForTesting
+  bool myPickupReturnsNull = false;
+
   @override
   Stream<List<SharedRide>> watchActive() => watchValue(_changes.stream, () => _active);
 
@@ -87,6 +91,7 @@ class MockSharedRideRepository implements SharedRideRepository {
   @override
   Future<Pickup?> myPickup(String rideId) async {
     final userId = _auth.currentUser?.id;
+    if (myPickupReturnsNull) return null;
     return userId == null ? null : _pickups[rideId]?[userId];
   }
 

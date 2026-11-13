@@ -50,6 +50,9 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   /// Katılma/değiştirme sayfası açıkken ikinci dokunuş yeni sayfa açmasın.
   bool _openingJoinSheet = false;
 
+  /// "Değiştir" işlemi (nokta okuma + sayfa) sürerken ikinci dokunuş yeni işlem başlatmasın.
+  bool _changingPickup = false;
+
   /// Her toplama noktası değişince artar; kartlardaki "Toplama noktam" satırı yeniden okunur.
   int _pickupRevision = 0;
 
@@ -152,13 +155,23 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   }
 
   Future<void> _changePickup(SharedRide ride) async {
-    if (ride.isLegacy || !_ensureSignedIn()) return;
-    final current = await _repository.myPickup(ride.id);
-    if (current == null || !mounted) return;
-    final pickup = await _askPickup(ride, current: current);
-    if (pickup == null || !mounted) return;
-    if (await _run(() => _repository.changePickup(ride.id, pickup)) && mounted) {
-      setState(() => _pickupRevision++);
+    if (ride.isLegacy || _changingPickup || !_ensureSignedIn()) return;
+    _changingPickup = true;
+    try {
+      final message = context.l10n.actionFailed;
+      final current = await _repository.myPickup(ride.id);
+      if (!mounted) return;
+      if (current == null) {
+        showMessage(context, message);
+        return;
+      }
+      final pickup = await _askPickup(ride, current: current);
+      if (pickup == null || !mounted) return;
+      if (await _run(() => _repository.changePickup(ride.id, pickup)) && mounted) {
+        setState(() => _pickupRevision++);
+      }
+    } finally {
+      _changingPickup = false;
     }
   }
 

@@ -33,7 +33,13 @@ karşılaştırılarak kontrol edildi. Testler: analyze temiz, Flutter 113/113, 
 - **Sıradaki iş:**
   1. Sahibin onayı: kurallar canlıya yüklensin + dal `main`'e birleşsin + yeni APK derlensin, **üçü birlikte**
      (bkz. UYARILAR "Grup toplama"). Yüklemeden sonra gerçek Firebase'e karşı emülatörde deneme.
-  2. **Aşama 2 planı:** şoför bir grubu üstlenir (üye listesi ve ücret kilitlenir).
+  2. **Aşama 2 planı:** şoför bir grubu üstlenir (üye listesi ve ücret kilitlenir). Plan, son incelemeden
+     şunları içermeli:
+     - Üstlenilmiş gruptan ayrılmak ücret alanlarını değiştirmemeli (kurallardaki `isLeave` için durum denetimi).
+     - Yazılan ücret önizlenenden yüksekse katılma yeniden onaylatılmalı.
+     - Şoför, kalkıştan 60 dakika öncesinden itibaren toplama kayıtlarını okuyabilmeli.
+     - Gerçek Firebase'e karşı duman testi (sahibin onayıyla): varsayılan noktayla grup kur, ikinci hesap
+       2–5 km uzaktan katılsın, noktayı değiştir, ayrıl, son üye ayrılsın, üyeyken bir hesabı sil.
   3. Aşama 3–4 (kalkış günü akışı, "Gelmedi" kaydı) tasarımda anlatıldığı gibi.
   4. Ayrı ve daha sonraki proje: kapora / uygulama içi ödeme. Şoförü koruyan asıl çözüm o.
 

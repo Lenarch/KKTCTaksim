@@ -156,11 +156,13 @@ Son güncelleme: **13 Kasım 2026** (grup toplama Aşama 1). Uygulama şu an dem
 
 ## Grup toplama, Aşama 1 (13 Kasım 2026; henüz canlıda değil)
 - ⚠️ **Kurallar ve yeni APK birlikte çıkmalı:** Yeni kurallar yüklenince eski APK'lar grup kuramaz ve gruba
-  katılamaz (yeni alanları ve toplama kaydını yazmazlar); grupları yine görürler. Kuralları APK'dan önce
-  yüklemek, APK'yı kurallardan önce vermek ikisi de sorun çıkarır.
+  katılamaz: yeni zorunlu alanları ve toplama kaydını yazmazlar. Grupları yine görürler. APK'yı kurallardan
+  önce vermek de sorun çıkarır: şu an yüklü kurallar grup belgesinde yalnızca eski alan kümesine izin verir
+  (`main`daki `firestore.rules`, sharedRides, `hasOnly`), bu yüzden yeni APK'nın grup yazmaları yeni kurallar
+  yüklenene kadar reddedilir. Kuralları APK'dan önce yüklemek de eski APK'ları hemen devre dışı bırakır.
 - **Tarife iki yerde duruyor:** Sabitler artık `lib/core/group_fare.dart` içinde ve `firestore.rules` içinde.
-  Tarife değişirse ikisi birlikte değişmeli, kurallar yeniden yüklenmeli ve kural testleri güncellenmeli.
-  Eski uygulama sürümleri eski tarifeyle hesapladığı için yeni kurallarla gruba katılamaz.
+  İleride tarife değişirse ikisi birlikte değişmeli, kurallar yeniden yüklenmeli ve kural testleri güncellenmeli;
+  eski tarifeyi taşıyan uygulama sürümleri o zaman kurallarca reddedilir.
 - **Canlıdaki eski biçimli gruplar** (toplama noktası olmayanlar) listede görünür ama katılıma kapalıdır;
   30 gün içinde kalkış tarihleri geçip kendiliğinden biter.
 - **Bu sürümde bildirim ve kapora yok:** Anlık (push) bildirim ve ön ödeme/kapora gelmedi; ödeme projesiyle

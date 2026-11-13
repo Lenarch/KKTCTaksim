@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
@@ -93,9 +94,10 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       final pickup = await _pickupRef(rideId, user.uid).get();
       if (!pickup.exists) return null;
       return pickupFromDocument(pickup.data()!, detour);
-    } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') return null;
-      rethrow;
+    } catch (e) {
+      // Arayüz yalnızca "okunamadı" bilmek ister; çevrimdışı ya da bozuk belge fırlatmasın.
+      debugPrint('Toplama noktası okunamadı: $e');
+      return null;
     }
   }
 
@@ -316,9 +318,13 @@ Map<String, dynamic> _priceFields(SharedRide ride) => {
       'pricePerPerson': ride.pricePerPerson,
     };
 
+/// Kurallar yer adını en çok [SharedRide.maxPlaceLength] karaktere izin verir.
+String _clipName(String name) =>
+    name.length <= SharedRide.maxPlaceLength ? name : name.substring(0, SharedRide.maxPlaceLength);
+
 /// Üyenin özel toplama kaydı; yalnızca sahibi okur (bkz. firestore.rules, pickups).
 Map<String, dynamic> pickupToDocument(Pickup p) => {
-      'place': {'name': p.place.name, 'lat': p.place.position.latitude, 'lng': p.place.position.longitude},
+      'place': {'name': _clipName(p.place.name), 'lat': p.place.position.latitude, 'lng': p.place.position.longitude},
       'state': 'waiting',
     };
 
