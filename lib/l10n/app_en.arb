@@ -310,5 +310,25 @@
   "moveMapToPickPlace": "Move the map to put the pin on the place you want",
   "samePlaceError": "The destination can't be the same as the starting point.",
   "pickedPlaceNotFound": "No address found here. Move the pin to a place in North Cyprus.",
-  "nameReserved": "This name can't be used. Please enter your own name."
+  "nameReserved": "This name can't be used. Please enter your own name.",
+  "pickupTitle": "Where should we pick you up?",
+  "pickupAtMeeting": "I'll board at the meeting point",
+  "pickupElsewhere": "I want to be picked up elsewhere",
+  "pickupTooFar": "This spot is too far from the meeting point (at most {km} km).",
+  "@pickupTooFar": {
+    "placeholders": {
+      "km": {
+        "type": "int"
+      }
+    }
+  },
+  "pickupPrivacy": "Only you and the driver can see this spot.",
+  "pickupExtra": "Distance added to the fare: {distance}",
+  "@pickupExtra": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  }
 }

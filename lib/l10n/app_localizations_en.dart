@@ -1073,4 +1073,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get nameReserved =>
       'This name can\'t be used. Please enter your own name.';
+
+  @override
+  String get pickupTitle => 'Where should we pick you up?';
+
+  @override
+  String get pickupAtMeeting => 'I\'ll board at the meeting point';
+
+  @override
+  String get pickupElsewhere => 'I want to be picked up elsewhere';
+
+  @override
+  String pickupTooFar(int km) {
+    return 'This spot is too far from the meeting point (at most $km km).';
+  }
+
+  @override
+  String get pickupPrivacy => 'Only you and the driver can see this spot.';
+
+  @override
+  String pickupExtra(String distance) {
+    return 'Distance added to the fare: $distance';
+  }
 }

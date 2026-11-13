@@ -1035,4 +1035,26 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get nameReserved => 'Bu ad kullanılamaz. Kendi adını yaz.';
+
+  @override
+  String get pickupTitle => 'Seni nereden alalım?';
+
+  @override
+  String get pickupAtMeeting => 'Buluşma noktasından binerim';
+
+  @override
+  String get pickupElsewhere => 'Başka bir yerden alınmak istiyorum';
+
+  @override
+  String pickupTooFar(int km) {
+    return 'Bu nokta buluşma noktasına çok uzak (en fazla $km km).';
+  }
+
+  @override
+  String get pickupPrivacy => 'Bu noktayı yalnızca sen ve şoför görür.';
+
+  @override
+  String pickupExtra(String distance) {
+    return 'Ücrete eklenen mesafe: $distance';
+  }
 }

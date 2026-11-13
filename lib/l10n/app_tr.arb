@@ -588,5 +588,25 @@
   "moveMapToPickPlace": "Haritayı kaydırarak iğneyi seçmek istediğin yere getir",
   "samePlaceError": "Varış noktası başlangıç noktasıyla aynı olamaz.",
   "pickedPlaceNotFound": "Burada bir adres bulunamadı. İğneyi KKTC içinde bir yere getir.",
-  "nameReserved": "Bu ad kullanılamaz. Kendi adını yaz."
+  "nameReserved": "Bu ad kullanılamaz. Kendi adını yaz.",
+  "pickupTitle": "Seni nereden alalım?",
+  "pickupAtMeeting": "Buluşma noktasından binerim",
+  "pickupElsewhere": "Başka bir yerden alınmak istiyorum",
+  "pickupTooFar": "Bu nokta buluşma noktasına çok uzak (en fazla {km} km).",
+  "@pickupTooFar": {
+    "placeholders": {
+      "km": {
+        "type": "int"
+      }
+    }
+  },
+  "pickupPrivacy": "Bu noktayı yalnızca sen ve şoför görür.",
+  "pickupExtra": "Ücrete eklenen mesafe: {distance}",
+  "@pickupExtra": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  }
 }

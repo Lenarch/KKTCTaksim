@@ -1923,6 +1923,42 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Bu ad kullanılamaz. Kendi adını yaz.'**
   String get nameReserved;
+
+  /// No description provided for @pickupTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Seni nereden alalım?'**
+  String get pickupTitle;
+
+  /// No description provided for @pickupAtMeeting.
+  ///
+  /// In tr, this message translates to:
+  /// **'Buluşma noktasından binerim'**
+  String get pickupAtMeeting;
+
+  /// No description provided for @pickupElsewhere.
+  ///
+  /// In tr, this message translates to:
+  /// **'Başka bir yerden alınmak istiyorum'**
+  String get pickupElsewhere;
+
+  /// No description provided for @pickupTooFar.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu nokta buluşma noktasına çok uzak (en fazla {km} km).'**
+  String pickupTooFar(int km);
+
+  /// No description provided for @pickupPrivacy.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu noktayı yalnızca sen ve şoför görür.'**
+  String get pickupPrivacy;
+
+  /// No description provided for @pickupExtra.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ücrete eklenen mesafe: {distance}'**
+  String pickupExtra(String distance);
 }
 
 class _AppLocalizationsDelegate

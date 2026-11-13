@@ -21,6 +21,7 @@ import 'package:kktc_taksim/data/firebase/ride_documents.dart';
 import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
 import 'package:kktc_taksim/services/map_style_service.dart';
+import 'package:kktc_taksim/services/pickup_detour.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
@@ -489,5 +490,29 @@ void main() {
       final next = serviceDateTime(2026, 11, 5, 24);
       expect((next.day, next.hour), (6, 0));
     });
+  });
+
+  test('sapma: rota mesafesi 100 m yukarı; servis yoksa kuş uçuşu × 1,3', () async {
+    final offline = RoutingService(client: MockClient((_) async => http.Response('hata', 500)));
+    final d = await pickupDetourMeters(offline, const LatLng(35.35, 33.32), const LatLng(35.34, 33.32));
+    expect(d, roundDetour(distanceMeters(const LatLng(35.35, 33.32), const LatLng(35.34, 33.32)) * 1.3));
+    expect(await pickupDetourMeters(offline, const LatLng(35.34, 33.32), const LatLng(35.34, 33.32)), 0);
+  });
+
+  test('sapma: buluşma noktasına 30 m altı nokta 0; rota kuş uçuşundan kısa olamaz', () async {
+    final short = RoutingService(
+      client: MockClient((_) async => http.Response(
+          '{"code":"Ok","routes":[{"distance":100,"duration":10,"geometry":{"coordinates":[[33.32,35.34],[33.32,35.35]]}}]}', 200)),
+    );
+    expect(await pickupDetourMeters(short, const LatLng(35.34001, 33.32), const LatLng(35.34, 33.32)), 0);
+    // Servis 100 m dese de iki nokta ~1,1 km uzakta: kuş uçuşu esas alınır.
+    final straight = distanceMeters(const LatLng(35.35, 33.32), const LatLng(35.34, 33.32));
+    expect(await pickupDetourMeters(short, const LatLng(35.35, 33.32), const LatLng(35.34, 33.32)), roundDetour(straight));
+  });
+
+  test('grup temel mesafesi: max(rota, kuş uçuşu) yuvarlanır', () async {
+    final offline = RoutingService(client: MockClient((_) async => http.Response('hata', 500)));
+    const a = LatLng(35.35, 33.32), b = LatLng(35.34, 33.32);
+    expect(await groupBaseMeters(offline, a, b), (distanceMeters(a, b) * 1.3).round());
   });
 }

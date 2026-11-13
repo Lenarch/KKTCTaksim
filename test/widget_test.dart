@@ -42,6 +42,7 @@ import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/screens/shared_ride_screen.dart';
 import 'package:kktc_taksim/services/app_settings.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
+import 'package:kktc_taksim/widgets/pickup_chooser.dart';
 import 'package:kktc_taksim/services/trusted_clock.dart';
 import 'package:kktc_taksim/widgets/home/taxi_selection_sheet.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -759,5 +760,84 @@ void main() {
     final mine = rides!.where((r) => r.from == 'Gazimağusa Surlariçi' && r.to == 'Girne Yat Limanı');
     expect(mine.single.departure.isAfter(TrustedClock.instance.now), isTrue);
     expect(find.textContaining('Kıbrıs saati'), findsWidgets);
+  });
+
+  group('Toplama noktası seçici', () {
+    // Ercan Havalimanı'nın (son gidilen yerler listesinde) yaklaşık 1 km yakını.
+    const meeting = GeoPlace(name: 'Buluşma Durağı', position: LatLng(35.1600, 33.5000));
+    const jsonHeaders = {'content-type': 'application/json; charset=utf-8'};
+
+    RoutingService routingWith(int meters) => RoutingService(
+          client: MockClient((_) async => http.Response(
+              '{"code":"Ok","routes":[{"distance":$meters,"duration":300,'
+              '"geometry":{"coordinates":[[33.32,35.34],[33.33,35.35]]}}]}',
+              200,
+              headers: jsonHeaders)),
+        );
+
+    Future<List<Pickup?>> pumpChooser(WidgetTester tester, RoutingService routing, {Pickup? initial}) async {
+      final reported = <Pickup?>[];
+      await tester.pumpWidget(localized(Scaffold(
+        body: PickupChooser(
+          meeting: meeting,
+          geocoding: GeocodingService(client: MockClient((_) async => http.Response('{"features":[]}', 200))),
+          routing: routing,
+          initial: initial,
+          onChanged: reported.add,
+        ),
+      )));
+      await tester.pumpAndSettle();
+      return reported;
+    }
+
+    testWidgets('varsayılan seçim buluşma noktasıdır ve sapma 0 bildirir', (tester) async {
+      final reported = await pumpChooser(tester, routingWith(2400));
+      expect(reported, hasLength(1));
+      expect(reported.single!.place.name, 'Buluşma Durağı');
+      expect(reported.single!.detourMeters, 0);
+      expect(find.text('Buluşma noktasından binerim'), findsOneWidget);
+      expect(find.text('Bu noktayı yalnızca sen ve şoför görür.'), findsOneWidget);
+    });
+
+    testWidgets('başka yer seçilince adı ve eklenen mesafe görünür', (tester) async {
+      final reported = await pumpChooser(tester, routingWith(2400));
+      await tester.tap(find.text('Başka bir yerden alınmak istiyorum'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ercan Havalimanı'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ercan Havalimanı'), findsOneWidget);
+      expect(find.text('Ücrete eklenen mesafe: 2,4 km'), findsOneWidget);
+      expect(reported.last!.detourMeters, 2400);
+      expect(reported.last!.place.name, 'Ercan Havalimanı');
+    });
+
+    testWidgets('10 km üstü nokta reddedilir', (tester) async {
+      final reported = await pumpChooser(tester, routingWith(12000));
+      await tester.tap(find.text('Başka bir yerden alınmak istiyorum'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ercan Havalimanı'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('çok uzak'), findsOneWidget);
+      expect(find.textContaining('en fazla 10 km'), findsOneWidget);
+      expect(reported.last, isNull);
+    });
+
+    testWidgets('seçici iptal edilirse önceki seçime dönülür', (tester) async {
+      final reported = await pumpChooser(tester, routingWith(2400));
+      await tester.tap(find.text('Başka bir yerden alınmak istiyorum'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(10, 10)); // sayfayı kapat
+      await tester.pumpAndSettle();
+      expect(find.text('Ücrete eklenen mesafe: 0 m'), findsNothing);
+      expect(reported.last!.detourMeters, 0);
+      expect(reported.last!.place.name, 'Buluşma Durağı');
+    });
+
+    testWidgets('başlangıç değeri başka bir yerse "başka yer" açık gelir', (tester) async {
+      const other = GeoPlace(name: 'Başka Durak', position: LatLng(35.1700, 33.5000));
+      await pumpChooser(tester, routingWith(2400), initial: const Pickup(place: other, detourMeters: 1500));
+      expect(find.text('Başka Durak'), findsOneWidget);
+      expect(find.text('Ücrete eklenen mesafe: 1,5 km'), findsOneWidget);
+    });
   });
 }
