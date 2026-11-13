@@ -1,17 +1,22 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/data/mock/watch_value.dart';
 import 'package:kktc_taksim/data/repositories/auth_repository.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
 class MockSharedRideRepository implements SharedRideRepository {
   final AuthRepository _auth;
   final List<SharedRide> _rides = MockData.sharedRides();
   final Map<String, List<ChatMessage>> _messages = {};
+
+  /// Grup kimliği -> kullanıcı kimliği -> toplama noktası.
+  final Map<String, Map<String, Pickup>> _pickups = {};
   final Set<String> _blocked = {};
 
   /// Testler için: gönderilen şikâyetler (grup, mesaj, neden).
@@ -33,12 +38,26 @@ class MockSharedRideRepository implements SharedRideRepository {
       ..sort((a, b) => a.departure.compareTo(b.departure));
   }
 
+  /// Testler için: listeye hazır bir grup (örneğin eski biçimli) ekler.
+  @visibleForTesting
+  void addForTest(SharedRide ride) {
+    _rides.add(ride);
+    _changes.add(null);
+  }
+
+  /// Testler için: true iken [myPickup] üyeler için de null döner (okuma başarısızlığı).
+  @visibleForTesting
+  bool myPickupReturnsNull = false;
+
   @override
   Stream<List<SharedRide>> watchActive() => watchValue(_changes.stream, () => _active);
 
   @override
-  Future<void> create(SharedRide ride) async {
-    _rides.add(ride.copyWith(id: 'group-${_nextId++}', memberIds: [_userId]));
+  Future<void> create(SharedRide draft, Pickup pickup) async {
+    final userId = _userId;
+    final id = 'group-${_nextId++}';
+    _rides.add(newGroup(draft, userId, pickup.detourMeters).copyWith(id: id));
+    _pickups[id] = {userId: pickup};
     _changes.add(null);
   }
 
@@ -49,25 +68,45 @@ class MockSharedRideRepository implements SharedRideRepository {
   }
 
   @override
-  Future<void> join(String rideId) async {
+  Future<void> join(String rideId, Pickup pickup) async {
+    final userId = _userId;
     final index = _indexOf(rideId);
     final ride = _rides[index];
-    final members = membersAfterJoin(ride, _userId);
-    if (identical(members, ride.memberIds)) return;
-    _rides[index] = ride.copyWith(memberIds: members);
+    final joined = rideAfterJoin(ride, userId, pickup.detourMeters);
+    if (identical(joined, ride)) return;
+    _rides[index] = joined;
+    (_pickups[rideId] ??= {})[userId] = pickup;
     _changes.add(null);
+  }
+
+  @override
+  Future<void> changePickup(String rideId, Pickup pickup) async {
+    final userId = _userId;
+    final index = _indexOf(rideId);
+    _rides[index] = rideAfterRepick(_rides[index], userId, pickup.detourMeters);
+    (_pickups[rideId] ??= {})[userId] = pickup;
+    _changes.add(null);
+  }
+
+  @override
+  Future<Pickup?> myPickup(String rideId) async {
+    final userId = _auth.currentUser?.id;
+    if (myPickupReturnsNull) return null;
+    return userId == null ? null : _pickups[rideId]?[userId];
   }
 
   @override
   Future<void> leave(String rideId) async {
     final index = _indexOf(rideId);
     final ride = _rides[index];
-    final members = membersAfterLeave(ride, _userId);
-    if (members.isEmpty) {
+    final left = rideAfterLeave(ride, _userId);
+    if (left == null) {
       _rides.removeAt(index);
       _messages.remove(rideId);
+      _pickups.remove(rideId);
     } else {
-      _rides[index] = ride.copyWith(memberIds: members);
+      _rides[index] = left;
+      _pickups[rideId]?.remove(_userId);
     }
     _changes.add(null);
   }

@@ -10,6 +10,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kktc_taksim/core/http_headers.dart';
 import 'package:kktc_taksim/core/fare_calculator.dart';
+import 'package:kktc_taksim/core/group_fare.dart';
+import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
+import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/core/geo.dart';
 import 'package:kktc_taksim/core/l10n.dart';
 import 'package:kktc_taksim/core/validators.dart';
@@ -18,6 +21,7 @@ import 'package:kktc_taksim/data/firebase/ride_documents.dart';
 import 'package:kktc_taksim/models/taxi_type.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
 import 'package:kktc_taksim/services/map_style_service.dart';
+import 'package:kktc_taksim/services/pickup_detour.dart';
 import 'package:kktc_taksim/services/routing_service.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
@@ -345,6 +349,97 @@ void main() {
 
   });
 
+  group('Grup ücreti', () {
+    test('toplam: açılış + km, asgari ücret, büyük araç çarpanı', () {
+      expect(groupTotalFare(baseMeters: 20000, extraMeters: 0, capacity: 4), 900);
+      expect(groupTotalFare(baseMeters: 20000, extraMeters: 2500, capacity: 4), 1000);
+      expect(groupTotalFare(baseMeters: 500, extraMeters: 0, capacity: 4), 150);
+      expect(groupTotalFare(baseMeters: 20000, extraMeters: 0, capacity: 5), 1620);
+      expect(TaxiType.xl.fareMultiplier, 1.8); // kurallardaki 18/10 ile aynı kalmalı
+    });
+
+    test('kişi başı: eşit bölünür, 10 TL\'ye yukarı yuvarlanır', () {
+      int p(int n, {int capacity = 4}) =>
+          groupPricePerPerson(baseMeters: 20000, extraMeters: 0, capacity: capacity, members: n);
+      expect([p(1), p(2), p(3), p(4)], [900, 450, 300, 230]);
+      expect(p(5, capacity: 8), 330);
+    });
+
+    test('sapma 100 metreye yukarı yuvarlanır', () {
+      expect([roundDetour(0), roundDetour(1), roundDetour(100), roundDetour(2501.2), roundDetour(-5)],
+          [0, 100, 100, 2600, 0]);
+    });
+  });
+
+  group('Grup üyelik geçişleri', () {
+    SharedRide ride({int capacity = 4}) => SharedRide(
+          id: 'g',
+          from: 'A',
+          to: 'B',
+          departure: DateTime(2030),
+          capacity: capacity,
+          memberIds: const [],
+          fromPoint: const LatLng(35.34, 33.32),
+          toPoint: const LatLng(35.15, 33.50),
+          baseMeters: 20000,
+        );
+
+    test('katılınca sapma ve ücret güncellenir', () {
+      final g = newGroup(ride(), 'a', 0);
+      expect(g.memberIds, ['a']);
+      expect(g.detours, {'a': 0});
+      expect(g.pricePerPerson, 900);
+      final j = rideAfterJoin(g, 'b', 2500);
+      expect(j.memberIds, ['a', 'b']);
+      expect(j.extraMeters, 2500);
+      expect(j.pricePerPerson, 500);
+      expect(identical(rideAfterJoin(j, 'b', 900), j), isTrue);
+    });
+
+    test('ayrılınca sapma düşer; son üye null', () {
+      final j = rideAfterJoin(newGroup(ride(), 'a', 0), 'b', 2500);
+      final l = rideAfterLeave(j, 'b')!;
+      expect(l.memberIds, ['a']);
+      expect(l.detours, {'a': 0});
+      expect(l.pricePerPerson, 900);
+      expect(rideAfterLeave(l, 'a'), isNull);
+      expect(identical(rideAfterLeave(l, 'x'), l), isTrue);
+    });
+
+    test('nokta değişince yalnızca kendi sapması değişir', () {
+      final j = rideAfterJoin(newGroup(ride(), 'a', 0), 'b', 2500);
+      final r = rideAfterRepick(j, 'b', 0);
+      expect(r.detours, {'a': 0, 'b': 0});
+      expect(r.pricePerPerson, 450);
+      expect(() => rideAfterRepick(j, 'x', 0), throwsA(isA<SharedRideException>()));
+    });
+
+    test('eski biçimli gruba katılınamaz ama ayrılınabilir', () {
+      final legacy = SharedRide.fromJson({
+        'id': 'g',
+        'from': 'A',
+        'to': 'B',
+        'departure': 1,
+        'capacity': 4,
+        'memberIds': ['a', 'b'],
+        'pricePerPerson': 200,
+      });
+      expect(legacy.isLegacy, isTrue);
+      expect(legacy.joinable, isFalse);
+      expect(() => rideAfterJoin(legacy, 'c', 0),
+          throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.closed)));
+      expect(() => rideAfterRepick(legacy, 'a', 0),
+          throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.closed)));
+      expect(rideAfterLeave(legacy, 'b')!.pricePerPerson, 200);
+    });
+
+    test('dolu gruba katılma full fırlatır', () {
+      final g = newGroup(ride(capacity: 1), 'a', 0);
+      expect(() => rideAfterJoin(g, 'b', 0),
+          throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.full)));
+    });
+  });
+
   group('Güvenilir saat ve Kıbrıs saati', () {
     tearDown(TrustedClock.instance.reset);
 
@@ -395,5 +490,42 @@ void main() {
       final next = serviceDateTime(2026, 11, 5, 24);
       expect((next.day, next.hour), (6, 0));
     });
+  });
+
+  test('sapma: rota mesafesi 100 m yukarı; servis yoksa kuş uçuşu × 1,3', () async {
+    final offline = RoutingService(client: MockClient((_) async => http.Response('hata', 500)));
+    final d = await pickupDetourMeters(offline, const LatLng(35.35, 33.32), const LatLng(35.34, 33.32));
+    expect(d, roundDetour(distanceMeters(const LatLng(35.35, 33.32), const LatLng(35.34, 33.32)) * 1.3));
+    expect(await pickupDetourMeters(offline, const LatLng(35.34, 33.32), const LatLng(35.34, 33.32)), 0);
+  });
+
+  test('sapma: buluşma noktasına 30 m altı nokta 0; rota kuş uçuşundan kısa olamaz', () async {
+    final short = RoutingService(
+      client: MockClient((_) async => http.Response(
+          '{"code":"Ok","routes":[{"distance":100,"duration":10,"geometry":{"coordinates":[[33.32,35.34],[33.32,35.35]]}}]}', 200)),
+    );
+    expect(await pickupDetourMeters(short, const LatLng(35.34001, 33.32), const LatLng(35.34, 33.32)), 0);
+    // Servis 100 m dese de iki nokta ~1,1 km uzakta: kuş uçuşu esas alınır.
+    final straight = distanceMeters(const LatLng(35.35, 33.32), const LatLng(35.34, 33.32));
+    expect(await pickupDetourMeters(short, const LatLng(35.35, 33.32), const LatLng(35.34, 33.32)), roundDetour(straight));
+  });
+
+  test('grup temel mesafesi: max(rota, kuş uçuşu) yuvarlanır', () async {
+    final offline = RoutingService(client: MockClient((_) async => http.Response('hata', 500)));
+    const a = LatLng(35.35, 33.32), b = LatLng(35.34, 33.32);
+    expect(await groupBaseMeters(offline, a, b), (distanceMeters(a, b) * 1.3).round());
+  });
+
+  test('grup temel mesafesi: çok dolambaçlı rota kuralların sınırına (kuş uçuşu × 3,9 + 5000) çekilir', () async {
+    const a = LatLng(35.35, 33.32), b = LatLng(35.34, 33.32);
+    final huge = RoutingService(
+      client: MockClient((_) async => http.Response(
+          '{"code":"Ok","routes":[{"distance":500000,"duration":10,"geometry":{"coordinates":[[33.32,35.34],[33.32,35.35]]}}]}', 200)),
+    );
+    final result = await groupBaseMeters(huge, a, b);
+    final straight = distanceMeters(a, b);
+    expect(result, (straight * 3.9 + 5000).floor());
+    expect(result, lessThan(straight * 4 + 5000));
+    expect(result, greaterThanOrEqualTo(straight));
   });
 }

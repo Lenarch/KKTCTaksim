@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:kktc_taksim/core/geo.dart';
+import 'package:kktc_taksim/core/group_fare.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/screens/map_pick_screen.dart';
 import 'package:kktc_taksim/services/geocoding_service.dart';
+import 'package:kktc_taksim/services/pickup_detour.dart';
+import 'package:kktc_taksim/services/routing_service.dart';
+import 'package:kktc_taksim/widgets/join_group_sheet.dart';
+import 'package:kktc_taksim/widgets/pickup_chooser.dart';
 import 'package:kktc_taksim/widgets/home/destination_sheet.dart';
 import 'package:kktc_taksim/core/app_routes.dart';
 import 'package:kktc_taksim/core/app_theme.dart';
@@ -16,6 +20,7 @@ import 'package:kktc_taksim/core/ui_helpers.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/screens/group_chat_screen.dart';
 import 'package:kktc_taksim/services/chat_read_state.dart';
@@ -25,7 +30,11 @@ import 'package:kktc_taksim/widgets/group_failure_dialog.dart';
 import 'package:kktc_taksim/widgets/home/sheet_container.dart';
 
 class SharedRideScreen extends StatefulWidget {
-  const SharedRideScreen({super.key});
+  /// Testler sahte servis verebilir.
+  final GeocodingService? geocoding;
+  final RoutingService? routing;
+
+  const SharedRideScreen({super.key, this.geocoding, this.routing});
 
   @override
   State<SharedRideScreen> createState() => _SharedRideScreenState();
@@ -38,6 +47,18 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
   /// Saat ölçülürken düğmeye yeniden basılırsa form iki kez açılmasın.
   bool _openingCreateSheet = false;
 
+  /// Katılma/değiştirme sayfası açıkken ikinci dokunuş yeni sayfa açmasın.
+  bool _openingJoinSheet = false;
+
+  /// "Değiştir" işlemi (nokta okuma + sayfa) sürerken ikinci dokunuş yeni işlem başlatmasın.
+  bool _changingPickup = false;
+
+  /// Her toplama noktası değişince artar; kartlardaki "Toplama noktam" satırı yeniden okunur.
+  int _pickupRevision = 0;
+
+  late final GeocodingService _geocoding = widget.geocoding ?? GeocodingService();
+  late final RoutingService _routing = widget.routing ?? RoutingService();
+
   /// Repository çağrısını yapar; hata olursa kullanıcıya anlaşılır bir mesaj gösterir.
   /// [onFailed] verilirse beklenmeyen hatada mesaj yerine o çağrılır.
   Future<bool> _run(Future<void> Function() action, {void Function(String code)? onFailed}) async {
@@ -46,7 +67,15 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
       await action();
       return true;
     } on SharedRideException catch (e) {
-      if (mounted) showMessage(context, e.error == SharedRideError.full ? l10n.groupFull : l10n.actionFailed);
+      if (!mounted) return false;
+      showMessage(
+        context,
+        switch (e.error) {
+          SharedRideError.full => l10n.groupFull,
+          SharedRideError.closed => l10n.groupClosed,
+          _ => l10n.actionFailed,
+        },
+      );
     } catch (e) {
       // Hata kodu mesajda da görünsün: testçiler cihaz kaydına bakamıyor, ekran görüntüsü atıyor.
       debugPrint('Paylaşımlı grup işlemi başarısız: $e');
@@ -83,25 +112,67 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
     await TrustedClock.instance.sync();
     _openingCreateSheet = false;
     if (!mounted) return;
-    final ride = await showModalBottomSheet<SharedRide>(
+    final created = await showModalBottomSheet<({SharedRide draft, Pickup pickup})>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const CreateSharedRideSheet(),
+      builder: (_) => CreateSharedRideSheet(geocoding: _geocoding, routing: _routing),
     );
-    if (!mounted || ride == null) return;
+    if (!mounted || created == null) return;
     await _run(
-      () => _repository.create(ride),
+      () => _repository.create(created.draft, created.pickup),
       onFailed: (code) => showDialog<void>(
         context: context,
-        builder: (_) => GroupFailureDialog(errorCode: code, departure: ride.departure),
+        builder: (_) => GroupFailureDialog(errorCode: code, departure: created.draft.departure),
       ),
     );
   }
 
+  /// Katılma ya da (şimdiki nokta [current] ise) toplama noktasını değiştirme sayfasını açar.
+  Future<Pickup?> _askPickup(SharedRide ride, {Pickup? current}) async {
+    if (_openingJoinSheet) return null;
+    _openingJoinSheet = true;
+    try {
+      return await showModalBottomSheet<Pickup>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => JoinGroupSheet(ride: ride, geocoding: _geocoding, routing: _routing, current: current),
+      );
+    } finally {
+      _openingJoinSheet = false;
+    }
+  }
+
   Future<void> _join(SharedRide ride) async {
-    if (!_ensureSignedIn()) return;
+    // Eski biçimli grubun düğmesi kapalıdır; yine de buluşma noktası olmadan ilerlenmez.
+    if (ride.isLegacy || !_ensureSignedIn()) return;
     final message = context.l10n.joinedGroup(ride.from, ride.to);
-    if (await _run(() => _repository.join(ride.id)) && mounted) showMessage(context, message);
+    final pickup = await _askPickup(ride);
+    if (pickup == null || !mounted) return;
+    if (await _run(() => _repository.join(ride.id, pickup)) && mounted) {
+      setState(() => _pickupRevision++);
+      showMessage(context, message);
+    }
+  }
+
+  Future<void> _changePickup(SharedRide ride) async {
+    if (ride.isLegacy || _changingPickup || !_ensureSignedIn()) return;
+    _changingPickup = true;
+    try {
+      final message = context.l10n.actionFailed;
+      final current = await _repository.myPickup(ride.id);
+      if (!mounted) return;
+      if (current == null) {
+        showMessage(context, message);
+        return;
+      }
+      final pickup = await _askPickup(ride, current: current);
+      if (pickup == null || !mounted) return;
+      if (await _run(() => _repository.changePickup(ride.id, pickup)) && mounted) {
+        setState(() => _pickupRevision++);
+      }
+    } finally {
+      _changingPickup = false;
+    }
   }
 
   Future<void> _leave(SharedRide ride) async {
@@ -176,7 +247,9 @@ class _SharedRideScreenState extends State<SharedRideScreen> {
                 _RideCard(
                   ride: ride,
                   joined: ride.hasMember(userId),
+                  pickupRevision: _pickupRevision,
                   onJoin: () => _join(ride),
+                  onChangePickup: () => _changePickup(ride),
                   onLeave: () => _leave(ride),
                   onChat: () => _openChat(ride),
                 ),
@@ -243,14 +316,20 @@ class _RideCard extends StatelessWidget {
 
   /// Giriş yapmış kullanıcı bu grubun üyesi mi.
   final bool joined;
+
+  /// "Toplama noktam" satırını yeniden okutmak için; değişince satır yenilenir.
+  final int pickupRevision;
   final VoidCallback onJoin;
+  final VoidCallback onChangePickup;
   final VoidCallback onLeave;
   final VoidCallback onChat;
 
   const _RideCard({
     required this.ride,
     required this.joined,
+    required this.pickupRevision,
     required this.onJoin,
+    required this.onChangePickup,
     required this.onLeave,
     required this.onChat,
   });
@@ -263,6 +342,8 @@ class _RideCard extends StatelessWidget {
     final mutedStyle = TextStyle(color: mutedColor, fontSize: 13);
     const placeStyle = TextStyle(fontWeight: FontWeight.w600);
     const buttonSize = Size(100, 45);
+    // Kişi başı ücret üye sayısına göre oynar; yalnızca yeni biçimli, açık gruplarda geçerli.
+    final priceMayChange = !ride.isLegacy && ride.status == SharedRideStatus.open;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.xl),
@@ -298,10 +379,11 @@ class _RideCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      context.lira(ride.pricePerPerson),
+                      '${priceMayChange ? '≈ ' : ''}${context.lira(ride.pricePerPerson)}',
                       style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(l10n.perPerson, style: mutedStyle),
+                    if (priceMayChange) Text(l10n.priceMayChange, style: mutedStyle),
                   ],
                 ),
               ],
@@ -369,15 +451,19 @@ class _RideCard extends StatelessWidget {
                   )
                 else
                   ElevatedButton(
-                    onPressed: ride.isFull ? null : onJoin,
+                    onPressed: ride.joinable ? onJoin : null,
                     style: ElevatedButton.styleFrom(
                       minimumSize: buttonSize,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                     ),
-                    child: Text(ride.isFull ? l10n.full : l10n.join),
+                    child: Text(ride.isLegacy ? l10n.legacyGroup : (ride.isFull ? l10n.full : l10n.join)),
                   ),
               ],
             ),
+            if (joined && priceMayChange) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _MyPickupRow(rideId: ride.id, revision: pickupRevision, onChange: onChangePickup),
+            ],
             if (joined) ...[
               const SizedBox(height: AppSpacing.lg),
               _ChatButton(rideId: ride.id, onPressed: onChat),
@@ -385,6 +471,56 @@ class _RideCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Üyenin kendi toplama noktası ve "Değiştir" eylemi; yüklenirken ya da kayıt yokken boş kalır.
+class _MyPickupRow extends StatefulWidget {
+  final String rideId;
+  final int revision;
+  final VoidCallback onChange;
+
+  const _MyPickupRow({required this.rideId, required this.revision, required this.onChange});
+
+  @override
+  State<_MyPickupRow> createState() => _MyPickupRowState();
+}
+
+class _MyPickupRowState extends State<_MyPickupRow> {
+  late Future<Pickup?> _pickup = Backend.instance.sharedRides.myPickup(widget.rideId);
+
+  @override
+  void didUpdateWidget(_MyPickupRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revision != widget.revision || oldWidget.rideId != widget.rideId) {
+      _pickup = Backend.instance.sharedRides.myPickup(widget.rideId);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return FutureBuilder<Pickup?>(
+      future: _pickup,
+      builder: (context, snapshot) {
+        final pickup = snapshot.data;
+        if (pickup == null) return const SizedBox.shrink();
+        return Row(
+          children: [
+            const Icon(Icons.place_outlined, size: 18),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                l10n.myPickupPoint(pickup.place.name),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            TextButton(onPressed: widget.onChange, child: Text(l10n.changePickupAction)),
+          ],
+        );
+      },
     );
   }
 }
@@ -438,26 +574,29 @@ class _ChatButtonState extends State<_ChatButton> {
   }
 }
 
-/// Üç adımlı grup oluşturma formu; oluşturulan [SharedRide] ile kapanır. Nereden/nereye yazılmaz, ana sayfadaki gibi seçilir (adres araması,
+/// Dört adımlı grup oluşturma formu (nereden, nereye, tarih/saat/kapasite, toplama noktası);
+/// taslak grup ve oluşturanın toplama noktasıyla kapanır. Kişi başı ücret yazılmaz, rotadan hesaplanır.
+/// Nereden/nereye yazılmaz, ana sayfadaki gibi seçilir (adres araması,
 /// son yerler, haritadan seçme): gruba küfür, selam ya da isim gibi yer olmayan bir şey yazılamasın.
 class CreateSharedRideSheet extends StatefulWidget {
-  /// Testler sahte adres servisi verebilir.
+  /// Testler sahte servis verebilir.
   final GeocodingService? geocoding;
+  final RoutingService? routing;
 
-  const CreateSharedRideSheet({super.key, this.geocoding});
+  const CreateSharedRideSheet({super.key, this.geocoding, this.routing});
 
   @override
   State<CreateSharedRideSheet> createState() => _CreateSharedRideSheetState();
 }
 
 class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
-  static const int _lastStep = 2;
-  static const int _defaultPrice = 200;
+  static const int _lastStep = 3;
   static const Duration _maximumLeadTime = Duration(days: 30);
 
   int _currentStep = 0;
 
   late final GeocodingService _geocoding = widget.geocoding ?? GeocodingService();
+  late final RoutingService _routing = widget.routing ?? RoutingService();
   GeoPlace? _from;
   GeoPlace? _to;
 
@@ -475,7 +614,15 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
   }
   double _capacity = 4;
   late ServiceDateTime _departure = _defaultDeparture();
-  String _price = '$_defaultPrice';
+
+  /// Nereden-nereye arası temel yol (metre); hesaplanırken ya da yerler eksik/aynıyken null.
+  int? _baseMeters;
+
+  /// Yavaş biten eski bir hesap yenisinin sonucunu ezmesin diye.
+  int _baseRequest = 0;
+
+  /// Oluşturanın seçtiği toplama noktası; seçici geçerli bir seçim bildirmeyince null.
+  Pickup? _pickup;
 
   /// Kıbrıs saatiyle bir sonraki tam saat.
   static ServiceDateTime _defaultDeparture() {
@@ -483,17 +630,13 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
     return serviceDateTime(now.year, now.month, now.day, now.hour + 1);
   }
 
-  /// Firestore kuralları 1 – [SharedRide.maxPricePerPerson] dışını reddeder; burada yakalanmazsa
-  /// kullanıcı yalnızca "İşlem tamamlanamadı" görüyordu.
-  int? get _pricePerPerson {
-    final value = int.tryParse(_price);
-    return value != null && value > 0 && value <= SharedRide.maxPricePerPerson ? value : null;
-  }
+  bool get _departureInFuture => _departure.isAfter(serviceNow());
 
   bool get _canContinue => switch (_currentStep) {
         0 => _from != null,
         1 => _to != null && !_samePlace,
-        _ => _pricePerPerson != null && _departure.isAfter(serviceNow()),
+        2 => _baseMeters != null && _departureInFuture,
+        _ => _pickup != null && _departureInFuture,
       };
 
   /// Ana sayfadaki seçim sayfasını açar; "Haritadan seç" denirse harita ekranına geçer.
@@ -531,10 +674,24 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
     setState(() {
       if (from) {
         _from = place;
+        // Toplama noktası eski buluşma noktasına göre seçilmişti.
+        _pickup = null;
       } else {
         _to = place;
       }
     });
+    _loadBaseMeters();
+  }
+
+  /// Nereden/nereye değişince temel yolu yeniden hesaplar.
+  Future<void> _loadBaseMeters() async {
+    final request = ++_baseRequest;
+    final from = _from, to = _to;
+    setState(() => _baseMeters = null);
+    if (from == null || to == null || _samePlace) return;
+    final meters = await groupBaseMeters(_routing, from.position, to.position);
+    if (!mounted || request != _baseRequest) return;
+    setState(() => _baseMeters = meters);
   }
 
   /// Kurallar 200 karakterden uzun yeri reddeder; adres servisinden çok uzun ad gelirse kısaltılır.
@@ -547,17 +704,22 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
       setState(() => _currentStep++);
       return;
     }
-    Navigator.pop(
+    Navigator.pop<({SharedRide draft, Pickup pickup})>(
       context,
-      // Kimliği ve ilk üyeyi (oluşturan kişi) repository verir.
-      SharedRide(
-        id: '',
-        from: _placeName(_from!),
-        to: _placeName(_to!),
-        departure: DateTime.fromMillisecondsSinceEpoch(_departure.millisecondsSinceEpoch),
-        capacity: _capacity.toInt(),
-        memberIds: const [],
-        pricePerPerson: _pricePerPerson!,
+      // Kimliği, ilk üyeyi (oluşturan kişi), sapmayı ve kişi başı ücreti repository hesaplar.
+      (
+        draft: SharedRide(
+          id: '',
+          from: _placeName(_from!),
+          to: _placeName(_to!),
+          departure: DateTime.fromMillisecondsSinceEpoch(_departure.millisecondsSinceEpoch),
+          capacity: _capacity.toInt(),
+          memberIds: const [],
+          fromPoint: _from!.position,
+          toPoint: _to!.position,
+          baseMeters: _baseMeters!,
+        ),
+        pickup: _pickup!,
       ),
     );
   }
@@ -591,7 +753,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     const valueStyle = TextStyle(fontWeight: FontWeight.bold);
-    final departureInPast = !_departure.isAfter(serviceNow());
+    final departureInPast = !_departureInFuture;
 
     return SheetContainer(
       heightFactor: 0.8,
@@ -625,7 +787,7 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                       ],
                     ),
                   ),
-                _ => _Step(
+                2 => _Step(
                     title: l10n.rideDetails,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,23 +819,16 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
                           onChanged: (v) => setState(() => _capacity = v),
                         ),
                         const SizedBox(height: AppSpacing.sm),
-                        TextFormField(
-                          key: const ValueKey('price'),
-                          initialValue: _price,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          onChanged: (v) => setState(() => _price = v),
-                          decoration: InputDecoration(
-                            labelText: l10n.pricePerPersonLabel,
-                            prefixText: '₺ ',
-                            helperText: l10n.pricePerPersonHelp,
-                            errorText: _pricePerPerson == null
-                                ? l10n.pricePerPersonInvalid(context.lira(SharedRide.maxPricePerPerson))
-                                : null,
-                          ),
-                        ),
+                        _FareEstimate(baseMeters: _baseMeters, capacity: _capacity.toInt()),
                       ],
                     ),
+                  ),
+                _ => PickupChooser(
+                    meeting: _from!,
+                    geocoding: _geocoding,
+                    routing: _routing,
+                    initial: _pickup,
+                    onChanged: (pickup) => setState(() => _pickup = pickup),
                   ),
               },
             ),
@@ -700,6 +855,40 @@ class _CreateSharedRideSheetState extends State<CreateSharedRideSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 3. adımdaki ücret tahmini: tek kişiyle ve grup dolunca kişi başı; yol hesaplanırken ilerleme gösterir.
+class _FareEstimate extends StatelessWidget {
+  final int? baseMeters;
+  final int capacity;
+
+  const _FareEstimate({required this.baseMeters, required this.capacity});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final baseMeters = this.baseMeters;
+    if (baseMeters == null) {
+      return const Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    int perPerson(int members) =>
+        groupPricePerPerson(baseMeters: baseMeters, extraMeters: 0, capacity: capacity, members: members);
+    final muted = TextStyle(color: theme.colorScheme.onSurfaceVariant);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.groupFareEstimate(context.lira(perPerson(1)), context.lira(perPerson(capacity))), style: muted),
+        if (capacity >= largeGroupCapacity) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(l10n.largeGroupNote, style: muted),
+        ],
+      ],
     );
   }
 }

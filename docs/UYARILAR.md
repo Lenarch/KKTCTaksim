@@ -1,6 +1,6 @@
 # KKTC Taksim: Uyarılar
 
-Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama şu an demo; aşağıdakiler yayından önce bilinmesi ve
+Son güncelleme: **14 Kasım 2026** (grup toplama Aşama 1, kurallar canlıda). Uygulama şu an demo; aşağıdakiler yayından önce bilinmesi ve
 çözülmesi gereken noktalar.
 
 ## Harici servisler
@@ -153,6 +153,24 @@ Son güncelleme: **29 Ekim 2026** (backend hazırlığından sonra). Uygulama ş
   - SMS girişinde bölge kısıtlaması olup olmadığı konsolda kontrol edilmedi (SMS sömürüsü maliyet riski).
   - Üstlendiği yolculuk süren şoförün hesap silmesinin engellenip engellenmediği kontrol edilmedi.
 - Canlı veritabanında denemelerden kalan iptal edilmiş test çağrıları var (çağrılar silinemez); zararsız.
+
+## Grup toplama, Aşama 1 (13 Kasım 2026; henüz canlıda değil)
+- ⚠️ **Kurallar ve yeni APK birlikte çıkmalı:** Yeni kurallar yüklenince eski APK'lar grup kuramaz ve gruba
+  katılamaz: yeni zorunlu alanları ve toplama kaydını yazmazlar. Grupları yine görürler. APK'yı kurallardan
+  önce vermek de sorun çıkarır: şu an yüklü kurallar grup belgesinde yalnızca eski alan kümesine izin verir
+  (`main`daki `firestore.rules`, sharedRides, `hasOnly`), bu yüzden yeni APK'nın grup yazmaları yeni kurallar
+  yüklenene kadar reddedilir. Kuralları APK'dan önce yüklemek de eski APK'ları hemen devre dışı bırakır.
+- **Tarife iki yerde duruyor:** Sabitler artık `lib/core/group_fare.dart` içinde ve `firestore.rules` içinde.
+  İleride tarife değişirse ikisi birlikte değişmeli, kurallar yeniden yüklenmeli ve kural testleri güncellenmeli;
+  eski tarifeyi taşıyan uygulama sürümleri o zaman kurallarca reddedilir.
+- **Canlıdaki eski biçimli gruplar** (toplama noktası olmayanlar) listede görünür ama katılıma kapalıdır;
+  30 gün içinde kalkış tarihleri geçip kendiliğinden biter.
+- **Bu sürümde bildirim ve kapora yok:** Anlık (push) bildirim ve ön ödeme/kapora gelmedi; ödeme projesiyle
+  birlikte planlanıyor. Olaylar yalnızca uygulama açıkken görünür; ücret şoföre elden ödenir.
+- **14 Kasım: yeni kurallar canlıya yüklendi.** O andan itibaren `apk/` klasöründeki eski test APK'sı grup
+  kuramaz ve gruba katılamaz; yeni APK `feature/grup-toplama-1` dalından derlenmeli.
+- Grup kurma, katılma, nokta değiştirme, ayrılma ve son üyenin ayrılması 14 Kasım'da gerçek Firebase'de
+  emülatörle denendi ve geçti. Üyeyken hesap silme gerçek Firebase'de denenmedi.
 
 ## Saat ve saat dilimi
 - Grup saatleri `Asia/Nicosia` kurallarıyla hesaplanır (`timezone` paketi). KKTC yaz saati kararı bundan ayrılırsa paket veya kod güncellenmeli.

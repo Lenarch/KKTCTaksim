@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/repositories/shared_ride_repository.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
+import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' show LatLng;
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 import 'package:kktc_taksim/services/trusted_clock.dart';
 
@@ -44,10 +48,57 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
     });
   }
 
+  DocumentReference<Map<String, dynamic>> _pickupRef(String rideId, String userId) =>
+      _rides.doc(rideId).collection('pickups').doc(userId);
+
   @override
-  Future<void> create(SharedRide ride) {
+  Future<void> create(SharedRide draft, Pickup pickup) {
+    final userId = _userId;
     final ref = _rides.doc();
-    return ref.set(sharedRideToDocument(ride.copyWith(id: ref.id, memberIds: [_userId])));
+    // Kurallar toplama kaydını grupla aynı yazımda arar (getAfter); ikisi tek batch'te gider.
+    final batch = _firestore.batch();
+    batch.set(ref, sharedRideToDocument(newGroup(draft, userId, pickup.detourMeters).copyWith(id: ref.id)));
+    batch.set(_pickupRef(ref.id, userId), pickupToDocument(pickup));
+    return batch.commit();
+  }
+
+  @override
+  Future<void> changePickup(String rideId, Pickup pickup) async {
+    final userId = _userId;
+    final ref = _rides.doc(rideId);
+    final error = await _firestore.runTransaction<SharedRideError?>((transaction) async {
+      final snapshot = await transaction.get(ref);
+      if (!snapshot.exists) return SharedRideError.notFound;
+      try {
+        final moved = rideAfterRepick(sharedRideFromDocument(snapshot), userId, pickup.detourMeters);
+        transaction.update(ref, _priceFields(moved));
+        transaction.set(_pickupRef(rideId, userId), pickupToDocument(pickup));
+        return null;
+      } on SharedRideException catch (e) {
+        return e.error;
+      }
+    });
+    if (error != null) throw SharedRideException(error);
+  }
+
+  @override
+  Future<Pickup?> myPickup(String rideId) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    try {
+      final group = await _rides.doc(rideId).get();
+      if (!group.exists) return null;
+      final ride = sharedRideFromDocument(group);
+      final detour = ride.detours[user.uid];
+      if (ride.isLegacy || detour == null) return null;
+      final pickup = await _pickupRef(rideId, user.uid).get();
+      if (!pickup.exists) return null;
+      return pickupFromDocument(pickup.data()!, detour);
+    } catch (e) {
+      // Arayüz yalnızca "okunamadı" bilmek ister; çevrimdışı ya da bozuk belge fırlatmasın.
+      debugPrint('Toplama noktası okunamadı: $e');
+      return null;
+    }
   }
 
   @override
@@ -88,7 +139,7 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
   }
 
   @override
-  Future<void> join(String rideId) async {
+  Future<void> join(String rideId, Pickup pickup) async {
     final userId = _userId;
     final ref = _rides.doc(rideId);
     // Hata transaction'ın dışında fırlatılır; web'de içeride fırlatılan hata sarmalanabiliyor.
@@ -98,8 +149,11 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       if (!snapshot.exists) return SharedRideError.notFound;
       final ride = sharedRideFromDocument(snapshot);
       try {
-        final members = membersAfterJoin(ride, userId);
-        if (!identical(members, ride.memberIds)) transaction.update(ref, {'memberIds': members});
+        final joined = rideAfterJoin(ride, userId, pickup.detourMeters);
+        if (!identical(joined, ride)) {
+          transaction.update(ref, {'memberIds': joined.memberIds, ..._priceFields(joined)});
+          transaction.set(_pickupRef(rideId, userId), pickupToDocument(pickup));
+        }
         return null;
       } on SharedRideException catch (e) {
         return e.error;
@@ -123,12 +177,16 @@ class FirebaseSharedRideRepository implements SharedRideRepository {
       if (!snapshot.exists) return SharedRideError.notFound;
       final ride = sharedRideFromDocument(snapshot);
       if (!ride.hasMember(userId)) return null;
-      final members = membersAfterLeave(ride, userId);
-      if (members.isEmpty) {
+      final left = rideAfterLeave(ride, userId);
+      // Eski biçimli grupta toplama kaydı yoktur; yeni biçimde kayıt grupla aynı yazımda silinir.
+      if (left == null) {
         transaction.delete(ref);
+      } else if (ride.isLegacy) {
+        transaction.update(ref, {'memberIds': left.memberIds});
       } else {
-        transaction.update(ref, {'memberIds': members});
+        transaction.update(ref, {'memberIds': left.memberIds, ..._priceFields(left)});
       }
+      if (!ride.isLegacy) transaction.delete(_pickupRef(rideId, userId));
       return null;
     });
     if (error != null) throw SharedRideException(error);
@@ -252,6 +310,35 @@ Stream<T> retryWhilePermissionDenied<T>(
 
 /// Belgede kimlik tekrar tutulmaz; belge kimliğinin kendisidir.
 Map<String, dynamic> sharedRideToDocument(SharedRide ride) => ride.toJson()..remove('id');
+
+/// Katılma/ayrılma/nokta değişiminde kuralların izin verdiği ücret alanları (belge baştan yazılmaz).
+Map<String, dynamic> _priceFields(SharedRide ride) => {
+      'detours': ride.detours,
+      'extraMeters': ride.extraMeters,
+      'pricePerPerson': ride.pricePerPerson,
+    };
+
+/// Kurallar yer adını en çok [SharedRide.maxPlaceLength] karaktere izin verir.
+String _clipName(String name) =>
+    name.length <= SharedRide.maxPlaceLength ? name : name.substring(0, SharedRide.maxPlaceLength);
+
+/// Üyenin özel toplama kaydı; yalnızca sahibi okur (bkz. firestore.rules, pickups).
+Map<String, dynamic> pickupToDocument(Pickup p) => {
+      'place': {'name': _clipName(p.place.name), 'lat': p.place.position.latitude, 'lng': p.place.position.longitude},
+      'state': 'waiting',
+    };
+
+/// Sapma kayıtta değil grup belgesindeki `detours[uid]` içindedir; çağıran verir.
+Pickup pickupFromDocument(Map<String, dynamic> data, int detourMeters) {
+  final place = data['place'] as Map;
+  return Pickup(
+    place: GeoPlace(
+      name: place['name'] as String,
+      position: LatLng((place['lat'] as num).toDouble(), (place['lng'] as num).toDouble()),
+    ),
+    detourMeters: detourMeters,
+  );
+}
 
 SharedRide sharedRideFromDocument(DocumentSnapshot<Map<String, dynamic>> doc) =>
     SharedRide.fromJson({...doc.data()!, 'id': doc.id});

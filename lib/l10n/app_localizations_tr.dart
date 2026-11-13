@@ -553,7 +553,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get endPoint => 'Varış noktası';
 
   @override
-  String get rideDetails => 'Tarih, Saat ve Ücret';
+  String get rideDetails => 'Tarih, Saat ve Kapasite';
 
   @override
   String get rideDate => 'Tarih';
@@ -570,15 +570,13 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get pricePerPersonLabel => 'Kişi başı ücret';
-
-  @override
-  String get pricePerPersonHelp => 'Her yolcunun ödeyeceği tutar';
-
-  @override
-  String pricePerPersonInvalid(String max) {
-    return '1 ile $max arasında bir tutar gir';
+  String groupFareEstimate(String one, String full) {
+    return 'Tek kişiyle $one, grup dolarsa kişi başı yaklaşık $full';
   }
+
+  @override
+  String get largeGroupNote =>
+      '5 ve üzeri kişilik gruplar büyük araç tarifesiyle hesaplanır.';
 
   @override
   String get createRideButton => 'Yolculuğu Oluştur';
@@ -1035,4 +1033,51 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get nameReserved => 'Bu ad kullanılamaz. Kendi adını yaz.';
+
+  @override
+  String get pickupTitle => 'Seni nereden alalım?';
+
+  @override
+  String get pickupAtMeeting => 'Buluşma noktasından binerim';
+
+  @override
+  String get pickupElsewhere => 'Başka bir yerden alınmak istiyorum';
+
+  @override
+  String pickupTooFar(int km) {
+    return 'Bu nokta buluşma noktasına çok uzak (en fazla $km km).';
+  }
+
+  @override
+  String get pickupPrivacy => 'Bu noktayı yalnızca sen ve şoför görür.';
+
+  @override
+  String pickupExtra(String distance) {
+    return 'Ücrete eklenen mesafe: $distance';
+  }
+
+  @override
+  String joinPricePreview(String price, String current) {
+    return 'Katılırsan kişi başı $price olur (şu an $current).';
+  }
+
+  @override
+  String get saveChanges => 'Kaydet';
+
+  @override
+  String get priceMayChange => 'Kişi sayısına göre değişir';
+
+  @override
+  String get legacyGroup => 'Eski sürüm grubu';
+
+  @override
+  String get groupClosed => 'Bu gruba artık katılınamıyor.';
+
+  @override
+  String myPickupPoint(String name) {
+    return 'Toplama noktam: $name';
+  }
+
+  @override
+  String get changePickupAction => 'Değiştir';
 }

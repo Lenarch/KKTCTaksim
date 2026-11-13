@@ -1069,7 +1069,7 @@ abstract class AppLocalizations {
   /// No description provided for @rideDetails.
   ///
   /// In tr, this message translates to:
-  /// **'Tarih, Saat ve Ücret'**
+  /// **'Tarih, Saat ve Kapasite'**
   String get rideDetails;
 
   /// No description provided for @rideDate.
@@ -1096,23 +1096,17 @@ abstract class AppLocalizations {
   /// **'Vito kapasitesi: {count}'**
   String vitoCapacity(int count);
 
-  /// No description provided for @pricePerPersonLabel.
+  /// No description provided for @groupFareEstimate.
   ///
   /// In tr, this message translates to:
-  /// **'Kişi başı ücret'**
-  String get pricePerPersonLabel;
+  /// **'Tek kişiyle {one}, grup dolarsa kişi başı yaklaşık {full}'**
+  String groupFareEstimate(String one, String full);
 
-  /// No description provided for @pricePerPersonHelp.
+  /// No description provided for @largeGroupNote.
   ///
   /// In tr, this message translates to:
-  /// **'Her yolcunun ödeyeceği tutar'**
-  String get pricePerPersonHelp;
-
-  /// No description provided for @pricePerPersonInvalid.
-  ///
-  /// In tr, this message translates to:
-  /// **'1 ile {max} arasında bir tutar gir'**
-  String pricePerPersonInvalid(String max);
+  /// **'5 ve üzeri kişilik gruplar büyük araç tarifesiyle hesaplanır.'**
+  String get largeGroupNote;
 
   /// No description provided for @createRideButton.
   ///
@@ -1923,6 +1917,84 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Bu ad kullanılamaz. Kendi adını yaz.'**
   String get nameReserved;
+
+  /// No description provided for @pickupTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Seni nereden alalım?'**
+  String get pickupTitle;
+
+  /// No description provided for @pickupAtMeeting.
+  ///
+  /// In tr, this message translates to:
+  /// **'Buluşma noktasından binerim'**
+  String get pickupAtMeeting;
+
+  /// No description provided for @pickupElsewhere.
+  ///
+  /// In tr, this message translates to:
+  /// **'Başka bir yerden alınmak istiyorum'**
+  String get pickupElsewhere;
+
+  /// No description provided for @pickupTooFar.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu nokta buluşma noktasına çok uzak (en fazla {km} km).'**
+  String pickupTooFar(int km);
+
+  /// No description provided for @pickupPrivacy.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu noktayı yalnızca sen ve şoför görür.'**
+  String get pickupPrivacy;
+
+  /// No description provided for @pickupExtra.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ücrete eklenen mesafe: {distance}'**
+  String pickupExtra(String distance);
+
+  /// No description provided for @joinPricePreview.
+  ///
+  /// In tr, this message translates to:
+  /// **'Katılırsan kişi başı {price} olur (şu an {current}).'**
+  String joinPricePreview(String price, String current);
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kaydet'**
+  String get saveChanges;
+
+  /// No description provided for @priceMayChange.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kişi sayısına göre değişir'**
+  String get priceMayChange;
+
+  /// No description provided for @legacyGroup.
+  ///
+  /// In tr, this message translates to:
+  /// **'Eski sürüm grubu'**
+  String get legacyGroup;
+
+  /// No description provided for @groupClosed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu gruba artık katılınamıyor.'**
+  String get groupClosed;
+
+  /// No description provided for @myPickupPoint.
+  ///
+  /// In tr, this message translates to:
+  /// **'Toplama noktam: {name}'**
+  String myPickupPoint(String name);
+
+  /// No description provided for @changePickupAction.
+  ///
+  /// In tr, this message translates to:
+  /// **'Değiştir'**
+  String get changePickupAction;
 }
 
 class _AppLocalizationsDelegate

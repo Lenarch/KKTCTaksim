@@ -161,14 +161,13 @@
   "toQuestion": "To where?",
   "startPoint": "Starting point",
   "endPoint": "Destination",
-  "rideDetails": "Date, Time and Price",
+  "rideDetails": "Date, Time and Capacity",
   "rideDate": "Date",
   "rideTime": "Time",
   "departureInPast": "Departure time can't be in the past.",
   "vitoCapacity": "Van capacity: {count}",
-  "pricePerPersonLabel": "Price per person",
-  "pricePerPersonHelp": "The amount each passenger pays",
-  "pricePerPersonInvalid": "Enter an amount between 1 and {max}",
+  "groupFareEstimate": "Alone {one}, about {full} per person once the group is full",
+  "largeGroupNote": "Groups of 5 or more are priced with the large-vehicle tariff.",
   "createRideButton": "Create Ride",
   "exploreSearchHint": "What are you looking for nearby?",
   "categoryAll": "All",
@@ -310,5 +309,49 @@
   "moveMapToPickPlace": "Move the map to put the pin on the place you want",
   "samePlaceError": "The destination can't be the same as the starting point.",
   "pickedPlaceNotFound": "No address found here. Move the pin to a place in North Cyprus.",
-  "nameReserved": "This name can't be used. Please enter your own name."
+  "nameReserved": "This name can't be used. Please enter your own name.",
+  "pickupTitle": "Where should we pick you up?",
+  "pickupAtMeeting": "I'll board at the meeting point",
+  "pickupElsewhere": "I want to be picked up elsewhere",
+  "pickupTooFar": "This spot is too far from the meeting point (at most {km} km).",
+  "@pickupTooFar": {
+    "placeholders": {
+      "km": {
+        "type": "int"
+      }
+    }
+  },
+  "pickupPrivacy": "Only you and the driver can see this spot.",
+  "pickupExtra": "Distance added to the fare: {distance}",
+  "@pickupExtra": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "joinPricePreview": "If you join, it will be {price} per person (now {current}).",
+  "@joinPricePreview": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "Save",
+  "priceMayChange": "Changes with the number of people",
+  "legacyGroup": "Old-version group",
+  "groupClosed": "This group can no longer be joined.",
+  "myPickupPoint": "My pickup point: {name}",
+  "@myPickupPoint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "changePickupAction": "Change"
 }

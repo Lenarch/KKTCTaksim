@@ -8,12 +8,15 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
   doc,
   getDoc,
   getDocs,
+  increment,
   query,
   serverTimestamp,
   setDoc,
@@ -154,7 +157,50 @@ const CAROL = { uid: 'carol', phone: '+905330000003' };
 const DAVE = { uid: 'dave', phone: '+905330000004' };
 const FUTURE = Date.now() + 24 * 60 * 60 * 1000;
 
+// Girne -> Lefkoşa; kuş uçuşu ~17,7 km (kurallardaki straight()).
+const GIRNE = { lat: 35.3364, lng: 33.3199 };
+const LEFKOSA = { lat: 35.1856, lng: 33.3823 };
+// Buluşma noktasının ~2,2 km kuzeyi (2500 m sapma için geçerli) ve ~5 km kuzeyi.
+const NEAR = { name: 'Karaoğlanoğlu', lat: GIRNE.lat + 0.02, lng: GIRNE.lng };
+const FAR = { name: 'Alsancak', lat: GIRNE.lat + 0.045, lng: GIRNE.lng };
+const MEETING = { name: 'Girne Limanı', ...GIRNE };
+
+/** lib/core/group_fare.dart groupPricePerPerson ile aynı tamsayı hesap. */
+const fare = (base, extra, capacity, n) => {
+  const metered = 100 + Math.floor((40 * (base + extra)) / 1000);
+  const f = Math.max(metered, 150);
+  const total = capacity >= 5 ? Math.floor((f * 18) / 10) : f;
+  return Math.floor((total + n * 10 - 1) / (n * 10)) * 10;
+};
+
+/** Yeni biçimli grup belgesi (SharedRide.toJson() kimliksiz). */
 const sharedRide = (overrides = {}) => ({
+  from: 'Girne Limanı',
+  to: 'Lefkoşa',
+  fromPoint: GIRNE,
+  toPoint: LEFKOSA,
+  departure: FUTURE,
+  capacity: 4,
+  memberIds: ['alice'],
+  baseMeters: 26000,
+  detours: { alice: 0 },
+  extraMeters: 0,
+  pricePerPerson: 1140,
+  status: 'open',
+  ...overrides,
+});
+
+/** ALICE (sapma 0) ve BOB (sapma 2500) üyeli grup. */
+const twoMemberRide = (overrides = {}) => sharedRide({
+  memberIds: ['alice', 'bob'],
+  detours: { alice: 0, bob: 2500 },
+  extraMeters: 2500,
+  pricePerPerson: 620,
+  ...overrides,
+});
+
+/** Koordinatsız eski biçimli grup (yalnızca ayrılınabilir). */
+const legacyRide = (overrides = {}) => ({
   from: 'Girne',
   to: 'Gazimağusa',
   departure: FUTURE,
@@ -164,6 +210,61 @@ const sharedRide = (overrides = {}) => ({
   ...overrides,
 });
 
+/** Üyenin özel toplama kaydı. */
+const pickup = (overrides = {}) => ({ place: MEETING, state: 'waiting', ...overrides });
+
+const pickupPath = (group, uid) => `sharedRides/${group}/pickups/${uid}`;
+
+/** Grubu ve kurucunun toplama kaydını tek yazımda oluşturur. place: null -> kayıt yazılmaz. */
+const createBatch = (db, user, { id = 'g1', ride = {}, place = MEETING } = {}) => {
+  const batch = writeBatch(db);
+  batch.set(doc(db, `sharedRides/${id}`), sharedRide({ memberIds: [user.uid], detours: { [user.uid]: 0 }, ...ride }));
+  if (place) batch.set(doc(db, pickupPath(id, user.uid)), pickup({ place }));
+  return batch.commit();
+};
+
+/**
+ * Katılma: toplama kaydı + grup güncellemesi tek yazımda. Grup alanları sunucuda hesaplanır
+ * (arrayUnion/increment), böylece istemcinin bildiği tek değer ücrettir. update: fazladan alanlar.
+ */
+const joinBatch = (db, user, { detour = 2500, place = NEAR, price = 620, group = 'g1', update = {} } = {}) => {
+  const batch = writeBatch(db);
+  if (place) batch.set(doc(db, pickupPath(group, user.uid)), pickup({ place }));
+  batch.update(doc(db, `sharedRides/${group}`), {
+    memberIds: arrayUnion(user.uid),
+    [`detours.${user.uid}`]: detour,
+    extraMeters: increment(detour),
+    pricePerPerson: price,
+    ...update,
+  });
+  return batch.commit();
+};
+
+/** Ayrılma: üye, sapması ve toplama kaydı birlikte kalkar; ücret yeniden hesaplanır. */
+const leaveBatch = (db, user, { oldDetour, price, group = 'g1', deletePickup = true } = {}) => {
+  const batch = writeBatch(db);
+  batch.update(doc(db, `sharedRides/${group}`), {
+    memberIds: arrayRemove(user.uid),
+    [`detours.${user.uid}`]: deleteField(),
+    extraMeters: increment(-oldDetour),
+    pricePerPerson: price,
+  });
+  if (deletePickup) batch.delete(doc(db, pickupPath(group, user.uid)));
+  return batch.commit();
+};
+
+/** Toplama noktası değiştirme: kayıt ve grubun sapma/ücret alanları birlikte. */
+const moveBatch = (db, user, { place, oldDetour, detour, price, group = 'g1', target = user.uid } = {}) => {
+  const batch = writeBatch(db);
+  batch.set(doc(db, pickupPath(group, target)), pickup({ place }));
+  batch.update(doc(db, `sharedRides/${group}`), {
+    [`detours.${target}`]: detour,
+    extraMeters: increment(detour - oldDetour),
+    pricePerPerson: price,
+  });
+  return batch.commit();
+};
+
 describe('sharedRides paylaşımlı gruplar', () => {
   test('giriş yapan herkes grupları okur; giriş yapmayan okuyamaz', async () => {
     await seed('sharedRides/g1', sharedRide());
@@ -171,63 +272,286 @@ describe('sharedRides paylaşımlı gruplar', () => {
     await assertFails(getDoc(doc(anonymousDb(), 'sharedRides/g1')));
   });
 
+  test('kurma: grup ve toplama kaydı tek yazımda; ücret ve sapma doğrulanır', async () => {
+    const db = dbAs(ALICE);
+    await assertFails(createBatch(db, ALICE, { id: 'a', place: null }));
+    await assertFails(createBatch(db, ALICE, { id: 'b', ride: { pricePerPerson: 1130 } }));
+    await assertFails(createBatch(db, ALICE, { id: 'c', ride: { status: 'claimed' } }));
+    await assertFails(createBatch(db, ALICE, { id: 'd', ride: { driverId: 'x' } }));
+    await assertFails(createBatch(db, ALICE, { id: 'e', ride: { baseMeters: 1000, pricePerPerson: fare(1000, 0, 4, 1) } }));
+    await assertFails(createBatch(db, ALICE, {
+      id: 'f', ride: { detours: { alice: 150 }, extraMeters: 150, pricePerPerson: fare(26000, 150, 4, 1) },
+    }));
+    await assertFails(createBatch(db, ALICE, {
+      id: 'g', place: FAR, ride: { detours: { alice: 10100 }, extraMeters: 10100, pricePerPerson: fare(26000, 10100, 4, 1) },
+    }));
+    // Noktası 5 km uzakken sapma 0 bildirilemez.
+    await assertFails(createBatch(db, ALICE, { id: 'h', place: FAR }));
+    await assertFails(createBatch(db, ALICE, { id: 'i', ride: { extraMeters: 100 } }));
+    await assertFails(createBatch(db, ALICE, { id: 'j', ride: { baseMeters: 400000, pricePerPerson: fare(400000, 0, 4, 1) } }));
+    await assertSucceeds(createBatch(db, ALICE, { id: 'ok' }));
+    // Uzak noktada yeterli sapmayla da kurulur.
+    await assertSucceeds(createBatch(db, ALICE, {
+      id: 'ok2', place: FAR, ride: { detours: { alice: 5000 }, extraMeters: 5000, pricePerPerson: fare(26000, 5000, 4, 1) },
+    }));
+  });
+
   test('oluşturan tek ve ilk üye olur', async () => {
     const db = dbAs(ALICE);
-    await assertSucceeds(setDoc(doc(db, 'sharedRides/g1'), sharedRide()));
-    await assertFails(setDoc(doc(db, 'sharedRides/g2'), sharedRide({ memberIds: ['bob'] })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g3'), sharedRide({ memberIds: ['alice', 'bob'] })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g4'), sharedRide({ memberIds: [] })));
+    await assertFails(createBatch(db, ALICE, { id: 'g2', ride: { memberIds: ['bob'] } }));
+    await assertFails(createBatch(db, ALICE, { id: 'g3', ride: { memberIds: ['alice', 'bob'] } }));
+    await assertFails(createBatch(db, ALICE, { id: 'g4', ride: { memberIds: [] } }));
+    await assertFails(createBatch(db, ALICE, { id: 'g5', ride: { detours: { alice: 0, bob: 0 } } }));
+    await assertSucceeds(createBatch(db, ALICE, { id: 'g1' }));
   });
 
   test('geçersiz grup oluşturulamaz', async () => {
     const db = dbAs(ALICE);
-    await assertFails(setDoc(doc(db, 'sharedRides/g1'), sharedRide({ departure: Date.now() - 60000 })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g2'), sharedRide({ capacity: 0 })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g3'), sharedRide({ capacity: 9 })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g4'), sharedRide({ pricePerPerson: 0 })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g5'), sharedRide({ from: '' })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g6'), sharedRide({ driverId: 'x' })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g8'), sharedRide({ departure: Date.now() + 100 * 365 * 24 * HOUR })));
-    await assertFails(setDoc(doc(db, 'sharedRides/g9'), sharedRide({ departure: Date.now() + 32 * 24 * HOUR })));
-    await assertSucceeds(setDoc(doc(db, 'sharedRides/g10'), sharedRide({ departure: Date.now() + 30 * 24 * HOUR })));
+    const create = (id, ride) => createBatch(db, ALICE, { id, ride });
+    await assertFails(create('g1', { departure: Date.now() - 60000 }));
+    await assertFails(create('g2', { capacity: 0 }));
+    await assertFails(create('g3', { capacity: 9, pricePerPerson: fare(26000, 0, 9, 1) }));
+    await assertFails(create('g4', { pricePerPerson: 0 }));
+    await assertFails(create('g5', { from: '' }));
+    await assertFails(create('g8', { departure: Date.now() + 100 * 365 * 24 * HOUR }));
+    await assertFails(create('g9', { departure: Date.now() + 32 * 24 * HOUR }));
+    await assertFails(create('g11', { fromPoint: { lat: 200, lng: 33 } }));
+    await assertSucceeds(create('g10', { departure: Date.now() + 30 * 24 * HOUR }));
+    // Büyük araçta ×1,8 tarife uygulanır.
+    await assertFails(create('g12', { capacity: 6 }));
+    await assertSucceeds(create('g13', { capacity: 6, pricePerPerson: fare(26000, 0, 6, 1) }));
     const { to, ...missingTo } = sharedRide();
     await assertFails(setDoc(doc(db, 'sharedRides/g7'), missingTo));
+    // Eski (noktasız) biçimde yeni grup kurulamaz.
+    await assertFails(setDoc(doc(db, 'sharedRides/g6'), legacyRide()));
+  });
+
+  test('katılma: doğru ücret ve kendi sapmasıyla geçer', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    await assertSucceeds(joinBatch(dbAs(BOB), BOB, { detour: 2500, place: NEAR, price: 620 }));
+  });
+
+  test('katılma: eski ücretle, başkasının sapmasıyla, kayıtsız, dolu ya da geçmiş gruba reddedilir', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    const db = dbAs(BOB);
+    await assertFails(joinBatch(db, BOB, { price: 1140 }));
+    // Başkasının sapması değişemez (toplam ve ücret kendi sapmasıyla tutarlı olsa bile).
+    await assertFails(joinBatch(db, BOB, { update: { 'detours.alice': 500 } }));
+    await assertFails(joinBatch(db, BOB, { update: { 'detours.alice': 500, extraMeters: increment(3000), pricePerPerson: fare(26000, 3000, 4, 2) } }));
+    await assertFails(joinBatch(db, BOB, { place: null }));
+    await assertFails(joinBatch(db, BOB, { detour: 150, price: fare(26000, 150, 4, 2) }));
+    // Sapma bildirilenden uzak nokta.
+    await assertFails(joinBatch(db, BOB, { place: FAR }));
+    // extraMeters sapmayla tutarsız.
+    await assertFails(joinBatch(db, BOB, { update: { extraMeters: increment(0) }, price: fare(26000, 0, 4, 2) }));
+    await assertFails(joinBatch(db, BOB, { update: { status: 'claimed' } }));
+    await assertFails(joinBatch(db, BOB, { update: { baseMeters: 1000 } }));
+
+    await seed('sharedRides/full', sharedRide({
+      capacity: 2, memberIds: ['alice', 'carol'], detours: { alice: 0, carol: 0 }, pricePerPerson: 570,
+    }));
+    await assertFails(joinBatch(db, BOB, { group: 'full', price: fare(26000, 2500, 2, 3) }));
+    await seed('sharedRides/past', sharedRide({ departure: Date.now() - 60000 }));
+    await assertFails(joinBatch(db, BOB, { group: 'past' }));
+    await seed('sharedRides/closed', sharedRide({ status: 'claimed' }));
+    await assertFails(joinBatch(db, BOB, { group: 'closed' }));
   });
 
   test('kullanıcı yalnızca kendini ekleyerek katılır', async () => {
     await seed('sharedRides/g1', sharedRide());
-    const ref = doc(dbAs(BOB), 'sharedRides/g1');
-    await assertFails(updateDoc(ref, { memberIds: ['alice', 'carol'] }));
-    await assertFails(updateDoc(ref, { memberIds: ['bob', 'alice'] }));
-    await assertFails(updateDoc(ref, { memberIds: ['alice', 'bob'], pricePerPerson: 1 }));
-    await assertSucceeds(updateDoc(ref, { memberIds: ['alice', 'bob'] }));
-    await assertFails(updateDoc(ref, { memberIds: ['alice', 'bob', 'bob'] }));
-  });
-
-  test('dolu ya da kalkışı geçmiş gruba katılınamaz', async () => {
-    await seed('sharedRides/full', sharedRide({ capacity: 2, memberIds: ['alice', 'carol'] }));
-    await seed('sharedRides/past', sharedRide({ departure: Date.now() - 60000 }));
     const db = dbAs(BOB);
-    await assertFails(updateDoc(doc(db, 'sharedRides/full'), { memberIds: ['alice', 'carol', 'bob'] }));
-    await assertFails(updateDoc(doc(db, 'sharedRides/past'), { memberIds: ['alice', 'bob'] }));
+    const join = (memberIds) => {
+      const batch = writeBatch(db);
+      batch.set(doc(db, pickupPath('g1', 'bob')), pickup({ place: NEAR }));
+      batch.update(doc(db, 'sharedRides/g1'), {
+        memberIds, 'detours.bob': 2500, extraMeters: 2500, pricePerPerson: fare(26000, 2500, 4, memberIds.length),
+      });
+      return batch.commit();
+    };
+    await assertFails(join(['alice', 'carol']));
+    await assertFails(join(['bob', 'alice']));
+    await assertFails(join(['alice', 'bob', 'bob']));
+    await assertSucceeds(join(['alice', 'bob']));
+    // Zaten üye olan yeniden katılamaz.
+    await assertFails(joinBatch(db, BOB, { detour: 0, price: fare(26000, 2500, 4, 3) }));
   });
 
-  test('kullanıcı yalnızca kendini çıkararak ayrılır', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob', 'carol'] }));
-    await assertFails(updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { memberIds: ['bob', 'carol'] }));
-    await assertSucceeds(updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { memberIds: ['alice', 'carol'] }));
+  test('eşzamanlılık: BOB katıldıktan sonra CAROL\'ın 2 kişilik ücretli yazımı reddedilir', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    await assertSucceeds(joinBatch(dbAs(BOB), BOB, { detour: 2500, price: 620 }));
+    const carolDb = dbAs(CAROL);
+    await assertFails(joinBatch(carolDb, CAROL, { detour: 0, place: MEETING, price: fare(26000, 0, 4, 2) }));
+    await assertSucceeds(joinBatch(carolDb, CAROL, { detour: 0, place: MEETING, price: fare(26000, 2500, 4, 3) }));
+  });
+
+  test('ayrılma: sapma ve ücret düzeltilip toplama kaydı silinerek geçer', async () => {
+    await seed('sharedRides/g1', twoMemberRide());
+    await seed(pickupPath('g1', 'alice'), pickup());
+    await seed(pickupPath('g1', 'bob'), pickup({ place: NEAR }));
+    const db = dbAs(BOB);
+    await assertFails(leaveBatch(db, BOB, { oldDetour: 2500, price: 1140, deletePickup: false }));
+    await assertFails(leaveBatch(db, BOB, { oldDetour: 2500, price: 620 }));
+    await assertFails(leaveBatch(db, BOB, { oldDetour: 0, price: fare(26000, 2500, 4, 1) }));
+    await assertSucceeds(leaveBatch(db, BOB, { oldDetour: 2500, price: 1140 }));
+  });
+
+  test('kullanıcı yalnızca kendini çıkararak ayrılır; son üye listeyi boşaltamaz', async () => {
+    await seed('sharedRides/g1', twoMemberRide());
+    await seed(pickupPath('g1', 'alice'), pickup());
+    // BOB, ALICE'i çıkaramaz.
+    const db = dbAs(BOB);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'sharedRides/g1'), {
+      memberIds: ['bob'], 'detours.alice': deleteField(), pricePerPerson: fare(26000, 2500, 4, 1),
+    });
+    await assertFails(batch.commit());
     // Son üye listeyi boşaltamaz; grubu silmesi gerekir.
     await seed('sharedRides/g2', sharedRide());
-    await assertFails(updateDoc(doc(dbAs(ALICE), 'sharedRides/g2'), { memberIds: [] }));
+    await assertFails(leaveBatch(dbAs(ALICE), ALICE, { group: 'g2', oldDetour: 0, price: 1140 }));
   });
 
-  test('grubu yalnızca tek kalan üye silebilir', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+  test('son üye grubu ve kaydını siler; kaydı bırakarak silemez; başkası silemez', async () => {
+    await seed('sharedRides/g1', twoMemberRide());
     await assertFails(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g1')));
     await assertFails(deleteDoc(doc(dbAs(CAROL), 'sharedRides/g1')));
     await seed('sharedRides/g2', sharedRide());
+    await seed(pickupPath('g2', 'alice'), pickup());
     await assertFails(deleteDoc(doc(dbAs(BOB), 'sharedRides/g2')));
-    await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g2')));
+    await assertFails(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g2')));
+    const db = dbAs(ALICE);
+    const batch = writeBatch(db);
+    batch.delete(doc(db, pickupPath('g2', 'alice')));
+    batch.delete(doc(db, 'sharedRides/g2'));
+    await assertSucceeds(batch.commit());
+  });
+
+  test('nokta değiştirme: kendi sapması ve ücretiyle geçer; başkasınınki ve üye olmayan reddedilir', async () => {
+    await seed('sharedRides/g1', twoMemberRide());
+    await seed(pickupPath('g1', 'alice'), pickup());
+    await seed(pickupPath('g1', 'bob'), pickup({ place: NEAR }));
+    const alice = dbAs(ALICE);
+    // Ücret düzeltilmeden ya da yetersiz sapmayla olmaz.
+    await assertFails(moveBatch(alice, ALICE, { place: NEAR, oldDetour: 0, detour: 2500, price: 620 }));
+    await assertFails(moveBatch(alice, ALICE, { place: FAR, oldDetour: 0, detour: 2500, price: fare(26000, 5000, 4, 2) }));
+    // Başkasının noktası/sapması değiştirilemez.
+    await assertFails(updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { 'detours.alice': 100 }));
+    await assertFails(moveBatch(alice, ALICE, { target: 'bob', place: MEETING, oldDetour: 2500, detour: 0, price: fare(26000, 0, 4, 2) }));
+    await assertFails(moveBatch(dbAs(CAROL), CAROL, { place: NEAR, oldDetour: 0, detour: 2500, price: fare(26000, 5000, 4, 2) }));
+    await assertSucceeds(moveBatch(alice, ALICE, { place: NEAR, oldDetour: 0, detour: 2500, price: fare(26000, 5000, 4, 2) }));
+  });
+
+  test('toplama kaydı tek başına sapmanın izin verdiğinden uzağa taşınamaz', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    await seed(pickupPath('g1', 'alice'), pickup());
+    const ref = doc(dbAs(ALICE), pickupPath('g1', 'alice'));
+    await assertFails(setDoc(ref, pickup({ place: FAR })));
+    await assertSucceeds(setDoc(ref, pickup({ place: { ...MEETING, name: 'Girne Limanı, kapı' } })));
+  });
+
+  // JS SDK -0'ı ondalık (double) gönderir; kurallar 0.0 == 0 sayar. Ondalık extraMeters ile price()
+  // kesirli hesaplanır (ör. 1149, 579,5) ve formülden farklı ücret geçebilirdi.
+  test('tamsayı: ondalık extraMeters ile grup kurulamaz', async () => {
+    const db = dbAs(ALICE);
+    await assertFails(createBatch(db, ALICE, { id: 'f1', ride: { extraMeters: -0, pricePerPerson: 1149 } }));
+    await assertFails(createBatch(db, ALICE, { id: 'f2', ride: { extraMeters: -0 } }));
+    await assertSucceeds(createBatch(db, ALICE, { id: 'f3' }));
+  });
+
+  test('tamsayı: ondalık extraMeters ile katılınamaz', async () => {
+    await seed('sharedRides/g1', sharedRide());
+    const carol = dbAs(CAROL);
+    const zeroJoin = { detour: 0, place: MEETING, price: fare(26000, 0, 4, 2) };
+    await assertFails(joinBatch(carol, CAROL, { ...zeroJoin, price: 579.5, update: { extraMeters: -0 } }));
+    await assertFails(joinBatch(carol, CAROL, { ...zeroJoin, update: { extraMeters: -0 } }));
+    await assertSucceeds(joinBatch(carol, CAROL, zeroJoin));
+  });
+
+  test("tamsayı: diff() 0 ile -0.0'ı ayırt etmez; ücrete giren baseMeters ondalığa çevrilemez", async () => {
+    // Buluşma = varış olan grupta baseMeters 0 olabilir.
+    await seed('sharedRides/g0', sharedRide({ toPoint: GIRNE, baseMeters: 0, pricePerPerson: 150 }));
+    const carol = dbAs(CAROL);
+    const sameJoin = { group: 'g0', detour: 0, place: MEETING, price: fare(0, 0, 4, 2) };
+    await assertFails(joinBatch(carol, CAROL, { ...sameJoin, update: { baseMeters: -0 } }));
+    await assertSucceeds(joinBatch(carol, CAROL, sameJoin));
+  });
+
+  const zeroDetourRide = () => twoMemberRide({ detours: { alice: 0, bob: 0 }, extraMeters: 0, pricePerPerson: 570 });
+
+  test('tamsayı: ondalık extraMeters ile nokta değiştirilemez', async () => {
+    await seed('sharedRides/g2', zeroDetourRide());
+    await seed(pickupPath('g2', 'alice'), pickup());
+    const alice = dbAs(ALICE);
+    const move = (extraMeters, pricePerPerson = 570) => {
+      const batch = writeBatch(alice);
+      batch.set(doc(alice, pickupPath('g2', 'alice')), pickup({ place: { ...MEETING, name: 'İskele' } }));
+      batch.update(doc(alice, 'sharedRides/g2'), { 'detours.alice': 0, extraMeters, pricePerPerson });
+      return batch.commit();
+    };
+    await assertFails(move(-0, 579.5));
+    await assertFails(move(-0));
+    await assertSucceeds(move(0));
+  });
+
+  test('tamsayı: ondalık extraMeters ile ayrılınamaz', async () => {
+    await seed('sharedRides/g2', zeroDetourRide());
+    await seed(pickupPath('g2', 'bob'), pickup());
+    const bob = dbAs(BOB);
+    const leave = (extraMeters, pricePerPerson = 1140) => {
+      const batch = writeBatch(bob);
+      batch.update(doc(bob, 'sharedRides/g2'), {
+        memberIds: ['alice'], 'detours.bob': deleteField(), extraMeters, pricePerPerson,
+      });
+      batch.delete(doc(bob, pickupPath('g2', 'bob')));
+      return batch.commit();
+    };
+    await assertFails(leave(-0, 1149));
+    await assertFails(leave(-0));
+    await assertSucceeds(leave(0));
+  });
+
+  test('eski biçimli gruba katılınamaz; ayrılınır', async () => {
+    await seed('sharedRides/old', legacyRide({ memberIds: ['alice', 'bob'] }));
+    await assertFails(joinBatch(dbAs(CAROL), CAROL, { group: 'old', price: 300 }));
+    await assertFails(updateDoc(doc(dbAs(CAROL), 'sharedRides/old'), { memberIds: ['alice', 'bob', 'carol'] }));
+    // Eski biçimde de yalnızca kendini çıkarır ve başka alan değiştirmez.
+    await assertFails(updateDoc(doc(dbAs(BOB), 'sharedRides/old'), { memberIds: ['bob'] }));
+    await assertFails(updateDoc(doc(dbAs(BOB), 'sharedRides/old'), { memberIds: ['alice'], pricePerPerson: 1 }));
+    await assertSucceeds(updateDoc(doc(dbAs(BOB), 'sharedRides/old'), { memberIds: ['alice'] }));
+    await assertFails(updateDoc(doc(dbAs(ALICE), 'sharedRides/old'), { memberIds: [] }));
+    await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'sharedRides/old')));
+  });
+});
+
+describe('sharedRides/{id}/pickups özel toplama kaydı', () => {
+  test('sahibi okur; başka üye ve dışarıdan biri okuyamaz', async () => {
+    await seed('sharedRides/g1', twoMemberRide());
+    await seed(pickupPath('g1', 'alice'), pickup());
+    await assertSucceeds(getDoc(doc(dbAs(ALICE), pickupPath('g1', 'alice'))));
+    await assertFails(getDoc(doc(dbAs(BOB), pickupPath('g1', 'alice'))));
+    await assertFails(getDoc(doc(dbAs(CAROL), pickupPath('g1', 'alice'))));
+    await assertFails(getDoc(doc(anonymousDb(), pickupPath('g1', 'alice'))));
+    await assertFails(getDocs(collection(dbAs(BOB), 'sharedRides/g1/pickups')));
+  });
+
+  test('üye olmayan oluşturamaz; başkası adına ve geçersiz kayıt yazılamaz', async () => {
+    await seed('sharedRides/g1', twoMemberRide());
+    await assertFails(setDoc(doc(dbAs(CAROL), pickupPath('g1', 'carol')), pickup()));
+    await assertFails(setDoc(doc(dbAs(BOB), pickupPath('g1', 'alice')), pickup()));
+    const ref = doc(dbAs(BOB), pickupPath('g1', 'bob'));
+    await assertFails(setDoc(ref, pickup({ place: NEAR, state: 'picked' })));
+    await assertFails(setDoc(ref, pickup({ place: { ...NEAR, name: '' } })));
+    await assertFails(setDoc(ref, pickup({ place: { ...NEAR, name: 'x'.repeat(201) } })));
+    await assertFails(setDoc(ref, pickup({ place: { ...NEAR, lat: 200 } })));
+    await assertFails(setDoc(ref, pickup({ place: NEAR, phone: BOB.phone })));
+    await assertSucceeds(setDoc(ref, pickup({ place: NEAR })));
+  });
+
+  test('açık olmayan grupta kayıt yazılamaz; sahibi siler, başkası silemez', async () => {
+    await seed('sharedRides/g1', twoMemberRide({ status: 'claimed' }));
+    await assertFails(setDoc(doc(dbAs(BOB), pickupPath('g1', 'bob')), pickup({ place: NEAR })));
+    await seed(pickupPath('g1', 'bob'), pickup({ place: NEAR }));
+    await assertFails(deleteDoc(doc(dbAs(ALICE), pickupPath('g1', 'bob'))));
+    await assertSucceeds(deleteDoc(doc(dbAs(BOB), pickupPath('g1', 'bob'))));
   });
 });
 
@@ -243,7 +567,7 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
   beforeEach(() => seed('users/alice', { phone: ALICE.phone, name: 'Alice' }));
 
   test('gönderen adı profildeki addan başka olamaz (başkası gibi görünme)', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await seed('sharedRides/g1', twoMemberRide());
     const ref = (id) => doc(dbAs(ALICE), `sharedRides/g1/messages/${id}`);
     await assertFails(setDoc(ref('m1'), message({ senderName: 'KKTC Taksim Destek' })));
     await assertFails(setDoc(ref('m2'), message({ senderName: null })));
@@ -255,7 +579,7 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
   });
 
   test('üye mesaj yazar ve okur', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await seed('sharedRides/g1', twoMemberRide());
     await assertSucceeds(setDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m1'), message()));
     await assertSucceeds(getDocs(collection(dbAs(BOB), 'sharedRides/g1/messages')));
   });
@@ -271,7 +595,7 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
   });
 
   test('başkası adına, boş, çok uzun ya da fazladan alanlı mesaj yazılamaz', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await seed('sharedRides/g1', twoMemberRide());
     const ref = (id) => doc(dbAs(ALICE), `sharedRides/g1/messages/${id}`);
     await assertFails(setDoc(ref('m1'), message({ senderId: 'bob' })));
     await assertFails(setDoc(ref('m2'), message({ text: '' })));
@@ -281,13 +605,13 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
   });
 
   test('mesaj değiştirilemez; başkasının mesajını yalnızca tek kalan üye siler', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await seed('sharedRides/g1', twoMemberRide());
     await seed('sharedRides/g1/messages/m1', { ...message(), sentAt: 1 });
     const ref = doc(dbAs(ALICE), 'sharedRides/g1/messages/m1');
     await assertFails(updateDoc(ref, { text: 'değişti' }));
     await assertFails(deleteDoc(doc(dbAs(BOB), 'sharedRides/g1/messages/m1')));
     await seed('sharedRides/g1/messages/m2', { ...message({ senderId: 'bob', senderName: 'Bob' }), sentAt: 1 });
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice'] }));
+    await seed('sharedRides/g1', sharedRide());
     await assertFails(deleteDoc(doc(dbAs(BOB), 'sharedRides/g1/messages/m1')));
     // Tek kalan üye, ayrılan üyenin mesajını da temizleyebilir (grubu silmeden önce).
     await assertSucceeds(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m2')));
@@ -295,7 +619,7 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
   });
 
   test('üye kendi mesajını siler (hesap silme), başkasınınkini silemez', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
+    await seed('sharedRides/g1', twoMemberRide());
     await seed('sharedRides/g1/messages/m1', { ...message(), sentAt: 1 });
     await seed('sharedRides/g1/messages/m2', { ...message({ senderId: 'bob', senderName: 'Bob' }), sentAt: 1 });
     await assertFails(deleteDoc(doc(dbAs(ALICE), 'sharedRides/g1/messages/m2')));
@@ -303,8 +627,9 @@ describe('sharedRides/{id}/messages grup sohbeti', () => {
   });
 
   test('ayrılan üye artık okuyamaz', async () => {
-    await seed('sharedRides/g1', sharedRide({ memberIds: ['alice', 'bob'] }));
-    await updateDoc(doc(dbAs(BOB), 'sharedRides/g1'), { memberIds: ['alice'] });
+    await seed('sharedRides/g1', twoMemberRide());
+    await seed(pickupPath('g1', 'bob'), pickup({ place: NEAR }));
+    await assertSucceeds(leaveBatch(dbAs(BOB), BOB, { oldDetour: 2500, price: 1140 }));
     await assertFails(getDocs(collection(dbAs(BOB), 'sharedRides/g1/messages')));
   });
 });

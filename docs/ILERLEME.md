@@ -1,9 +1,56 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **12 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **14 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
+
+## 13 Kasım 2026: grup toplama, Aşama 1 (dal `feature/grup-toplama-1`, `main`'e BİRLEŞMEDİ)
+**Durum (14 Kasım):** Kod `feature/grup-toplama-1` dalında (`2dcdccd` ve sonrası). Yeni kurallar 14 Kasım'da
+**canlıya yüklendi** (sahibinin onayıyla). `main`'e **birleştirilmedi**, GitHub'a **gönderilmedi**, test APK'sı
+(`apk/KKTCTaksim-test.apk`) **yenilenmedi**: klasördeki eski APK artık grup kuramaz ve gruba katılamaz.
+Testler: analyze temiz, Flutter 116/116, kurallar 70/70.
+
+**Gerçek Firebase denemesi (14 Kasım, emülatör, daldan derlenen APK, iki test hesabı):** hepsi geçti.
+- Hesap 03 grup kurdu (Girne Yat Limanı → Ercan Havalimanı, 4 kişi, buluşma noktasından biniş): kart ≈₺2.010.
+- Hesap 01 grubu gördü (başkasının toplama noktası görünmüyor), Karakum'dan katıldı: önizleme ve kart ≈₺1.080
+  (3,5 km ek mesafe).
+- Hesap 01 noktasını buluşma noktasına çevirdi: ≈₺1.010. Sonra ayrıldı: grup 1/4, ≈₺2.010.
+- Hesap 03 son üye olarak ayrıldı: grup silindi (kurallar, toplama kaydı kalırsa silmeye izin vermez).
+- **Denenmedi:** üyeyken hesap silme, haritadan nokta seçerek katılma, 10 km'den uzak nokta, eski biçimli grup
+  (canlıda yoktu), gerçek telefon.
+- **Görülen kusur:** grup kartında yer adları ücret sütunu yüzünden kısalıyor ("Girne Ya…", "Ercan H…").
+
+- **Kullanıcı için ne değişti:**
+  - Grubu kuran artık ücret yazmaz; kişi başı ücreti uygulama hesaplar.
+  - Grup kurma formu 4 adım oldu; yeni adımda kurucu kendi toplama noktasını seçer.
+  - Gruba katılırken yolcudan toplama noktası istenir ve yeni kişi başı ücret gösterilir.
+  - Üyeler toplama noktasını sonradan değiştirebilir.
+  - Grup kartlarında ücret "≈" ile gösterilir (üye değişince değişebilir).
+  - Eski biçimli gruplar (toplama noktası olmayanlar) listede görünür ama katılıma kapalıdır
+    ("Eski sürüm grubu"); üyeleri yalnızca ayrılabilir.
+- **Altta ne değişti:**
+  - `sharedRides` belgesine yeni alanlar: buluşma/varış koordinatı (`fromPoint`, `toPoint`), güzergâh
+    uzunluğu (`baseMeters`), üye başına sapma (`detours`) ve `status` (şimdilik hep `open`).
+  - Üyenin toplama noktası özel kayıtta: `sharedRides/{id}/pickups/{uid}`; kurallara göre yalnızca sahibi okur
+    (başka üye ve şoför dahil kimse göremez).
+  - Ücret formülü `lib/core/group_fare.dart` içinde; **aynısı `firestore.rules` içinde de yazılı** ve kurallar
+    gönderilen ücreti bununla karşılaştırır.
+  - Yeni kural testleri eklendi (55 → 70).
+- **Bağlantılar:** tasarım `docs/superpowers/specs/2026-11-13-grup-toplama-design.md`, uygulama planı
+  `docs/superpowers/plans/2026-11-13-grup-toplama-asama-1.md`.
+- **Sıradaki iş:**
+  1. Sahibin onayı: kurallar canlıya yüklensin + dal `main`'e birleşsin + yeni APK derlensin, **üçü birlikte**
+     (bkz. UYARILAR "Grup toplama"). Yüklemeden sonra gerçek Firebase'e karşı emülatörde deneme.
+  2. **Aşama 2 planı:** şoför bir grubu üstlenir (üye listesi ve ücret kilitlenir). Plan, son incelemeden
+     şunları içermeli:
+     - Üstlenilmiş gruptan ayrılmak ücret alanlarını değiştirmemeli (kurallardaki `isLeave` için durum denetimi).
+     - Yazılan ücret önizlenenden yüksekse katılma yeniden onaylatılmalı.
+     - Şoför, kalkıştan 60 dakika öncesinden itibaren toplama kayıtlarını okuyabilmeli.
+     - Gerçek Firebase'e karşı duman testi (sahibin onayıyla): varsayılan noktayla grup kur, ikinci hesap
+       2–5 km uzaktan katılsın, noktayı değiştir, ayrıl, son üye ayrılsın, üyeyken bir hesabı sil.
+  3. Aşama 3–4 (kalkış günü akışı, "Gelmedi" kaydı) tasarımda anlatıldığı gibi.
+  4. Ayrı ve daha sonraki proje: kapora / uygulama içi ödeme. Şoförü koruyan asıl çözüm o.
 
 ## 7–12 Kasım 2026: grup konum seçici ve güvenlik denetimi (`main`, `c9389ae`)
 **Durum:** Hepsi `main`'de ve GitHub'da; yeni kurallar 12 Kasım'da canlıya yüklendi; `apk/KKTCTaksim-test.apk`

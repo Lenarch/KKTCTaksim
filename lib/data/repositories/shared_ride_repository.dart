@@ -1,8 +1,10 @@
+import 'package:kktc_taksim/core/group_fare.dart';
 import 'package:kktc_taksim/models/chat_message.dart';
 import 'package:kktc_taksim/models/group_diagnostics.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/shared_ride.dart';
 
-enum SharedRideError { full, notFound, notMember }
+enum SharedRideError { full, notFound, notMember, closed }
 
 /// Sohbet mesajı şikâyet nedenleri; Firestore kurallarındaki listeyle aynı adlar.
 enum ReportReason { spam, harassment, inappropriate, other }
@@ -21,16 +23,23 @@ abstract class SharedRideRepository {
   /// Kalkış zamanı gelmemiş gruplar, en yakın kalkış başta.
   Stream<List<SharedRide>> watchActive();
 
-  /// Grubu oluşturur; oluşturan kişi ilk üye olur. Kimliği repository verir.
-  Future<void> create(SharedRide ride);
+  /// Grubu oluşturur; oluşturan kişi [pickup] noktasıyla ilk üye olur. Kimliği repository verir.
+  Future<void> create(SharedRide draft, Pickup pickup);
 
   /// Grup açılamayınca oturumu, sunucudan okumayı ve telefon saatini ölçer; hata fırlatmaz.
   Future<GroupDiagnostics> diagnose();
 
-  /// Dolu gruba katılmak [SharedRideException] fırlatır.
-  Future<void> join(String rideId);
+  /// Dolu ya da açık olmayan gruba katılmak [SharedRideException] fırlatır.
+  Future<void> join(String rideId, Pickup pickup);
 
-  /// Son üye ayrılırsa grup sohbetiyle birlikte silinir.
+  /// Üyenin biniş noktasını ve sapmasını değiştirir; ücret yeniden hesaplanır.
+  Future<void> changePickup(String rideId, Pickup pickup);
+
+  /// Giriş yapan kullanıcının bu gruptaki toplama noktası; üye değilse, eski grupta ya da
+  /// girişsizken null. Hata fırlatmaz.
+  Future<Pickup?> myPickup(String rideId);
+
+  /// Toplama kaydı silinir; son üye ayrılırsa grup sohbetiyle birlikte silinir.
   Future<void> leave(String rideId);
 
   /// Grup sohbeti, eskiden yeniye (en fazla son [chatHistoryLimit] mesaj). Yalnızca üyeler okur.
@@ -68,14 +77,53 @@ String? normalizeMessage(String text) {
   return trimmed.length <= ChatMessage.maxLength ? trimmed : trimmed.substring(0, ChatMessage.maxLength);
 }
 
-/// [userId] katılınca üye listesi; zaten üyeyse liste aynen döner.
-/// Dolu grupta [SharedRideException] fırlatır.
-List<String> membersAfterJoin(SharedRide ride, String userId) {
-  if (ride.hasMember(userId)) return ride.memberIds;
-  if (ride.isFull) throw const SharedRideException(SharedRideError.full);
-  return [...ride.memberIds, userId];
+/// Üyelerin sapmalarına göre kişi başı ücret; [members] en az 1 olmalı.
+int _priceFor(SharedRide ride, Map<String, int> detours, int members) => groupPricePerPerson(
+      baseMeters: ride.baseMeters,
+      extraMeters: detours.values.fold(0, (sum, d) => sum + d),
+      capacity: ride.capacity,
+      members: members,
+    );
+
+/// Taslaktan, [userId] tek üye olarak yeni grup; sapması ve ücreti hesaplanır.
+SharedRide newGroup(SharedRide draft, String userId, int detourMeters) {
+  final detours = {userId: detourMeters};
+  return draft.copyWith(memberIds: [userId], detours: detours, pricePerPerson: _priceFor(draft, detours, 1));
 }
 
-/// [userId] ayrılınca üye listesi; boşsa grup silinmelidir.
-List<String> membersAfterLeave(SharedRide ride, String userId) =>
-    ride.memberIds.where((id) => id != userId).toList();
+/// [userId] katılınca grup; zaten üyeyse aynı nesne döner.
+/// Eski biçimli ya da açık olmayan grupta [SharedRideError.closed], dolu grupta
+/// [SharedRideError.full] fırlatır.
+SharedRide rideAfterJoin(SharedRide ride, String userId, int detourMeters) {
+  if (ride.hasMember(userId)) return ride;
+  if (ride.isLegacy || ride.status != SharedRideStatus.open) {
+    throw const SharedRideException(SharedRideError.closed);
+  }
+  if (ride.isFull) throw const SharedRideException(SharedRideError.full);
+  final members = [...ride.memberIds, userId];
+  final detours = {...ride.detours, userId: detourMeters};
+  return ride.copyWith(memberIds: members, detours: detours, pricePerPerson: _priceFor(ride, detours, members.length));
+}
+
+/// [userId] ayrılınca grup; son üyeyse null (grup silinmelidir), üye değilse aynı nesne.
+/// Eski biçimde yalnızca üye çıkar, ücret değişmez.
+SharedRide? rideAfterLeave(SharedRide ride, String userId) {
+  if (!ride.hasMember(userId)) return ride;
+  final members = ride.memberIds.where((id) => id != userId).toList();
+  if (members.isEmpty) return null;
+  if (ride.isLegacy) return ride.copyWith(memberIds: members);
+  final detours = {...ride.detours}..remove(userId);
+  return ride.copyWith(memberIds: members, detours: detours, pricePerPerson: _priceFor(ride, detours, members.length));
+}
+
+/// [userId] biniş noktasını değiştirince grup; yalnızca onun sapması ve ücret güncellenir.
+/// Üye değilse [SharedRideError.notMember], eski biçimli ya da açık olmayan grupta
+/// [SharedRideError.closed] fırlatır.
+SharedRide rideAfterRepick(SharedRide ride, String userId, int detourMeters) {
+  if (!ride.hasMember(userId)) throw const SharedRideException(SharedRideError.notMember);
+  if (ride.isLegacy || ride.status != SharedRideStatus.open) {
+    throw const SharedRideException(SharedRideError.closed);
+  }
+  final detours = {...ride.detours, userId: detourMeters};
+  return ride.copyWith(detours: detours, pricePerPerson: _priceFor(ride, detours, ride.current));
+}

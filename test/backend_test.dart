@@ -5,8 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:kktc_taksim/core/app_tokens.dart';
+import 'package:kktc_taksim/core/group_fare.dart';
 import 'package:kktc_taksim/data/backend.dart';
+import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
+import 'package:kktc_taksim/data/firebase/firebase_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/mock/mock_auth_repository.dart';
@@ -27,6 +30,7 @@ import 'package:kktc_taksim/models/app_user.dart';
 import 'package:kktc_taksim/models/fare_estimate.dart';
 import 'package:kktc_taksim/models/geo_place.dart';
 import 'package:kktc_taksim/models/payment_method.dart';
+import 'package:kktc_taksim/models/pickup.dart';
 import 'package:kktc_taksim/models/ride_progress.dart';
 import 'package:kktc_taksim/models/ride_request.dart';
 import 'package:kktc_taksim/models/ride_session.dart';
@@ -159,6 +163,72 @@ void main() {
       rides = MockSharedRideRepository(auth);
     });
 
+    test('oluşturan kendi toplama noktasıyla ilk üye olur', () async {
+      final me = (await _signIn(auth)).id;
+      const home = GeoPlace(name: 'Evim', position: LatLng(35.2, 33.35));
+      final draft = SharedRide(
+        id: '',
+        from: 'Lefkoşa',
+        to: 'Girne',
+        departure: DateTime.now().add(const Duration(days: 2)),
+        capacity: 4,
+        memberIds: const [],
+        pricePerPerson: 0,
+        fromPoint: const LatLng(35.1856, 33.3823),
+        toPoint: const LatLng(35.3417, 33.3192),
+        baseMeters: 26000,
+      );
+      await rides.create(draft, const Pickup(place: home, detourMeters: 1200));
+      final g = (await rides.watchActive().first).firstWhere((r) => r.memberIds.contains(me));
+      expect((g.detours[me], g.pricePerPerson), (
+        1200,
+        groupPricePerPerson(baseMeters: g.baseMeters, extraMeters: 1200, capacity: g.capacity, members: 1),
+      ));
+      expect((await rides.myPickup(g.id))!.place.name, home.name);
+    });
+
+    test('katılma, nokta değiştirme ve ayrılma toplama kaydını yönetir', () async {
+      final me = (await _signIn(auth)).id;
+      const spot = GeoPlace(name: 'Köşe', position: LatLng(35.19, 33.4));
+      expect(await rides.myPickup('demo-group-1'), isNull);
+      await rides.join('demo-group-1', const Pickup(place: spot, detourMeters: 500));
+      expect((await rides.myPickup('demo-group-1'))!.place.name, 'Köşe');
+      var g = (await rides.watchActive().first).firstWhere((r) => r.id == 'demo-group-1');
+      expect(g.detours[me], 500);
+
+      await rides.changePickup('demo-group-1', const Pickup(place: spot, detourMeters: 0));
+      g = (await rides.watchActive().first).firstWhere((r) => r.id == 'demo-group-1');
+      expect(g.detours[me], 0);
+
+      await rides.leave('demo-group-1');
+      expect(await rides.myPickup('demo-group-1'), isNull);
+      g = (await rides.watchActive().first).firstWhere((r) => r.id == 'demo-group-1');
+      expect(g.detours.containsKey(me), isFalse);
+    });
+
+    test('son üye ayrılınca grup ve toplama kaydı silinir', () async {
+      await _signIn(auth);
+      await rides.create(
+        SharedRide(
+          id: '',
+          from: 'A',
+          to: 'B',
+          departure: DateTime.now().add(const Duration(days: 1)),
+          capacity: 4,
+          memberIds: const [],
+          pricePerPerson: 0,
+          fromPoint: const LatLng(35.2, 33.3),
+          toPoint: const LatLng(35.3, 33.4),
+          baseMeters: 15000,
+        ),
+        _pickup(),
+      );
+      final g = (await rides.watchActive().first).firstWhere((r) => r.from == 'A');
+      await rides.leave(g.id);
+      expect((await rides.watchActive().first).any((r) => r.id == g.id), isFalse);
+      expect(await rides.myPickup(g.id), isNull);
+    });
+
     test('oluşturan ilk üye olur; katılma ve ayrılma üyeliği değiştirir', () async {
       final user = await _signIn(auth);
       await rides.create(SharedRide(
@@ -169,7 +239,7 @@ void main() {
         capacity: 4,
         memberIds: const [],
         pricePerPerson: 300,
-      ));
+      ), _pickup());
       var active = await rides.watchActive().first;
       final created = active.firstWhere((r) => r.from == 'Girne' && r.to == 'Gazimağusa');
       expect(created.id, isNotEmpty);
@@ -181,7 +251,7 @@ void main() {
       expect(active.any((r) => r.id == created.id), isFalse);
 
       final other = active.first;
-      await rides.join(other.id);
+      await rides.join(other.id, _pickupAt(other));
       active = await rides.watchActive().first;
       expect(active.firstWhere((r) => r.id == other.id).hasMember(user.id), isTrue);
     });
@@ -196,13 +266,16 @@ void main() {
         capacity: 1,
         memberIds: const [],
         pricePerPerson: 100,
-      ));
+        fromPoint: const LatLng(35.3, 33.3),
+        toPoint: const LatLng(35.2, 33.4),
+        baseMeters: 10000,
+      ), _pickup());
       final full = (await rides.watchActive().first).firstWhere((r) => r.from == 'X');
 
       await auth.sendCode('+90 542 000 00 00');
       await auth.verifyCode('1' * auth.codeLength);
       await expectLater(
-        rides.join(full.id),
+        rides.join(full.id, _pickupAt(full)),
         throwsA(isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.full)),
       );
     });
@@ -218,7 +291,10 @@ void main() {
         capacity: 4,
         memberIds: const [],
         pricePerPerson: 150,
-      ));
+        fromPoint: const LatLng(35.2, 32.99),
+        toPoint: const LatLng(35.18, 33.38),
+        baseMeters: 20000,
+      ), _pickup());
       final group = (await rides.watchActive().first).firstWhere((r) => r.from == 'Güzelyurt');
       expect(await rides.watchMessages(group.id).first, isEmpty);
       expect(await rides.watchLatestMessage(group.id).first, isNull);
@@ -239,7 +315,7 @@ void main() {
       final notMember = isA<SharedRideException>().having((e) => e.error, 'error', SharedRideError.notMember);
       await expectLater(rides.sendMessage(group.id, 'Merhaba'), throwsA(notMember));
       await expectLater(rides.watchMessages(group.id).first, throwsA(notMember));
-      await rides.join(group.id);
+      await rides.join(group.id, _pickupAt(group));
       expect(await rides.watchMessages(group.id).first, hasLength(2));
       await rides.leave(group.id);
 
@@ -393,8 +469,86 @@ void main() {
       );
       expect(SharedRide.fromJson(ride.toJson()).toJson(), ride.toJson());
 
+      final pointed = SharedRide(
+        id: 'g2',
+        from: 'Girne',
+        to: 'Lefkoşa',
+        departure: DateTime(2026, 11, 2, 10),
+        capacity: 4,
+        memberIds: const ['a', 'b'],
+        pricePerPerson: 500,
+        fromPoint: const LatLng(35.34, 33.32),
+        toPoint: const LatLng(35.18, 33.38),
+        baseMeters: 20000,
+        detours: const {'a': 0, 'b': 2500},
+      );
+      final copy = SharedRide.fromJson(pointed.toJson());
+      expect(copy.toJson(), pointed.toJson());
+      expect(copy.fromPoint, pointed.fromPoint);
+      expect(copy.toPoint, pointed.toPoint);
+      expect(copy.baseMeters, 20000);
+      expect(copy.detours, {'a': 0, 'b': 2500});
+      expect(copy.extraMeters, 2500);
+      expect(copy.status, SharedRideStatus.open);
+      expect(pointed.toJson()['status'], 'open');
+      expect(ride.isLegacy, isTrue);
+
       const user = AppUser(id: 'u1', phone: _phone, name: 'Ayşe');
       expect(AppUser.fromJson(user.toJson()).toJson(), user.toJson());
+    });
+
+    test('Grup belgesi: kurallardaki anahtar kümesi, id yok, sayılar int', () {
+      final draft = SharedRide(
+        id: '',
+        from: 'Girne',
+        to: 'Lefkoşa',
+        departure: DateTime(2026, 11, 2, 10),
+        capacity: 4,
+        memberIds: const [],
+        fromPoint: const LatLng(35.34, 33.32),
+        toPoint: const LatLng(35.18, 33.38),
+        baseMeters: 20000,
+      );
+      final doc = sharedRideToDocument(newGroup(draft, 'a', 1200));
+      expect(doc.keys.toSet(), {
+        'from', 'to', 'fromPoint', 'toPoint', 'departure', 'capacity', 'memberIds', 'baseMeters',
+        'detours', 'extraMeters', 'pricePerPerson', 'status', //
+      });
+      // LatLng boylamı normalleştirirken son basamakta kayar; birebir değil yakınlık denetlenir.
+      expect(doc['fromPoint'], {'lat': closeTo(35.34, 1e-9), 'lng': closeTo(33.32, 1e-9)});
+      expect(doc['extraMeters'], 1200);
+      expect(doc['detours'], {'a': 1200});
+      for (final key in ['capacity', 'baseMeters', 'extraMeters', 'pricePerPerson']) {
+        expect(doc[key], isA<int>(), reason: key);
+      }
+      expect((doc['detours'] as Map).values.every((v) => v is int), isTrue);
+    });
+
+    test('Toplama kaydı belgesi gidiş-dönüş', () {
+      const pickup = Pickup(place: GeoPlace(name: 'Şirinevler', position: LatLng(35.3, 33.3)), detourMeters: 800);
+      final doc = pickupToDocument(pickup);
+      expect(doc.keys.toSet(), {'place', 'state'});
+      expect(doc['state'], 'waiting');
+      final place = doc['place'] as Map;
+      expect(place.keys.toSet(), {'name', 'lat', 'lng'});
+      expect(place['name'], 'Şirinevler');
+      expect(place['lat'], closeTo(35.3, 1e-9));
+      expect(place['lng'], closeTo(33.3, 1e-9));
+      final back = pickupFromDocument(doc, 800);
+      expect(back.place.name, 'Şirinevler');
+      expect(back.place.position.latitude, closeTo(35.3, 1e-9));
+      expect(back.place.position.longitude, closeTo(33.3, 1e-9));
+      expect(back.detourMeters, 800);
+      expect(pickupToDocument(back), doc);
+    });
+
+    test('Toplama noktası adı kuralların izin verdiği 200 karaktere kısaltılır', () {
+      final pickup = Pickup(
+        place: GeoPlace(name: 'x' * 250, position: const LatLng(35.3, 33.3)),
+        detourMeters: 0,
+      );
+      final place = pickupToDocument(pickup)['place'] as Map;
+      expect((place['name'] as String).length, 200);
     });
   });
 
@@ -485,7 +639,7 @@ void main() {
     final trips = backend.trips;
     final shared = backend.sharedRides;
 
-    await shared.join('demo-group-1');
+    await shared.join('demo-group-1', _pickupAt(MockData.sharedRides().first));
     await shared.sendMessage('demo-group-1', 'Benim mesajım');
     await shared.create(SharedRide(
       id: '',
@@ -495,7 +649,7 @@ void main() {
       capacity: 4,
       memberIds: const [],
       pricePerPerson: 200,
-    ));
+    ), _pickup());
     final shareId = await backend.liveShares.start(
       const LiveShareInfo(
         from: 'A',
@@ -531,7 +685,7 @@ void main() {
     // Grupta kalan biri, silinen kullanıcının mesajını artık görmez.
     await backend.auth.sendCode('+90 542 000 00 00');
     await backend.auth.verifyCode('1' * backend.auth.codeLength);
-    await shared.join('demo-group-1');
+    await shared.join('demo-group-1', _pickupAt(MockData.sharedRides().first));
     final messages = await shared.watchMessages('demo-group-1').first;
     expect(messages.where((m) => m.senderId == user.id), isEmpty);
   });
@@ -622,3 +776,9 @@ void main() {
     expect(progressFor(RideStatus.driverAssigned, null, request), isNull);
   });
 }
+
+/// Testlerde toplama noktası: grubun buluşma noktası (ya da sabit bir nokta), sapma 0.
+Pickup _pickup() => const Pickup(place: GeoPlace(name: 'Nokta', position: LatLng(35.2, 33.3)), detourMeters: 0);
+
+Pickup _pickupAt(SharedRide ride) =>
+    Pickup(place: ride.meetingPlace ?? _pickup().place, detourMeters: 0);

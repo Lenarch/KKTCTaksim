@@ -86,7 +86,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               children: [
                 HomeScreen(key: _homeKey, geocoding: widget.geocoding, routing: widget.routing),
                 MyTripsScreen(onCallTaxi: () => _onItemTapped(_homeIndex)),
-                const SharedRideScreen(),
+                SharedRideScreen(geocoding: widget.geocoding, routing: widget.routing),
                 ExploreScreen(onCallTaxi: _callTaxiTo),
                 ProfileScreen(hasActiveRide: () => _homeKey.currentState?.hasActiveRide ?? false),
               ],

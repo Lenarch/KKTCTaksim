@@ -588,7 +588,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get endPoint => 'Destination';
 
   @override
-  String get rideDetails => 'Date, Time and Price';
+  String get rideDetails => 'Date, Time and Capacity';
 
   @override
   String get rideDate => 'Date';
@@ -605,15 +605,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pricePerPersonLabel => 'Price per person';
-
-  @override
-  String get pricePerPersonHelp => 'The amount each passenger pays';
-
-  @override
-  String pricePerPersonInvalid(String max) {
-    return 'Enter an amount between 1 and $max';
+  String groupFareEstimate(String one, String full) {
+    return 'Alone $one, about $full per person once the group is full';
   }
+
+  @override
+  String get largeGroupNote =>
+      'Groups of 5 or more are priced with the large-vehicle tariff.';
 
   @override
   String get createRideButton => 'Create Ride';
@@ -1073,4 +1071,51 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get nameReserved =>
       'This name can\'t be used. Please enter your own name.';
+
+  @override
+  String get pickupTitle => 'Where should we pick you up?';
+
+  @override
+  String get pickupAtMeeting => 'I\'ll board at the meeting point';
+
+  @override
+  String get pickupElsewhere => 'I want to be picked up elsewhere';
+
+  @override
+  String pickupTooFar(int km) {
+    return 'This spot is too far from the meeting point (at most $km km).';
+  }
+
+  @override
+  String get pickupPrivacy => 'Only you and the driver can see this spot.';
+
+  @override
+  String pickupExtra(String distance) {
+    return 'Distance added to the fare: $distance';
+  }
+
+  @override
+  String joinPricePreview(String price, String current) {
+    return 'If you join, it will be $price per person (now $current).';
+  }
+
+  @override
+  String get saveChanges => 'Save';
+
+  @override
+  String get priceMayChange => 'Changes with the number of people';
+
+  @override
+  String get legacyGroup => 'Old-version group';
+
+  @override
+  String get groupClosed => 'This group can no longer be joined.';
+
+  @override
+  String myPickupPoint(String name) {
+    return 'My pickup point: $name';
+  }
+
+  @override
+  String get changePickupAction => 'Change';
 }
