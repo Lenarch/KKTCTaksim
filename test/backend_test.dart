@@ -9,6 +9,7 @@ import 'package:kktc_taksim/core/group_fare.dart';
 import 'package:kktc_taksim/data/backend.dart';
 import 'package:kktc_taksim/data/mock_data.dart';
 import 'package:kktc_taksim/data/firebase/firebase_auth_repository.dart';
+import 'package:kktc_taksim/data/firebase/firebase_shared_ride_repository.dart';
 import 'package:kktc_taksim/data/firebase/firebase_trip_repository.dart';
 import 'package:kktc_taksim/data/firebase/switch_map.dart';
 import 'package:kktc_taksim/data/mock/mock_auth_repository.dart';
@@ -494,6 +495,51 @@ void main() {
 
       const user = AppUser(id: 'u1', phone: _phone, name: 'Ayşe');
       expect(AppUser.fromJson(user.toJson()).toJson(), user.toJson());
+    });
+
+    test('Grup belgesi: kurallardaki anahtar kümesi, id yok, sayılar int', () {
+      final draft = SharedRide(
+        id: '',
+        from: 'Girne',
+        to: 'Lefkoşa',
+        departure: DateTime(2026, 11, 2, 10),
+        capacity: 4,
+        memberIds: const [],
+        fromPoint: const LatLng(35.34, 33.32),
+        toPoint: const LatLng(35.18, 33.38),
+        baseMeters: 20000,
+      );
+      final doc = sharedRideToDocument(newGroup(draft, 'a', 1200));
+      expect(doc.keys.toSet(), {
+        'from', 'to', 'fromPoint', 'toPoint', 'departure', 'capacity', 'memberIds', 'baseMeters',
+        'detours', 'extraMeters', 'pricePerPerson', 'status', //
+      });
+      // LatLng boylamı normalleştirirken son basamakta kayar; birebir değil yakınlık denetlenir.
+      expect(doc['fromPoint'], {'lat': closeTo(35.34, 1e-9), 'lng': closeTo(33.32, 1e-9)});
+      expect(doc['extraMeters'], 1200);
+      expect(doc['detours'], {'a': 1200});
+      for (final key in ['capacity', 'baseMeters', 'extraMeters', 'pricePerPerson']) {
+        expect(doc[key], isA<int>(), reason: key);
+      }
+      expect((doc['detours'] as Map).values.every((v) => v is int), isTrue);
+    });
+
+    test('Toplama kaydı belgesi gidiş-dönüş', () {
+      const pickup = Pickup(place: GeoPlace(name: 'Şirinevler', position: LatLng(35.3, 33.3)), detourMeters: 800);
+      final doc = pickupToDocument(pickup);
+      expect(doc.keys.toSet(), {'place', 'state'});
+      expect(doc['state'], 'waiting');
+      final place = doc['place'] as Map;
+      expect(place.keys.toSet(), {'name', 'lat', 'lng'});
+      expect(place['name'], 'Şirinevler');
+      expect(place['lat'], closeTo(35.3, 1e-9));
+      expect(place['lng'], closeTo(33.3, 1e-9));
+      final back = pickupFromDocument(doc, 800);
+      expect(back.place.name, 'Şirinevler');
+      expect(back.place.position.latitude, closeTo(35.3, 1e-9));
+      expect(back.place.position.longitude, closeTo(33.3, 1e-9));
+      expect(back.detourMeters, 800);
+      expect(pickupToDocument(back), doc);
     });
   });
 
