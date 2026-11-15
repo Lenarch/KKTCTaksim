@@ -19,7 +19,9 @@ Testler: analyze temiz, Flutter 116/116, kurallar 70/70.
 - Hesap 03 son üye olarak ayrıldı: grup silindi (kurallar, toplama kaydı kalırsa silmeye izin vermez).
 - **Denenmedi:** üyeyken hesap silme, haritadan nokta seçerek katılma, 10 km'den uzak nokta, eski biçimli grup
   (canlıda yoktu), gerçek telefon.
-- **Görülen kusur:** grup kartında yer adları ücret sütunu yüzünden kısalıyor ("Girne Ya…", "Ercan H…").
+- **Görülen kusur (giderildi, 15 Kasım, `62b2998`):** grup kartında yer adları ücret sütunu yüzünden
+  kısalıyordu ("Girne Ya…"). "Kişi sayısına göre değişir" yazısı kendi satırına taşındı; emülatörde gerçek
+  Firebase ile doğrulandı. `main`'e birleştirildi, gönderildi, `apk/KKTCTaksim-test.apk` bu sürümden yenilendi.
 
 - **Kullanıcı için ne değişti:**
   - Grubu kuran artık ücret yazmaz; kişi başı ücreti uygulama hesaplar.
