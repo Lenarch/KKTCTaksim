@@ -1,6 +1,6 @@
 # KKTC Taksim: İlerleme Kaydı
 
-Son güncelleme: **14 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
+Son güncelleme: **15 Kasım 2026**. Bu dosya Claude Code ile yapılan çalışma
 oturumlarının özetidir; yeni bir oturuma başlarken "nerede kalmıştık" sorusunun cevabı buradadır.
 İlgili belgeler: `docs/BACKEND_PLANI.md` (Firebase yol haritası), `docs/UYARILAR.md` (bilinmesi
 gerekenler ve yayından önce yapılacaklar).
