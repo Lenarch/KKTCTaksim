@@ -361,7 +361,9 @@ class _RideCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.circle, color: AppTheme.primaryYellow, size: 12),
                           const SizedBox(width: AppSpacing.sm),
-                          Flexible(child: Text(ride.from, style: placeStyle, overflow: TextOverflow.ellipsis)),
+                          Flexible(
+                            child: Text(ride.from, style: placeStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                       ),
                       const SizedBox(height: AppSpacing.xs),
@@ -369,12 +371,15 @@ class _RideCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.location_on, color: AppTheme.errorRed, size: 12),
                           const SizedBox(width: AppSpacing.sm),
-                          Flexible(child: Text(ride.to, style: placeStyle, overflow: TextOverflow.ellipsis)),
+                          Flexible(
+                            child: Text(ride.to, style: placeStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: AppSpacing.md),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -383,11 +388,16 @@ class _RideCard extends StatelessWidget {
                       style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(l10n.perPerson, style: mutedStyle),
-                    if (priceMayChange) Text(l10n.priceMayChange, style: mutedStyle),
                   ],
                 ),
               ],
             ),
+            // Uzun açıklama ücret sütununda durursa sütunu genişletip yer adlarını kısaltıyordu.
+            if (priceMayChange)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Text(l10n.priceMayChange, style: mutedStyle, textAlign: TextAlign.end),
+              ),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
               child: Divider(height: 1),
